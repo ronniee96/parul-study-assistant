@@ -1,0 +1,56 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary-50: #f0f4ff;
+  --color-primary-100: #e0e7ff;
+  --color-primary-200: #c7d2fe;
+  --color-primary-300: #a5b4fc;
+  --color-primary-400: #818cf8;
+  --color-primary-500: #667eea;
+  --color-primary-600: #5b5bd6;
+  --color-primary-700: #4c3ecf;
+  --color-primary-800: #3c32a3;
+  --color-primary-900: #312e81;
+
+  --color-accent-coral: #e17055;
+  --color-accent-mint: #00b894;
+  --color-accent-sky: #74b9ff;
+  --color-accent-amber: #fdcb6e;
+
+  --animate-pulse-slow: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  --animate-gradient: animated-gradient 3s ease infinite;
+
+  @keyframes animated-gradient {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+}
+
+@custom-variant dark (&:is(.dark *));
+
+@layer utilities {
+  .glass-card {
+    @apply bg-white/80 dark:bg-gray-800/80 backdrop-blur-md border border-white/20 dark:border-gray-700/50 shadow-lg rounded-[16px];
+  }
+  .confidence-high {
+    @apply bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400 border border-green-200 dark:border-green-800;
+  }
+  .confidence-medium {
+    @apply bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400 border border-amber-200 dark:border-amber-800;
+  }
+  .confidence-low {
+    @apply bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400 border border-red-200 dark:border-red-800;
+  }
+  .funnel-bar {
+    @apply transition-all duration-1000 ease-out;
+  }
+  .animated-gradient-bg {
+    background-size: 200% 200%;
+    animation: animated-gradient 5s ease infinite;
+  }
+}
+
+body {
+  @apply bg-gray-50 text-gray-900 dark:bg-gray-950 dark:text-gray-100 transition-colors duration-300;
+}
