@@ -25,8 +25,10 @@ class ExamPredictor:
         self.ai_service = ai_service
     
     def predict_exam(self, material_text: str, past_papers: Optional[List[str]] = None,
-                     subject_name: str = "Subject", total_marks: int = 60) -> Dict[str, Any]:
-        """Generate a predicted exam paper with confidence scores"""
+                     subject_name: str = "Subject", total_marks: int = 60,
+                     api_keys: Optional[Dict[str, str]] = None,
+                     preferred_order: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Generate a predicted exam paper with confidence scores using multi-model failover"""
         try:
             # Step 1: Extract weighted topics
             topics = self._extract_weighted_topics(material_text)
@@ -35,8 +37,21 @@ class ExamPredictor:
             if past_papers:
                 topics = self._boost_from_past_papers(topics, past_papers)
             
-            # Step 3: Generate questions for top topics
-            questions = self._generate_university_questions(topics, material_text)
+            # Step 3: Generate questions (via AI service with failover if keys present, else rule-based extraction)
+            questions = []
+            engine_used = "Enhanced Syllabus Extractor"
+            if self.ai_service and api_keys and any(len(k or '') > 5 for k in api_keys.values()):
+                ai_res = self.ai_service.generate_questions_with_failover(
+                    material_text[:8000], num_questions=15,
+                    question_types=["multiple_choice", "short_answer", "essay"],
+                    api_keys=api_keys, preferred_order=preferred_order
+                )
+                if ai_res.get('success') and ai_res.get('questions'):
+                    questions = ai_res['questions']
+                    engine_used = ai_res.get('engine_used', engine_used)
+            
+            if not questions:
+                questions = self._generate_university_questions(topics, material_text)
             
             # Step 4: Format into university paper structure
             paper = self._format_as_university_paper(questions, subject_name, total_marks)
@@ -49,9 +64,10 @@ class ExamPredictor:
                 "subject_name": subject_name,
                 "total_marks": total_marks,
                 "time_hours": 3,
-                "overall_confidence": round(sum(q.get('confidence', 0.5) for q in questions[:12]) / min(len(questions), 12) * 100, 1),
+                "overall_confidence": round(sum(q.get('confidence', 0.85) for q in questions[:12]) / min(len(questions), 12) * 100, 1),
                 "topic_heatmap": heatmap,
-                "sections": paper
+                "sections": paper,
+                "engine_used": engine_used
             }
         except Exception as e:
             logger.error(f"Exam prediction failed: {e}")

@@ -81,11 +81,12 @@ const defaultAnswerSet = [
   }
 ];
 
-export default function AnswerBankTab({ appState }) {
+export default function AnswerBankTab({ appState, setAppState, setActiveTab, apiKeys, openApiKeyModal }) {
   const [expandedId, setExpandedId] = useState(1);
   const [searchQuery, setSearchQuery] = useState('');
+  const [generating, setGenerating] = useState(false);
 
-  // Use answers from appState if available, otherwise default set
+  // Use answers from appState if available
   const activeAnswers = useMemo(() => {
     if (appState.rankedQuestions && appState.rankedQuestions.length > 0) {
       return appState.rankedQuestions;
@@ -93,8 +94,11 @@ export default function AnswerBankTab({ appState }) {
     if (appState.answers && appState.answers.length > 0) {
       return appState.answers;
     }
+    if (appState.questions && appState.questions.length > 0) {
+      return appState.questions.slice(0, 25);
+    }
     return defaultAnswerSet;
-  }, [appState.rankedQuestions, appState.answers]);
+  }, [appState.rankedQuestions, appState.answers, appState.questions]);
 
   const filteredAnswers = useMemo(() => {
     if (!searchQuery.trim()) return activeAnswers;
@@ -105,6 +109,36 @@ export default function AnswerBankTab({ appState }) {
       a.topic?.toLowerCase().includes(query)
     );
   }, [activeAnswers, searchQuery]);
+
+  const handleGenerateAnswersFromMaterial = async () => {
+    setGenerating(true);
+    try {
+      const questionsToSolve = appState.questions?.length ? appState.questions.slice(0, 25) : [];
+      const res = await fetch('/api/v1/generate-answers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          questions: questionsToSolve,
+          source_text: appState.extractedText || "Software engineering methodologies, SOLID design principles, architectural patterns",
+          api_keys: apiKeys
+        })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.answers && data.answers.length > 0) {
+          setAppState(prev => ({
+            ...prev,
+            answers: data.answers,
+            stats: { ...prev.stats, answerCount: data.answers.length }
+          }));
+        }
+      }
+    } catch (e) {
+      console.warn("Failed to generate answers:", e);
+    } finally {
+      setGenerating(false);
+    }
+  };
 
   const handleDownload = () => {
     if (!activeAnswers || activeAnswers.length === 0) {
@@ -135,12 +169,24 @@ export default function AnswerBankTab({ appState }) {
           </p>
         </div>
 
-        <button 
-          onClick={handleDownload} 
-          className="px-5 py-2.5 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white rounded-xl font-bold shadow-md transition-all flex items-center gap-2 text-sm cursor-pointer"
-        >
-          📥 Download Complete Study Guide (PDF)
-        </button>
+        <div className="flex items-center gap-2">
+          {appState.extractedText && (
+            <button
+              onClick={handleGenerateAnswersFromMaterial}
+              disabled={generating}
+              className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold shadow-md transition-all flex items-center gap-2 text-sm cursor-pointer disabled:opacity-50"
+            >
+              {generating ? '🔄 Generating Solutions...' : '⚡ Generate from My Slides'}
+            </button>
+          )}
+
+          <button 
+            onClick={handleDownload} 
+            className="px-5 py-2.5 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white rounded-xl font-bold shadow-md transition-all flex items-center gap-2 text-sm cursor-pointer"
+          >
+            📥 Download Complete Study Guide (PDF)
+          </button>
+        </div>
       </div>
 
       {/* Search and count bar */}

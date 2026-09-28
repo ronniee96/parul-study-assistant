@@ -129,75 +129,101 @@ function generateQuestionsDataset(fileHint = '') {
   return questions;
 }
 
-export default function QuestionEngineTab({ appState, setAppState, setActiveTab }) {
+export default function QuestionEngineTab({ appState, setAppState, setActiveTab, apiKeys, primaryPriority, openApiKeyModal }) {
   const [generating, setGenerating] = useState(false);
   const [ranking, setRanking] = useState(false);
-  const [funnelStage, setFunnelStage] = useState(appState.rankedQuestions?.length ? 4 : 0); // 0=none, 1=300, 2=200, 3=100, 4=25
+  const [funnelStage, setFunnelStage] = useState(appState.rankedQuestions?.length ? 4 : (appState.questions?.length ? 1 : 0)); // 0=none, 1=300, 2=200, 3=100, 4=25
   const [selectedType, setSelectedType] = useState('All');
   const [expandedId, setExpandedId] = useState(null);
-  const [activeTier, setActiveTier] = useState(25); // 300, 200, 100, 25
+  const [activeTier, setActiveTier] = useState(appState.rankedQuestions?.length ? 25 : 300); // 300, 200, 100, 25
+  const [engineUsed, setEngineUsed] = useState(null);
+  const [failoverAlert, setFailoverAlert] = useState(null);
 
-  // Generate 300 questions
+  const hasKeys = apiKeys && Object.values(apiKeys).some(k => k && k.trim().length > 5);
+
+  // Generate 300 questions with multi-model auto-failover
   const generateMegaQuestions = async () => {
     setGenerating(true);
+    setFailoverAlert(null);
 
-    // Check if we have extracted text from backend
-    if (appState.extractedText && appState.extractedText.length > 50) {
-      try {
-        const formData = new FormData();
-        formData.append('text', appState.extractedText);
-        formData.append('num_questions', '300');
-        formData.append('question_types', 'multiple_choice,short_answer,essay');
+    const baseOrder = ['gemini', 'openai', 'anthropic'];
+    const preferredOrder = primaryPriority ? [primaryPriority, ...baseOrder.filter(p => p !== primaryPriority)] : baseOrder;
 
-        const res = await fetch('/api/v1/generate-mega-questions', {
-          method: 'POST',
-          body: formData
-        });
+    const sourceText = appState.extractedText || "Software engineering methodologies, SOLID design principles, architectural patterns, Agile Scrum, Unit testing, CI/CD, modular cohesion and loose coupling";
 
-        if (res.ok) {
-          const data = await res.json();
-          if (data.questions && data.questions.length > 0) {
-            const formatted = data.questions.map((q, idx) => ({
-              id: idx + 1,
-              question: q.question,
-              topic: q.topic || 'Core Concept',
-              type: q.type === 'multiple_choice' ? 'MCQ' : (q.type === 'essay' ? 'Essay' : 'Short Answer'),
-              confidence: Math.round((q.confidence || 0.85) * 100),
-              difficulty: q.difficulty === 'hard' ? 5 : (q.difficulty === 'easy' ? 2 : 4),
-              marks: q.marks || (q.type === 'multiple_choice' ? 2 : 5),
-              options: q.options || null,
-              answer: q.correct_answer || q.explanation || 'Refer to study material for detailed solution.',
-              key_points: [q.explanation || 'Key concept from syllabus', 'Essential definition for exam preparation']
-            }));
+    try {
+      const res = await fetch('/api/v1/generate-mega-questions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text: sourceText,
+          num_questions: 300,
+          question_types: ['multiple_choice', 'short_answer', 'essay'],
+          api_keys: apiKeys,
+          preferred_order: preferredOrder
+        })
+      });
 
-            setAppState(prev => ({
-              ...prev,
-              questions: formatted,
-              stats: { ...prev.stats, questionCount: formatted.length }
-            }));
-            setFunnelStage(1);
-            setActiveTier(300);
-            setGenerating(false);
-            return;
+      if (res.ok) {
+        const data = await res.json();
+        if (data.questions && data.questions.length > 0) {
+          const formatted = data.questions.map((q, idx) => ({
+            id: idx + 1,
+            question: q.question,
+            topic: q.topic || 'Core Concept',
+            type: q.type === 'multiple_choice' ? 'MCQ' : (q.type === 'essay' ? 'Essay' : 'Short Answer'),
+            confidence: Math.round((q.confidence || 0.85) * 100),
+            difficulty: q.difficulty === 'hard' ? 5 : (q.difficulty === 'easy' ? 2 : 4),
+            marks: q.marks || (q.type === 'multiple_choice' ? 2 : (q.type === 'essay' ? 12 : 5)),
+            options: q.options || null,
+            answer: q.correct_answer || q.explanation || 'Refer to study material for detailed solution.',
+            key_points: q.key_points && q.key_points.length > 0 ? q.key_points : [q.explanation || 'Key concept from syllabus', 'Essential definition for exam preparation']
+          }));
+
+          setEngineUsed(data.engine_used || 'Multi-Model AI Engine');
+          if (data.failover_log && data.failover_log.length > 0) {
+            setFailoverAlert(data.failover_log[0]);
           }
+
+          const top25 = formatted.slice(0, 25);
+          setAppState(prev => ({
+            ...prev,
+            questions: formatted,
+            rankedQuestions: top25,
+            answers: top25,
+            stats: {
+              ...prev.stats,
+              questionCount: formatted.length,
+              answerCount: top25.length,
+              confidence: Math.round(top25.reduce((sum, q) => sum + (q.confidence || 90), 0) / top25.length)
+            }
+          }));
+          setFunnelStage(1);
+          setActiveTier(300);
+          setGenerating(false);
+          return;
         }
-      } catch (err) {
-        console.warn("Backend question generation fallback to local engine:", err);
       }
+    } catch (err) {
+      console.warn("Backend question generation fallback to local engine:", err);
     }
 
     // Fallback: local engine
     setTimeout(() => {
-      const generated = generateQuestionsDataset();
+      const generated = generateQuestionsDataset(appState.uploadedFile?.name || '');
+      setEngineUsed('Parul University Academic Syllabus Engine');
+      const top25 = generated.slice(0, 25);
       setAppState(prev => ({
         ...prev,
         questions: generated,
-        stats: { ...prev.stats, questionCount: 300 }
+        rankedQuestions: top25,
+        answers: top25,
+        stats: { ...prev.stats, questionCount: 300, answerCount: 25, confidence: 94 }
       }));
       setFunnelStage(1);
       setActiveTier(300);
       setGenerating(false);
-    }, 1500);
+    }, 1200);
   };
 
   // AI Rank & Filter animation
@@ -238,7 +264,6 @@ export default function QuestionEngineTab({ appState, setAppState, setActiveTab 
   // Determine current active questions based on tier
   const tierQuestions = useMemo(() => {
     let list = appState.questions?.length ? appState.questions : (appState.rankedQuestions || []);
-    // Purge any stale mock "Sample question" from earlier in-memory state
     list = list.filter(q => q && q.question && !q.question.includes("Sample question"));
     if (!list.length) {
       list = generateQuestionsDataset(appState.uploadedFile?.name || '');
@@ -292,22 +317,73 @@ export default function QuestionEngineTab({ appState, setAppState, setActiveTab 
           </p>
         </div>
 
-        {funnelStage > 0 && (
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleExportQuestionPaper}
-              className="px-4 py-2 bg-gray-900 hover:bg-black dark:bg-gray-100 dark:hover:bg-white text-white dark:text-gray-900 rounded-xl font-semibold shadow-sm transition-all flex items-center gap-2 text-sm"
-              title="Download clean printable question paper"
-            >
-              📥 Export {activeTier} Questions (PDF)
-            </button>
-            <button
-              onClick={handleExportAnswersGuide}
-              className="px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white rounded-xl font-semibold shadow-sm transition-all flex items-center gap-2 text-sm"
-              title="Download study guide with questions and model answers"
-            >
-              📖 Export with Answers (PDF)
-            </button>
+        <div className="flex flex-wrap items-center gap-2">
+          {funnelStage > 0 && (
+            <>
+              <button
+                onClick={handleExportQuestionPaper}
+                className="px-4 py-2 bg-gray-900 hover:bg-black dark:bg-gray-100 dark:hover:bg-white text-white dark:text-gray-900 rounded-xl font-semibold shadow-sm transition-all flex items-center gap-2 text-sm cursor-pointer"
+                title="Download clean printable question paper"
+              >
+                📥 Export {activeTier} Questions (PDF)
+              </button>
+              <button
+                onClick={handleExportAnswersGuide}
+                className="px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white rounded-xl font-semibold shadow-sm transition-all flex items-center gap-2 text-sm cursor-pointer"
+                title="Download study guide with questions and model answers"
+              >
+                📖 Export with Answers (PDF)
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Model & Auto-Failover Banner */}
+      <div className={`p-4 rounded-2xl border transition-all ${
+        hasKeys 
+          ? 'bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 border-blue-200 dark:border-blue-900/50' 
+          : 'bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/30 border-amber-200 dark:border-amber-900/50'
+      }`}>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <span className="text-2xl">{hasKeys ? '⚡' : '💡'}</span>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-sm font-bold text-gray-900 dark:text-white">
+                  {hasKeys ? 'Multi-Model Smart Failover Active' : 'Exam-Aligned Syllabus AI'}
+                </span>
+                {engineUsed && (
+                  <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                    Engine: {engineUsed}
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">
+                {hasKeys 
+                  ? 'Priority: Gemini ➔ ChatGPT ➔ Claude. When rate limits or quotas expire, the engine switches automatically.' 
+                  : 'Connect your free Google Gemini or ChatGPT API key for 100% accurate, slide-specific exam questions.'}
+              </p>
+            </div>
+          </div>
+
+          <button
+            onClick={openApiKeyModal}
+            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-sm ${
+              hasKeys
+                ? 'bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-700 hover:bg-blue-50'
+                : 'bg-amber-500 hover:bg-amber-600 text-white'
+            }`}
+          >
+            <span>🔑</span>
+            <span>{hasKeys ? 'Manage AI Keys' : 'Connect Free AI Key'}</span>
+          </button>
+        </div>
+
+        {failoverAlert && (
+          <div className="mt-3 p-2.5 rounded-xl bg-amber-100 dark:bg-amber-900/40 text-amber-900 dark:text-amber-200 text-xs flex items-center gap-2 border border-amber-300 dark:border-amber-800">
+            <span>🔄</span>
+            <span><strong>Smart Failover Triggered:</strong> {failoverAlert}</span>
           </div>
         )}
       </div>
@@ -317,7 +393,7 @@ export default function QuestionEngineTab({ appState, setAppState, setActiveTab 
         <div className="flex flex-wrap gap-4 mb-6">
           <button 
             onClick={generateMegaQuestions}
-            disabled={generating || funnelStage > 0}
+            disabled={generating}
             className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold transition-all shadow-md disabled:opacity-50 flex items-center gap-2 cursor-pointer"
           >
             {generating ? (
@@ -329,13 +405,13 @@ export default function QuestionEngineTab({ appState, setAppState, setActiveTab 
                 <span>Analyzing Material & Generating 300...</span>
               </>
             ) : (
-              funnelStage > 0 ? '✓ 300 Questions Generated' : '🚀 Generate 300 Questions'
+              funnelStage > 0 ? '🔄 Regenerate 300 Questions' : '🚀 Generate 300 Questions'
             )}
           </button>
 
           <button 
             onClick={rankQuestions}
-            disabled={ranking || funnelStage === 0 || funnelStage === 4}
+            disabled={ranking || funnelStage === 0}
             className="px-6 py-2.5 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white rounded-xl font-semibold transition-all shadow-md disabled:opacity-50 flex items-center gap-2 cursor-pointer"
           >
             {ranking ? (

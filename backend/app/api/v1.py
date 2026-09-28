@@ -345,15 +345,67 @@ async def suggest_question_difficulty():
         )
 
 @router.post('/generate-mega-questions')
-async def generate_mega_questions(text: str = Form(...), num_questions: int = Form(300),
-                                   question_types: str = Form('multiple_choice,short_answer,essay')):
-    types = [t.strip() for t in question_types.split(',')]
-    result = ai_service.generate_mega_questions(text, num_questions, types)
+async def generate_mega_questions(request: Request):
+    """
+    Generate questions (up to 300) with multi-model auto-failover engine
+    Accepts JSON body or Form data
+    """
+    text = ""
+    num_questions = 300
+    question_types = ['multiple_choice', 'short_answer', 'essay']
+    api_keys = None
+    preferred_order = None
+
+    try:
+        data = await request.json()
+        text = data.get("text", "")
+        num_questions = int(data.get("num_questions", 300))
+        raw_types = data.get("question_types")
+        if isinstance(raw_types, list):
+            question_types = raw_types
+        elif isinstance(raw_types, str):
+            question_types = [t.strip() for t in raw_types.split(",")]
+        api_keys = data.get("api_keys")
+        preferred_order = data.get("preferred_order")
+    except Exception:
+        form = await request.form()
+        text = form.get("text", "")
+        num_questions = int(form.get("num_questions", 300))
+        raw_types = form.get("question_types", "multiple_choice,short_answer,essay")
+        question_types = [t.strip() for t in raw_types.split(",")]
+        raw_keys = form.get("api_keys")
+        if raw_keys:
+            try:
+                api_keys = json.loads(raw_keys)
+            except Exception:
+                pass
+        raw_order = form.get("preferred_order")
+        if raw_order:
+            try:
+                preferred_order = json.loads(raw_order)
+            except Exception:
+                pass
+
+    if not text or len(text.strip()) < 20:
+        raise HTTPException(status_code=400, detail="Text too short to generate questions")
+
+    result = ai_service.generate_mega_questions(
+        text, num_questions, question_types,
+        api_keys=api_keys, preferred_order=preferred_order
+    )
     return result
 
 @router.post('/rank-questions')
-async def rank_questions_endpoint(body: str = Form(...)):
-    data = json.loads(body)
+async def rank_questions_endpoint(request: Request):
+    data = {}
+    try:
+        data = await request.json()
+    except Exception:
+        form = await request.form()
+        body = form.get("body")
+        if body:
+            data = json.loads(body)
+
     result = question_ranker.rank_questions(
         data.get('questions', []), data.get('material_text', ''),
         data.get('past_papers')
@@ -361,19 +413,91 @@ async def rank_questions_endpoint(body: str = Form(...)):
     return result
 
 @router.post('/predict-exam')
-async def predict_exam_endpoint(material_text: str = Form(...),
-                                 subject_name: str = Form('Subject'),
-                                 total_marks: int = Form(60),
-                                 past_papers: str = Form('')):
-    pp = json.loads(past_papers) if past_papers else None
-    result = exam_predictor.predict_exam(material_text, pp, subject_name, total_marks)
+async def predict_exam_endpoint(request: Request):
+    """
+    Predict university exam paper with multi-model failover
+    Accepts JSON body or Form data
+    """
+    material_text = ""
+    subject_name = "Subject"
+    total_marks = 60
+    past_papers = None
+    api_keys = None
+    preferred_order = None
+
+    try:
+        data = await request.json()
+        material_text = data.get("material_text", "")
+        subject_name = data.get("subject_name", "Subject")
+        total_marks = int(data.get("total_marks", 60))
+        past_papers = data.get("past_papers")
+        api_keys = data.get("api_keys")
+        preferred_order = data.get("preferred_order")
+    except Exception:
+        form = await request.form()
+        material_text = form.get("material_text", "")
+        subject_name = form.get("subject_name", "Subject")
+        total_marks = int(form.get("total_marks", 60))
+        pp = form.get("past_papers")
+        if pp:
+            try:
+                past_papers = json.loads(pp)
+            except Exception:
+                pass
+        raw_keys = form.get("api_keys")
+        if raw_keys:
+            try:
+                api_keys = json.loads(raw_keys)
+            except Exception:
+                pass
+        raw_order = form.get("preferred_order")
+        if raw_order:
+            try:
+                preferred_order = json.loads(raw_order)
+            except Exception:
+                pass
+
+    if not material_text or len(material_text.strip()) < 20:
+        raise HTTPException(status_code=400, detail="Material text too short for exam prediction")
+
+    result = exam_predictor.predict_exam(
+        material_text, past_papers, subject_name, total_marks,
+        api_keys=api_keys, preferred_order=preferred_order
+    )
     return result
 
 @router.post('/generate-answers')
-async def generate_answers_endpoint(body: str = Form(...)):
-    data = json.loads(body)
-    result = answer_generator.generate_answers(data.get('questions', []), data.get('source_text', ''))
+async def generate_answers_endpoint(request: Request):
+    """
+    Generate model answers with failover AI engine
+    Accepts JSON body or Form data
+    """
+    data = {}
+    try:
+        data = await request.json()
+    except Exception:
+        form = await request.form()
+        body = form.get("body")
+        if body:
+            data = json.loads(body)
+
+    result = answer_generator.generate_answers(
+        data.get('questions', []),
+        data.get('source_text', ''),
+        api_keys=data.get('api_keys'),
+        preferred_order=data.get('preferred_order')
+    )
     return result
+
+@router.post('/test-api-key')
+async def test_api_key_endpoint(request: Request):
+    """
+    Verify student's API key for Gemini, OpenAI, or Claude
+    """
+    data = await request.json()
+    provider = data.get("provider", "")
+    key = data.get("key", "")
+    return ai_service.test_api_key(provider, key)
 
 @router.post('/create-pdf')
 async def create_pdf_endpoint(images: List[UploadFile] = File(...), title: str = Form('Captured Slides')):

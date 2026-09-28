@@ -12,13 +12,15 @@ class AnswerGenerator:
     def __init__(self, ai_service=None):
         self.ai_service = ai_service
     
-    def generate_answers(self, questions: List[Dict], source_text: str) -> Dict[str, Any]:
-        """Generate comprehensive answers for each question"""
+    def generate_answers(self, questions: List[Dict], source_text: str,
+                         api_keys: Optional[Dict[str, str]] = None,
+                         preferred_order: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Generate comprehensive answers for each question with model failover"""
         results = []
         
         for q in questions:
             try:
-                answer_data = self._generate_single_answer(q, source_text)
+                answer_data = self._generate_single_answer(q, source_text, api_keys, preferred_order)
                 results.append(answer_data)
             except Exception as e:
                 logger.error(f"Failed to generate answer for Q{q.get('id', '?')}: {e}")
@@ -30,7 +32,9 @@ class AnswerGenerator:
             'total': len(results)
         }
     
-    def _generate_single_answer(self, question: Dict, source_text: str) -> Dict:
+    def _generate_single_answer(self, question: Dict, source_text: str,
+                               api_keys: Optional[Dict[str, str]] = None,
+                               preferred_order: Optional[List[str]] = None) -> Dict:
         """Generate a single detailed answer"""
         q_text = question.get('question', '')
         marks = question.get('marks', 2)
@@ -40,10 +44,10 @@ class AnswerGenerator:
         # Find relevant content from source
         relevant_content = self._find_relevant_content(q_text, topic, source_text)
         
-        # Try AI generation first
+        # Try AI generation first with multi-model failover
         if self.ai_service and hasattr(self.ai_service, 'generate_answer'):
             try:
-                ai_answer = self.ai_service.generate_answer(q_text, relevant_content, marks)
+                ai_answer = self.ai_service.generate_answer(q_text, relevant_content, marks, api_keys, preferred_order)
                 if ai_answer:
                     return {
                         'question_id': question.get('id', 0),
@@ -52,7 +56,7 @@ class AnswerGenerator:
                         'key_points': ai_answer.get('key_points', []),
                         'marks': marks,
                         'word_count_suggestion': self._suggest_word_count(marks),
-                        'method': 'ai'
+                        'method': 'ai_failover'
                     }
             except Exception as e:
                 logger.warning(f"AI answer generation failed: {e}")
