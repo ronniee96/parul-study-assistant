@@ -1,0 +1,24 @@
+{
+  "name": "StudyAssistant",
+  "mode": "vendored",
+  "dependencies": {
+    "sickn33/antigravity-awesome-skills": {
+      "version": "7b534bc15d833baf3bc98b3ca4fb23eda48342bb",
+      "source": "https://github.com/sickn33/antigravity-awesome-skills",
+      "include": {
+        "skills": [
+          "antigravity-design-expert"
+        ]
+      }
+    }
+  },
+  "agents": [
+    "claude-code",
+    "cursor",
+    "gemini",
+    "antigravity",
+    "codex",
+    "copilot",
+    "copilot-vscode"
+  ]
+}

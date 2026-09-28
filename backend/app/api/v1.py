@@ -499,6 +499,23 @@ async def test_api_key_endpoint(request: Request):
     key = data.get("key", "")
     return ai_service.test_api_key(provider, key)
 
+@router.post('/process-captured-slides')
+async def process_captured_slides(request: Request):
+    """
+    Process captured slide frames from screen capture:
+    Multimodal AI analysis & question generation
+    """
+    data = await request.json()
+    frames = data.get("frames", [])
+    api_keys = data.get("api_keys", {})
+    preferred_order = data.get("preferred_order", ["gemini", "openai", "claude"])
+
+    if not frames:
+        raise HTTPException(status_code=400, detail="No captured frames provided")
+
+    result = ai_service.analyze_slides_and_generate(frames, api_keys=api_keys, preferred_order=preferred_order)
+    return result
+
 @router.post('/create-pdf')
 async def create_pdf_endpoint(images: List[UploadFile] = File(...), title: str = Form('Captured Slides')):
     image_bytes = [await img.read() for img in images]

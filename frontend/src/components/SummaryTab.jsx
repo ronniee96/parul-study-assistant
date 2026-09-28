@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { jsPDF } from 'jspdf';
+import MarkdownViewer from './MarkdownViewer';
 
 export default function SummaryTab({ appState, setAppState, setActiveTab }) {
   const [loading, setLoading] = useState(false);
@@ -351,53 +352,8 @@ This comprehensive study unit focuses on the architectural rigor, modular decomp
 
           {/* Subtab 1: Detailed Notes */}
           {activeSubTab === 'full' && (
-            <div className="glass-card p-6 md:p-8 flex flex-col gap-5 border border-gray-200 dark:border-gray-800 rounded-xl leading-relaxed text-gray-800 dark:text-gray-200">
-              {summary.text.split('\n\n').map((paragraph, pIdx) => {
-                const trimmed = paragraph.trim();
-                if (trimmed.startsWith('## ')) {
-                  return (
-                    <h3 key={pIdx} className="text-xl font-bold text-gray-900 dark:text-gray-100 border-b border-gray-200 dark:border-gray-800 pb-2 mt-4 text-teal-700 dark:text-teal-400 flex items-center gap-2">
-                      {trimmed.replace('## ', '')}
-                    </h3>
-                  );
-                }
-                if (trimmed.startsWith('### ')) {
-                  return (
-                    <h4 key={pIdx} className="text-base font-bold text-indigo-700 dark:text-indigo-400 mt-2">
-                      {trimmed.replace('### ', '')}
-                    </h4>
-                  );
-                }
-                if (trimmed.startsWith('|')) {
-                  // Table rendering
-                  const rows = trimmed.split('\n').filter(r => r.trim() && !r.includes('---'));
-                  return (
-                    <div key={pIdx} className="overflow-x-auto my-3">
-                      <table className="w-full text-xs md:text-sm text-left border-collapse border border-gray-200 dark:border-gray-700">
-                        <tbody>
-                          {rows.map((row, rIdx) => {
-                            const cols = row.split('|').filter((_, cIdx, arr) => cIdx > 0 && cIdx < arr.length - 1);
-                            return (
-                              <tr key={rIdx} className={rIdx === 0 ? "bg-teal-50 dark:bg-teal-950/60 font-bold text-teal-900 dark:text-teal-200" : "border-t border-gray-200 dark:border-gray-700"}>
-                                {cols.map((col, cIdx) => (
-                                  <td key={cIdx} className="p-3 border-r border-gray-200 dark:border-gray-700">
-                                    {col.trim().replace(/\*\*/g, '')}
-                                  </td>
-                                ))}
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                  );
-                }
-                return (
-                  <p key={pIdx} className="text-sm md:text-base leading-relaxed whitespace-pre-wrap font-normal">
-                    {trimmed}
-                  </p>
-                );
-              })}
+            <div className="glass-card p-6 md:p-8 border border-gray-200 dark:border-gray-800 rounded-xl leading-relaxed text-gray-800 dark:text-gray-200">
+              <MarkdownViewer content={summary.text} />
             </div>
           )}
 

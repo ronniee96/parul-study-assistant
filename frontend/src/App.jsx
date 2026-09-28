@@ -136,7 +136,7 @@ export default function App() {
       case 'upload': 
         return <UploadTab appState={appState} setAppState={setAppState} setActiveTab={setActiveTab} />;
       case 'capture': 
-        return <ScreenCaptureTab appState={appState} setAppState={setAppState} />;
+        return <ScreenCaptureTab appState={appState} setAppState={setAppState} setActiveTab={setActiveTab} apiKeys={apiKeys} openApiKeyModal={() => setApiKeyModalOpen(true)} />;
       case 'summary': 
         return <SummaryTab appState={appState} setAppState={setAppState} setActiveTab={setActiveTab} apiKeys={apiKeys} openApiKeyModal={() => setApiKeyModalOpen(true)} />;
       case 'questions': 

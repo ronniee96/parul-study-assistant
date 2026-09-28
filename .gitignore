@@ -18,3 +18,11 @@ frontend/.vite/
 
 # Logs
 *.log
+
+# Agent Skills & Plugins
+.agents/
+.tessl/
+.cursor/
+.claude/
+.codex/
+.gemini/

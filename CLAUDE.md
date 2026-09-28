@@ -210,3 +210,5 @@ All API routes are prefixed with `/api/v1` (defined in `backend/app/api/v1.py` a
 2. **Graceful Fallbacks**: All backend AI services (`AIService`, `ExamPredictor`, `AnswerGenerator`) provide robust mock/heuristic generation when OpenAI or Anthropic API keys are not supplied.
 3. **Pydantic Validation**: Ensure all requests and responses in new backend features utilize strong typing via schemas in `backend/app/models/schemas.py`.
 4. **Academic Integrity**: Always enforce the principles in `ETHICAL_GUIDELINES.md`. Never build scrapers for unauthorized academic repositories or implement features that bypass student learning comprehension.
+
+@AGENTS.md
