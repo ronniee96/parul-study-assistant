@@ -101,6 +101,7 @@ async def process_document(
             "word_count": processing_result["word_count"],
             "character_count": processing_result["character_count"],
             "extracted_text_preview": extracted_text[:500] + "..." if len(extracted_text) > 500 else extracted_text,
+            "extracted_text": extracted_text,
             "features_requested": {
                 "summary": generate_summary,
                 "questions": generate_questions,
@@ -134,10 +135,30 @@ async def process_document(
         )
 
 @router.post("/summarize")
-async def generate_summary_endpoint(text: str, max_length: int = 200):
+async def generate_summary_endpoint(request: Request):
     """
-    Generate a summary of provided text
+    Generate a comprehensive, structured summary of provided text
+    Accepts JSON body or query parameters
     """
+    text = ""
+    max_length = 1500
+    style = "comprehensive"
+    provider = None
+    api_key = None
+
+    try:
+        data = await request.json()
+        text = data.get("text", "")
+        max_length = data.get("max_length", 1500)
+        style = data.get("style", "comprehensive")
+        provider = data.get("provider")
+        api_key = data.get("api_key")
+    except Exception:
+        # Fallback to query params
+        params = request.query_params
+        text = params.get("text", "")
+        max_length = int(params.get("max_length", 1500))
+
     if not text or len(text.strip()) < 10:
         raise HTTPException(
             status_code=400,
@@ -145,13 +166,15 @@ async def generate_summary_endpoint(text: str, max_length: int = 200):
         )
 
     try:
-        result = ai_service.summarize_text(text, max_length)
+        result = ai_service.summarize_text(text, max_length=max_length, style=style, provider=provider, api_key=api_key)
         if not result["success"]:
             raise HTTPException(
                 status_code=422,
-                detail=result["error"]
+                detail=result.get("error", "Failed to generate summary")
             )
         return result
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error in summarization: {str(e)}")
         raise HTTPException(

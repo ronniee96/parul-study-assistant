@@ -46,7 +46,7 @@ export default function App() {
     switch (activeTab) {
       case 'upload': return <UploadTab appState={appState} setAppState={setAppState} />;
       case 'capture': return <ScreenCaptureTab appState={appState} setAppState={setAppState} />;
-      case 'summary': return <SummaryTab appState={appState} setAppState={setAppState} />;
+      case 'summary': return <SummaryTab appState={appState} setAppState={setAppState} setActiveTab={setActiveTab} />;
       case 'questions': return <QuestionEngineTab appState={appState} setAppState={setAppState} setActiveTab={setActiveTab} />;
       case 'predictor': return <ExamPredictorTab appState={appState} setAppState={setAppState} setActiveTab={setActiveTab} />;
       case 'answers': return <AnswerBankTab appState={appState} setAppState={setAppState} />;
