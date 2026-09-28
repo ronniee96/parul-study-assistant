@@ -12,6 +12,10 @@ export default defineConfig({
     host: '0.0.0.0',
     port: 5173,
     allowedHosts: true,
+    watch: {
+      usePolling: false,
+      ignored: ['**/dist/**', '**/.git/**', '**/node_modules/**']
+    },
     proxy: {
       '/api': {
         target: 'http://localhost:8000',
@@ -26,5 +30,6 @@ export default defineConfig({
   },
   build: {
     outDir: 'dist',
+    sourcemap: false
   }
 })

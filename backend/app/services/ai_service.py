@@ -58,20 +58,40 @@ class AIService:
         if provider_norm == "gemini":
             try:
                 import httpx
-                url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={key}"
-                payload = {
-                    "contents": [{"parts": [{"text": "Say OK"}]}],
-                    "generationConfig": {"maxOutputTokens": 5}
-                }
-                with httpx.Client(timeout=10.0) as client:
-                    resp = client.post(url, json=payload)
-                    if resp.status_code == 200:
-                        return {"valid": True, "provider": "gemini", "message": "Google Gemini 1.5 Flash Connected & Active"}
-                    elif resp.status_code == 429:
+                # 1. Try ListModels first (Google's official model discovery endpoint)
+                with httpx.Client(timeout=12.0) as client:
+                    list_url = f"https://generativelanguage.googleapis.com/v1beta/models?key={key}"
+                    list_resp = client.get(list_url)
+                    if list_resp.status_code == 200:
+                        models = list_resp.json().get("models", [])
+                        gen_models = [m.get("name", "").replace("models/", "") for m in models 
+                                      if "generateContent" in m.get("supportedGenerationMethods", [])]
+                        best_model = gen_models[0] if gen_models else "gemini"
+                        return {"valid": True, "provider": "gemini", "model": best_model, "message": f"Google Gemini Connected & Active ({best_model})"}
+                    elif list_resp.status_code == 429:
                         return {"valid": False, "rate_limited": True, "provider": "gemini", "message": "Gemini Quota or Rate Limit reached (HTTP 429). Auto-failover will switch."}
-                    else:
-                        error_msg = resp.json().get('error', {}).get('message', resp.text[:100])
-                        return {"valid": False, "provider": "gemini", "message": f"Gemini error: {error_msg}"}
+                    elif list_resp.status_code in [400, 403]:
+                        err_text = list_resp.json().get("error", {}).get("message", list_resp.text[:100])
+                        if "API_KEY_INVALID" in err_text or "not valid" in err_text.lower():
+                            return {"valid": False, "provider": "gemini", "message": f"Gemini API key rejected: {err_text}"}
+
+                    # 2. Try candidate models across v1beta and v1
+                    candidate_models = ["gemini-1.5-flash", "gemini-1.5-flash-latest", "gemini-2.0-flash", "gemini-1.5-pro", "gemini-pro"]
+                    for m in candidate_models:
+                        for v in ["v1beta", "v1"]:
+                            url = f"https://generativelanguage.googleapis.com/{v}/models/{m}:generateContent?key={key}"
+                            payload = {"contents": [{"parts": [{"text": "OK"}]}], "generationConfig": {"maxOutputTokens": 2}}
+                            try:
+                                gen_resp = client.post(url, json=payload)
+                                if gen_resp.status_code == 200:
+                                    return {"valid": True, "provider": "gemini", "model": m, "message": f"Google Gemini Connected & Active ({m})"}
+                                elif gen_resp.status_code == 429:
+                                    return {"valid": False, "rate_limited": True, "provider": "gemini", "message": "Gemini Quota or Rate Limit reached (HTTP 429). Auto-failover will switch."}
+                            except Exception:
+                                continue
+
+                    error_msg = list_resp.json().get('error', {}).get('message', list_resp.text[:100]) if list_resp.status_code != 200 else "Model unavailable"
+                    return {"valid": False, "provider": "gemini", "message": f"Gemini error: {error_msg}"}
             except Exception as e:
                 return {"valid": False, "provider": "gemini", "message": f"Gemini connection failed: {str(e)}"}
 
@@ -180,9 +200,72 @@ class AIService:
         academic_res['failover_log'] = failover_log
         return academic_res
 
+    def _call_gemini_api(self, prompt: str, api_key: str, max_tokens: int = 3000, 
+                         json_mode: bool = False, temperature: float = 0.3) -> str:
+        """Call Google Gemini API with dynamic model discovery and multi-version fallback"""
+        import httpx
+        candidates = [
+            "gemini-1.5-flash",
+            "gemini-1.5-flash-latest",
+            "gemini-2.0-flash",
+            "gemini-1.5-pro",
+            "gemini-pro"
+        ]
+        
+        generation_config = {
+            "temperature": temperature,
+            "maxOutputTokens": max_tokens
+        }
+        if json_mode:
+            generation_config["responseMimeType"] = "application/json"
+            
+        payload = {
+            "contents": [{"parts": [{"text": prompt}]}],
+            "generationConfig": generation_config
+        }
+        
+        last_error = ""
+        with httpx.Client(timeout=45.0) as client:
+            # Step 1: List models for discovery
+            try:
+                list_resp = client.get(f"https://generativelanguage.googleapis.com/v1beta/models?key={api_key}")
+                if list_resp.status_code == 200:
+                    models = list_resp.json().get("models", [])
+                    gen_models = [m.get("name", "").replace("models/", "") for m in models 
+                                  if "generateContent" in m.get("supportedGenerationMethods", [])]
+                    if gen_models:
+                        candidates = [m for m in gen_models if "flash" in m] + [m for m in gen_models if "pro" in m] + gen_models + candidates
+                elif list_resp.status_code == 429:
+                    raise RuntimeError("Gemini Quota Exceeded / Rate Limit reached (HTTP 429)")
+            except RuntimeError:
+                raise
+            except Exception:
+                pass
+
+            # Step 2: Try candidate models across v1beta and v1
+            tried = set()
+            for model_name in candidates:
+                if model_name in tried:
+                    continue
+                tried.add(model_name)
+                for api_ver in ["v1beta", "v1"]:
+                    url = f"https://generativelanguage.googleapis.com/{api_ver}/models/{model_name}:generateContent?key={api_key}"
+                    try:
+                        resp = client.post(url, json=payload)
+                        if resp.status_code == 200:
+                            data = resp.json()
+                            return data['candidates'][0]['content']['parts'][0]['text']
+                        elif resp.status_code == 429:
+                            raise RuntimeError("Gemini Quota Exceeded / Rate Limit reached (HTTP 429)")
+                        else:
+                            last_error = f"{model_name} ({api_ver}) status {resp.status_code}: {resp.text[:120]}"
+                    except httpx.RequestError as req_err:
+                        last_error = str(req_err)
+
+        raise RuntimeError(f"Gemini API request failed across available models. Last error: {last_error}")
+
     def _summarize_gemini(self, text: str, max_length: int, api_key: str) -> Dict:
         """Summarize using Google Gemini API"""
-        import httpx
         prompt = f"""You are a senior university professor and curriculum specialist.
 Create a comprehensive, highly structured academic study guide and lecture notes from this material for semester examinations.
 Target around {max_length} words.
@@ -201,28 +284,15 @@ Format with clear Markdown headings (##, ###), bullet points, and bold text.
 Study Material:
 {text}"""
 
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
-        payload = {
-            "contents": [{"parts": [{"text": prompt}]}],
-            "generationConfig": {"temperature": 0.3, "maxOutputTokens": 3000}
+        content = self._call_gemini_api(prompt, api_key, max_tokens=3000, temperature=0.3)
+        return {
+            'success': True,
+            'summary': content,
+            'key_points': self._extract_key_points(content),
+            'word_count': len(content.split()),
+            'reading_time': f"{max(2, round(len(content.split()) / 200))} mins",
+            'method': 'google_gemini_api'
         }
-        with httpx.Client(timeout=35.0) as client:
-            resp = client.post(url, json=payload)
-            if resp.status_code == 200:
-                data = resp.json()
-                content = data['candidates'][0]['content']['parts'][0]['text']
-                return {
-                    'success': True,
-                    'summary': content,
-                    'key_points': self._extract_key_points(content),
-                    'word_count': len(content.split()),
-                    'reading_time': f"{max(2, round(len(content.split()) / 200))} mins",
-                    'method': 'google_gemini_api'
-                }
-            elif resp.status_code == 429:
-                raise RuntimeError("Gemini Quota Exceeded / Rate Limit reached (HTTP 429)")
-            else:
-                raise RuntimeError(f"Gemini API returned status {resp.status_code}: {resp.text[:120]}")
 
     def _summarize_openai(self, text: str, max_length: int, style: str, custom_key: Optional[str] = None) -> Dict:
         client = self.openai_client
@@ -576,25 +646,8 @@ Return ONLY a JSON array of objects conforming to this schema:
 Course Material:
 {text[:10000]}"""
 
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
-        payload = {
-            "contents": [{"parts": [{"text": prompt}]}],
-            "generationConfig": {
-                "temperature": 0.2,
-                "maxOutputTokens": 4096,
-                "responseMimeType": "application/json"
-            }
-        }
-        with httpx.Client(timeout=40.0) as client:
-            resp = client.post(url, json=payload)
-            if resp.status_code == 200:
-                data = resp.json()
-                raw_text = data['candidates'][0]['content']['parts'][0]['text']
-                return self._parse_ai_questions(raw_text, num, types)
-            elif resp.status_code == 429:
-                raise RuntimeError("Gemini Quota Exceeded / Rate Limit reached (HTTP 429)")
-            else:
-                raise RuntimeError(f"Gemini API returned status {resp.status_code}: {resp.text[:120]}")
+        raw_text = self._call_gemini_api(prompt, api_key, max_tokens=4096, json_mode=True, temperature=0.2)
+        return self._parse_ai_questions(raw_text, num, types)
 
     def _generate_questions_openai(self, text: str, num: int, types: List[str], api_key: Optional[str] = None) -> List[Dict]:
         """Generate questions using OpenAI ChatGPT"""
@@ -987,18 +1040,11 @@ Format as JSON: {{"answer": "...", "key_points": ["...", ...]}}"""
             k = merged_keys.get(p)
             try:
                 if p == 'gemini':
-                    import httpx
-                    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={k}"
-                    payload = {
-                        "contents": [{"parts": [{"text": prompt}]}],
-                        "generationConfig": {"temperature": 0.2, "responseMimeType": "application/json"}
-                    }
-                    with httpx.Client(timeout=25.0) as client:
-                        resp = client.post(url, json=payload)
-                        if resp.status_code == 200:
-                            data = resp.json()
-                            content = data['candidates'][0]['content']['parts'][0]['text']
-                            return json.loads(content)
+                    content = self._call_gemini_api(prompt, k, max_tokens=1500, json_mode=True, temperature=0.2)
+                    m = re.search(r'\{.*\}', content, re.DOTALL)
+                    if m:
+                        return json.loads(m.group())
+                    return json.loads(content)
                 elif p == 'openai':
                     client = self.openai_client if k == 'env' else None
                     if not client and k:

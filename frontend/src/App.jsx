@@ -73,29 +73,35 @@ export default function App() {
 
   const [lastSaved, setLastSaved] = useState(null);
 
-  // Auto-save app state to localStorage whenever it changes
+  // Auto-save app state to localStorage whenever it changes (debounced to ensure smooth UI)
   useEffect(() => {
-    try {
-      const stateToSave = {
-        uploadedFile: appState.uploadedFile ? {
-          name: appState.uploadedFile.name,
-          size: appState.uploadedFile.size,
-          type: appState.uploadedFile.type
-        } : null,
-        extractedText: appState.extractedText,
-        results: appState.results,
-        questions: appState.questions,
-        rankedQuestions: appState.rankedQuestions,
-        predictedPaper: appState.predictedPaper,
-        answers: appState.answers,
-        captures: appState.captures,
-        stats: appState.stats
-      };
-      localStorage.setItem('study_assistant_workspace_v2', JSON.stringify(stateToSave));
-      setLastSaved(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
-    } catch (err) {
-      console.warn("Could not auto-save workspace to localStorage:", err);
-    }
+    const timer = setTimeout(() => {
+      try {
+        const stateToSave = {
+          uploadedFile: appState.uploadedFile ? {
+            name: appState.uploadedFile.name,
+            size: appState.uploadedFile.size,
+            type: appState.uploadedFile.type
+          } : null,
+          extractedText: appState.extractedText,
+          results: appState.results,
+          questions: appState.questions,
+          rankedQuestions: appState.rankedQuestions,
+          predictedPaper: appState.predictedPaper,
+          answers: appState.answers,
+          captures: appState.captures,
+          stats: appState.stats
+        };
+        localStorage.setItem('study_assistant_workspace_v2', JSON.stringify(stateToSave));
+        if (appState.uploadedFile || appState.extractedText || (appState.questions && appState.questions.length > 0)) {
+          setLastSaved(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+        }
+      } catch (err) {
+        console.warn("Could not auto-save workspace to localStorage:", err);
+      }
+    }, 600);
+
+    return () => clearTimeout(timer);
   }, [appState]);
 
   const handleResetWorkspace = () => {
