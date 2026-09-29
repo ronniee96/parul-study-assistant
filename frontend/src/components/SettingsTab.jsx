@@ -136,6 +136,8 @@ export default function SettingsTab({
   // Anime Mascot & Maker Note State
   const [animeCheered, setAnimeCheered] = useState(false);
   const [animeMessageIdx, setAnimeMessageIdx] = useState(0);
+  const [aikoUserQuery, setAikoUserQuery] = useState('');
+  const [aikoKnowledgeResponse, setAikoKnowledgeResponse] = useState(null);
 
   useEffect(() => {
     setLocalApiKeys(apiKeys);
@@ -1080,7 +1082,7 @@ export default function SettingsTab({
                 </div>
               </div>
 
-              {/* Heartfelt Letter Content */}
+              {/* Heartfelt Letter Content & Knowledgeable Anime Assistant */}
               <AnimatePresence mode="wait">
                 <motion.div
                   key={animeCheered ? "cheered" : "humble"}
@@ -1088,7 +1090,7 @@ export default function SettingsTab({
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -4 }}
                   transition={{ duration: 0.2 }}
-                  className="space-y-2.5 text-xs text-gray-700 dark:text-gray-300 leading-relaxed font-sans"
+                  className="space-y-3 text-xs text-gray-700 dark:text-gray-300 leading-relaxed font-sans"
                 >
                   {animeCheered ? (
                     <div className="p-3.5 rounded-xl bg-gradient-to-r from-pink-500/10 to-amber-500/10 border border-pink-400/40 text-xs text-pink-900 dark:text-pink-200">
@@ -1112,6 +1114,168 @@ export default function SettingsTab({
                       </p>
                     </>
                   )}
+
+                  {/* KNOWLEDGEABLE AI CONTEXT AWARENESS & SMART REDIRECTIONS */}
+                  <div className="mt-3 p-3.5 rounded-xl bg-gradient-to-br from-indigo-50/70 to-purple-50/70 dark:from-indigo-950/40 dark:to-purple-950/40 border border-indigo-200/80 dark:border-indigo-800/80 flex flex-col gap-2.5">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5 font-bold text-xs text-indigo-900 dark:text-indigo-200">
+                        <span>🧠</span>
+                        <span>Aiko's Live Context Radar:</span>
+                      </div>
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
+                        Boolean(appState.uploadedFile || (appState.uploadedFiles && appState.uploadedFiles.length > 0) || appState.extractedText)
+                          ? 'bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300'
+                          : 'bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300'
+                      }`}>
+                        {Boolean(appState.uploadedFile || (appState.uploadedFiles && appState.uploadedFiles.length > 0) || appState.extractedText)
+                          ? '✓ Syllabus PDF Loaded'
+                          : '○ No PDF Uploaded Yet'}
+                      </span>
+                    </div>
+
+                    {Boolean(appState.uploadedFile || (appState.uploadedFiles && appState.uploadedFiles.length > 0) || appState.extractedText) ? (
+                      /* Context Loaded View */
+                      <div className="flex flex-col gap-2">
+                        <p className="text-[11px] text-gray-700 dark:text-gray-300">
+                          🌸 <strong>I'm fully synchronized with your notes!</strong> Loaded: <em className="font-semibold text-indigo-600 dark:text-indigo-400">{appState.uploadedFiles?.[0]?.name || appState.uploadedFile?.name || 'Syllabus Document'}</em> ({appState.extractedText ? appState.extractedText.split(/\s+/).filter(Boolean).length : 0} words indexed). Where would you like me to take you?
+                        </p>
+                        <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                          <button
+                            onClick={() => setActiveTab('questions')}
+                            className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] shadow-2xs transition-all flex items-center gap-1 cursor-pointer"
+                          >
+                            <span>❓</span>
+                            <span>Generate 300 Questions</span>
+                          </button>
+                          <button
+                            onClick={() => setActiveTab('predictor')}
+                            className="px-2.5 py-1 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-bold text-[11px] shadow-2xs transition-all flex items-center gap-1 cursor-pointer"
+                          >
+                            <span>🎯</span>
+                            <span>Predict Exam Paper</span>
+                          </button>
+                          <button
+                            onClick={() => setActiveTab('summary')}
+                            className="px-2.5 py-1 rounded-lg bg-teal-600 hover:bg-teal-700 text-white font-bold text-[11px] shadow-2xs transition-all flex items-center gap-1 cursor-pointer"
+                          >
+                            <span>📝</span>
+                            <span>1-Page Revision Sheet</span>
+                          </button>
+                          <button
+                            onClick={() => setActiveTab('answers')}
+                            className="px-2.5 py-1 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-[11px] shadow-2xs transition-all flex items-center gap-1 cursor-pointer"
+                          >
+                            <span>✅</span>
+                            <span>Top 25 Answer Bank</span>
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      /* Out of Context / No PDF View */
+                      <div className="flex flex-col gap-2">
+                        <p className="text-[11px] text-gray-700 dark:text-gray-300">
+                          💭 <em>I don't have any lecture slides in my memory yet! (・_・;)</em> But don't worry — you can upload your syllabus PDF, or I can redirect you to explore past papers, question banks, or academic research right now!
+                        </p>
+                        <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                          <button
+                            onClick={() => setActiveTab('upload')}
+                            className="px-2.5 py-1 rounded-lg bg-primary-600 hover:bg-primary-700 text-white font-bold text-[11px] shadow-2xs transition-all flex items-center gap-1 cursor-pointer"
+                          >
+                            <span>📎</span>
+                            <span>Upload Syllabus PDF</span>
+                          </button>
+                          <button
+                            onClick={() => setActiveTab('predictor')}
+                            className="px-2.5 py-1 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-bold text-[11px] shadow-2xs transition-all flex items-center gap-1 cursor-pointer"
+                          >
+                            <span>🎯</span>
+                            <span>Explore Exam Predictor</span>
+                          </button>
+                          <button
+                            onClick={() => setActiveTab('research')}
+                            className="px-2.5 py-1 rounded-lg bg-sky-600 hover:bg-sky-700 text-white font-bold text-[11px] shadow-2xs transition-all flex items-center gap-1 cursor-pointer"
+                          >
+                            <span>🌐</span>
+                            <span>Academic Research Hub</span>
+                          </button>
+                          <button
+                            onClick={() => setActiveTab('capture')}
+                            className="px-2.5 py-1 rounded-lg bg-purple-600 hover:bg-purple-700 text-white font-bold text-[11px] shadow-2xs transition-all flex items-center gap-1 cursor-pointer"
+                          >
+                            <span>📸</span>
+                            <span>Screen Capture Slides</span>
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Quick Interactive Study Helper with Aiko */}
+                    <div className="pt-2 border-t border-indigo-200/50 dark:border-indigo-800/50 flex flex-col gap-1.5">
+                      <span className="text-[10px] font-bold text-indigo-800 dark:text-indigo-300 uppercase tracking-wider">
+                        💡 Quick Advice from Aiko:
+                      </span>
+                      <div className="flex flex-wrap gap-1.5">
+                        <button
+                          onClick={() => {
+                            setAikoKnowledgeResponse({
+                              question: "How do I get full 10 marks in case studies?",
+                              answer: "Always follow the 4-part Parul University blueprint: (1) Executive Introduction, (2) Draw a conceptual framework or ASCII matrix, (3) In-depth analytical argument with syllabus terms, and (4) Managerial practical implications. You can inspect blueprints in the Answer Bank!",
+                              targetTab: 'answers'
+                            });
+                          }}
+                          className="px-2 py-0.5 rounded bg-white dark:bg-gray-900 border border-indigo-200 dark:border-indigo-800 text-[10px] font-medium text-gray-700 dark:text-gray-300 hover:border-pink-500 cursor-pointer"
+                        >
+                          How to score 10/10 in Case Studies? ✍️
+                        </button>
+                        <button
+                          onClick={() => {
+                            setAikoKnowledgeResponse({
+                              question: "Where are my exam predictions?",
+                              answer: "Our Exam Predictor tab compiles questions weighted by Bloom's Taxonomy into Section A (2M), Section B (5M), and Section C (10M) with confidence ratings. Let's head there!",
+                              targetTab: 'predictor'
+                            });
+                          }}
+                          className="px-2 py-0.5 rounded bg-white dark:bg-gray-900 border border-indigo-200 dark:border-indigo-800 text-[10px] font-medium text-gray-700 dark:text-gray-300 hover:border-pink-500 cursor-pointer"
+                        >
+                          Where are Predicted Exam Papers? 🎯
+                        </button>
+                        <button
+                          onClick={() => {
+                            setAikoKnowledgeResponse({
+                              question: "What are the 6 AI Agents doing?",
+                              answer: "Dr. Verma aligns syllabus rubrics, Sentinel-V3 purges fluff, Prof. Mukherjee crafts 10M blueprints, Prof. Kulkarni solves numerical formulas, Dr. Gupta manages memory cards, and Agent Neuro handles multi-API routing!",
+                              targetTab: 'squad'
+                            });
+                          }}
+                          className="px-2 py-0.5 rounded bg-white dark:bg-gray-900 border border-indigo-200 dark:border-indigo-800 text-[10px] font-medium text-gray-700 dark:text-gray-300 hover:border-pink-500 cursor-pointer"
+                        >
+                          What is the 6-Agent Squad? 🤖
+                        </button>
+                      </div>
+
+                      {/* Display Aiko's answer if clicked */}
+                      {aikoKnowledgeResponse && (
+                        <div className="mt-1 p-2.5 rounded-lg bg-white dark:bg-gray-900 border border-pink-300 dark:border-pink-800 text-[11px] text-gray-800 dark:text-gray-200 flex flex-col gap-1.5">
+                          <div className="flex items-center justify-between font-bold text-pink-700 dark:text-pink-300">
+                            <span>🌸 Aiko's Answer:</span>
+                            <button
+                              onClick={() => setAikoKnowledgeResponse(null)}
+                              className="text-gray-400 hover:text-gray-600 text-xs"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                          <p className="leading-relaxed">{aikoKnowledgeResponse.answer}</p>
+                          <button
+                            onClick={() => setActiveTab(aikoKnowledgeResponse.targetTab)}
+                            className="self-start px-2.5 py-1 bg-pink-600 hover:bg-pink-700 text-white rounded text-[10px] font-bold cursor-pointer transition-colors"
+                          >
+                            Take me to {aikoKnowledgeResponse.targetTab.toUpperCase()} →
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </motion.div>
               </AnimatePresence>
 
