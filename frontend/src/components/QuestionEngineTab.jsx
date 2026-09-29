@@ -182,16 +182,61 @@ export default function QuestionEngineTab({ appState = {}, setAppState, setActiv
     }, 500);
   };
 
+  // Smart question filter matcher that properly categorizes all master question types
+  const matchesFilterType = (q, filterType) => {
+    if (!filterType || filterType === 'All') return true;
+    const t = (q.type || '').toLowerCase();
+    const cat = (q.category || '').toLowerCase();
+
+    if (filterType === 'MCQ') {
+      return t.includes('mcq') || cat.includes('mcq') || Boolean(q.options && q.options.length >= 2);
+    }
+    if (filterType === 'Essay') {
+      return t.includes('essay') || cat.includes('essay') || (q.marks && q.marks >= 10);
+    }
+    if (filterType === 'Short Answer') {
+      return (
+        t.includes('short') ||
+        t.includes('definition') ||
+        t.includes('structured') ||
+        t.includes('diagram') ||
+        t.includes('flowchart') ||
+        t.includes('mind map') ||
+        t.includes('notes') ||
+        t.includes('mistakes') ||
+        cat.includes('definition') ||
+        cat.includes('structured') ||
+        cat.includes('diagram') ||
+        cat.includes('flowchart') ||
+        (!t.includes('mcq') && !t.includes('essay') && (!q.marks || q.marks < 10) && (!q.options || q.options.length === 0))
+      );
+    }
+    return t === filterType.toLowerCase() || cat === filterType.toLowerCase();
+  };
+
   const currentQuestions = useMemo(() => {
     const all = appState.questions?.length 
       ? appState.questions 
       : (hasDocuments ? generateDynamicQuestions(appState.extractedText, appState.uploadedFiles?.map(f => f.name).join(' ') || appState.uploadedFile?.name || '') : []);
     let filtered = all.slice(0, activeTier);
     if (selectedType !== 'All') {
-      filtered = filtered.filter(q => q.type === selectedType);
+      filtered = filtered.filter(q => matchesFilterType(q, selectedType));
     }
     return filtered;
   }, [appState.questions, activeTier, selectedType, appState.extractedText, hasDocuments, appState.uploadedFiles, appState.uploadedFile]);
+
+  const typeCounts = useMemo(() => {
+    const all = appState.questions?.length 
+      ? appState.questions 
+      : (hasDocuments ? generateDynamicQuestions(appState.extractedText, appState.uploadedFiles?.map(f => f.name).join(' ') || appState.uploadedFile?.name || '') : []);
+    const tierQuestions = all.slice(0, activeTier);
+    return {
+      All: tierQuestions.length,
+      Essay: tierQuestions.filter(q => matchesFilterType(q, 'Essay')).length,
+      'Short Answer': tierQuestions.filter(q => matchesFilterType(q, 'Short Answer')).length,
+      MCQ: tierQuestions.filter(q => matchesFilterType(q, 'MCQ')).length,
+    };
+  }, [appState.questions, activeTier, appState.extractedText, hasDocuments, appState.uploadedFiles, appState.uploadedFile]);
 
   const handleExportPDF = (count, withAnswers = false) => {
     const qs = currentQuestions.slice(0, count);
@@ -404,13 +449,20 @@ export default function QuestionEngineTab({ appState = {}, setAppState, setActiv
             <button
               key={t}
               onClick={() => setSelectedType(t)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
                 selectedType === t 
-                  ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm' 
+                  ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm ring-1 ring-black/5' 
                   : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
               }`}
             >
-              {t}
+              <span>{t}</span>
+              <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-extrabold ${
+                selectedType === t 
+                  ? 'bg-primary-100 text-primary-800 dark:bg-primary-900/60 dark:text-primary-300' 
+                  : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
+              }`}>
+                {typeCounts[t] || 0}
+              </span>
             </button>
           ))}
         </div>
@@ -445,7 +497,7 @@ export default function QuestionEngineTab({ appState = {}, setAppState, setActiv
                   </span>
 
                   <span className="px-2 py-0.5 rounded-md bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 text-xs font-semibold">
-                    {q.type}
+                    {q.subType || q.type}
                   </span>
                 </div>
 

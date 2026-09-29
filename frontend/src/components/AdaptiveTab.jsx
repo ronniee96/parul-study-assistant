@@ -2,6 +2,77 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import Confetti from 'react-confetti';
 
+// Helper: Transforms raw, heavy answers/essays into crisp, easy-to-understand & memorable flashcards
+function formatEasyFlashcard(q) {
+  const rawAns = q.answer || q.correct_answer || '';
+  const topic = q.topic || 'Core Concept';
+
+  // 1. Strip essay titles, prompt markers, and boilerplate
+  let cleaned = rawAns
+    .replace(/^🏛️[^\n]*\n+/g, '')
+    .replace(/^📋[^\n]*\n+/g, '')
+    .replace(/^📝[^\n]*\n+/g, '')
+    .replace(/^📌[^\n]*\n+/g, '')
+    .replace(/^🖼️[^\n]*\n+/g, '')
+    .replace(/^🔀[^\n]*\n+/g, '')
+    .replace(/^⏱️[^\n]*\n+/g, '')
+    .replace(/^⚠️[^\n]*\n+/g, '')
+    .replace(/^✅[^\n]*\n+/g, '')
+    .replace(/^\d+\.\s*(Introduction|Theoretical Foundation|Meaning|Definition|Scope)[^:\n]*:\s*/gim, '')
+    .trim();
+
+  // 2. Extract concise 1-2 sentence core definition
+  const rawSentences = cleaned
+    .split(/(?<=[.!?])\s+/)
+    .map(s => s.trim())
+    .filter(s => s.length > 12 && !s.startsWith('•') && !s.startsWith('-') && !s.includes('[DIAGRAM'));
+
+  let coreDefinition = rawSentences[0] || `${topic} is a fundamental concept in this syllabus.`;
+  if (rawSentences[1] && rawSentences[0].length < 120) {
+    coreDefinition += ' ' + rawSentences[1];
+  }
+  if (coreDefinition.length > 220) {
+    coreDefinition = coreDefinition.slice(0, 217) + '...';
+  }
+
+  // 3. Extract key formula / rule / equation if present
+  let formula = null;
+  const formulaMatch = cleaned.match(/(?:Formula|Cost Driver Rate|Variance|Equation|Rule)[^:\n]*:\s*([^\n]+)/i);
+  if (formulaMatch && formulaMatch[1].trim().length < 120) {
+    formula = formulaMatch[1].trim();
+  } else {
+    const eqLine = cleaned.split('\n').find(l => l.includes(' = ') && l.length > 10 && l.length < 130 && !l.includes('• Step'));
+    if (eqLine) {
+      formula = eqLine.trim();
+    }
+  }
+
+  // 4. Extract 3 high-yield memory bullet points
+  let bullets = [];
+  if (q.key_points && q.key_points.length > 0) {
+    bullets = q.key_points.slice(0, 3).map(kp => kp.replace(/^[•\-\*]\s*/, '').slice(0, 95));
+  } else {
+    const bulletMatches = cleaned.match(/^[•\-\*]\s*([^\n]+)/gm);
+    if (bulletMatches && bulletMatches.length > 0) {
+      bullets = bulletMatches.slice(0, 3).map(b => b.replace(/^[•\-\*]\s*/, '').slice(0, 95));
+    }
+  }
+
+  if (bullets.length === 0) {
+    bullets = [
+      `Key definition tested for ${topic} in examinations`,
+      `Always distinguish controllable variables from fixed commitments`,
+      `High-probability exam concept for quick scoring`
+    ];
+  }
+
+  return {
+    coreDefinition,
+    formula,
+    bullets
+  };
+}
+
 export default function AdaptiveTab({ appState = {}, setActiveTab }) {
   // Mode selection: 'flashcards' | 'flowsheets' | 'diagnostic' | 'analytics'
   const [activeSubTab, setActiveSubTab] = useState('flashcards');
@@ -10,6 +81,7 @@ export default function AdaptiveTab({ appState = {}, setActiveTab }) {
   const [currentCardIndex, setCurrentCardIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
   const [showHint, setShowHint] = useState(false);
+  const [showFullAnswer, setShowFullAnswer] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [cardFilter, setCardFilter] = useState('all'); // 'all' | 'due' | 'mastered' | 'learning'
 
@@ -77,20 +149,22 @@ export default function AdaptiveTab({ appState = {}, setActiveTab }) {
       return [];
     }
 
-    return appState.questions.slice(0, 40).map((q, idx) => ({
-      id: `fc-${q.id || idx + 1}`,
-      question: q.question || 'Syllabus Review Question',
-      marks: q.marks || (q.type === 'MCQ' ? 2 : (q.type === 'Essay' ? 12 : 5)),
-      difficulty: q.difficulty <= 2 ? 'easy' : (q.difficulty <= 4 ? 'medium' : 'hard'),
-      answer: q.answer || q.correct_answer || 'Refer to uploaded course material for comprehensive analysis.',
-      keyPoints: q.key_points && q.key_points.length > 0 
-        ? q.key_points 
-        : ['Essential syllabus milestone', 'Scoring criterion for university examination'],
-      category: q.topic || 'Core Concept',
-      topicTitle: q.topic || 'Document Review',
-      examTip: `High-yield ${q.marks || 5}-mark item predicted with ${q.confidence || 90}% likelihood in Parul University examination.`,
-      source: 'Uploaded Document'
-    }));
+    return appState.questions.slice(0, 40).map((q, idx) => {
+      const easyRecall = formatEasyFlashcard(q);
+      return {
+        id: `fc-${q.id || idx + 1}`,
+        question: q.question || 'Syllabus Review Question',
+        marks: q.marks || (q.type === 'MCQ' ? 2 : (q.type === 'Essay' ? 12 : 5)),
+        difficulty: q.difficulty <= 2 ? 'easy' : (q.difficulty <= 4 ? 'medium' : 'hard'),
+        answer: q.answer || q.correct_answer || 'Refer to uploaded course material for comprehensive analysis.',
+        easyRecall,
+        keyPoints: easyRecall.bullets,
+        category: q.topic || 'Core Concept',
+        topicTitle: q.topic || 'Document Review',
+        examTip: `High-yield ${q.marks || 5}-mark item predicted with ${q.confidence || 90}% likelihood in Parul University examination.`,
+        source: 'Uploaded Document'
+      };
+    });
   }, [hasDocuments, appState.questions]);
 
   // Categories list
@@ -228,6 +302,7 @@ export default function AdaptiveTab({ appState = {}, setActiveTab }) {
   useEffect(() => {
     setIsFlipped(false);
     setShowHint(false);
+    setShowFullAnswer(false);
   }, [currentCardIndex, selectedCategory, cardFilter]);
 
   // SM-2 Spaced Repetition Logic
@@ -523,103 +598,153 @@ export default function AdaptiveTab({ appState = {}, setActiveTab }) {
             <div className="flex flex-col items-center gap-4">
               <div
                 onClick={() => setIsFlipped(!isFlipped)}
-                className="w-full max-w-2xl min-h-[360px] cursor-pointer select-none perspective-[1200px]"
+                className="w-full max-w-2xl h-[420px] cursor-pointer select-none perspective-[1200px] relative"
               >
                 <motion.div
                   animate={{ rotateY: isFlipped ? 180 : 0 }}
                   transition={{ duration: 0.5, ease: 'easeInOut' }}
-                  className="relative w-full h-full min-h-[360px] preserve-3d"
+                  className="relative w-full h-full preserve-3d"
                   style={{ transformStyle: 'preserve-3d' }}
                 >
                   {/* FRONT OF CARD */}
                   <div
-                    className="absolute inset-0 w-full h-full glass-card p-8 flex flex-col justify-between border-2 border-violet-500/20 shadow-xl hover:border-violet-500/40 transition-colors"
+                    className="absolute inset-0 w-full h-full glass-card p-6 md:p-8 flex flex-col justify-between border-2 border-violet-500/20 shadow-xl hover:border-violet-500/40 transition-colors rounded-2xl overflow-hidden"
                     style={{ backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden' }}
                   >
-                    <div>
-                      <div className="flex items-center justify-between gap-2 mb-4">
-                        <span className="px-3 py-1 rounded-full text-xs font-semibold bg-violet-100 text-violet-800 dark:bg-violet-900/40 dark:text-violet-300">
-                          {activeCard.category || 'Core Concept'}
-                        </span>
-                        <div className="flex items-center gap-2">
-                          <span className="px-2 py-0.5 rounded text-xs font-bold bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">
-                            {activeCard.marks || 5} Marks
+                    <div className="overflow-y-auto pr-1 flex-1 flex flex-col justify-between">
+                      <div>
+                        <div className="flex items-center justify-between gap-2 mb-4">
+                          <span className="px-3 py-1 rounded-full text-xs font-semibold bg-violet-100 text-violet-800 dark:bg-violet-900/40 dark:text-violet-300">
+                            {activeCard.category || 'Core Concept'}
                           </span>
-                          <span className="text-xs text-gray-500 dark:text-gray-400 capitalize">
-                            ⭐ {activeCard.difficulty || 'Medium'}
-                          </span>
+                          <div className="flex items-center gap-2">
+                            <span className="px-2 py-0.5 rounded text-xs font-bold bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">
+                              {activeCard.marks || 5} Marks
+                            </span>
+                            <span className="text-xs text-gray-500 dark:text-gray-400 capitalize">
+                              ⭐ {activeCard.difficulty || 'Medium'}
+                            </span>
+                          </div>
                         </div>
+
+                        <h3 className="text-lg md:text-xl font-bold text-gray-900 dark:text-gray-100 leading-snug">
+                          {activeCard.question}
+                        </h3>
+
+                        {showHint && activeCard.examTip && (
+                          <motion.div
+                            initial={{ opacity: 0, y: -5 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="mt-4 p-3 bg-indigo-50/70 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800/50 rounded-xl text-xs text-indigo-700 dark:text-indigo-300 text-left"
+                          >
+                            💡 <span className="font-semibold">Parul Exam Context:</span> {activeCard.examTip}
+                          </motion.div>
+                        )}
                       </div>
 
-                      <h3 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-gray-100 leading-snug">
-                        {activeCard.question}
-                      </h3>
-
-                      {showHint && activeCard.examTip && (
-                        <motion.div
-                          initial={{ opacity: 0, y: -5 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          className="mt-4 p-3 bg-indigo-50/70 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800/50 rounded-xl text-xs text-indigo-700 dark:text-indigo-300"
+                      <div className="flex items-center justify-between pt-4 border-t border-gray-100 dark:border-gray-800/60 text-xs text-gray-500 dark:text-gray-400 mt-4">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setShowHint(!showHint);
+                          }}
+                          className="text-violet-600 dark:text-violet-400 font-semibold hover:underline flex items-center gap-1 cursor-pointer"
                         >
-                          💡 <span className="font-semibold">Parul Exam Context:</span> {activeCard.examTip}
-                        </motion.div>
-                      )}
-                    </div>
-
-                    <div className="flex items-center justify-between pt-6 border-t border-gray-100 dark:border-gray-800/60 text-xs text-gray-500 dark:text-gray-400">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setShowHint(!showHint);
-                        }}
-                        className="text-violet-600 dark:text-violet-400 font-semibold hover:underline flex items-center gap-1"
-                      >
-                        <span>💡</span> {showHint ? 'Hide Exam Tip' : 'Show Exam Tip'}
-                      </button>
-                      <span className="text-gray-400 italic">Click card to reveal model answer ↻</span>
+                          <span>💡</span> {showHint ? 'Hide Exam Tip' : 'Show Exam Tip'}
+                        </button>
+                        <span className="text-gray-400 italic">Click card to reveal easy model answer ↻</span>
+                      </div>
                     </div>
                   </div>
 
-                  {/* BACK OF CARD */}
+                  {/* BACK OF CARD — Easy to understand, memorable, never crosses the box */}
                   <div
-                    className="absolute inset-0 w-full h-full glass-card p-8 flex flex-col justify-between border-2 border-emerald-500/30 shadow-xl bg-white/95 dark:bg-gray-900/95"
+                    className="absolute inset-0 w-full h-full glass-card p-6 md:p-7 flex flex-col justify-between border-2 border-emerald-500/30 shadow-xl bg-white/95 dark:bg-gray-900/95 rounded-2xl overflow-hidden"
                     style={{
                       transform: 'rotateY(180deg)',
                       backfaceVisibility: 'hidden',
                       WebkitBackfaceVisibility: 'hidden'
                     }}
                   >
-                    <div>
-                      <div className="flex items-center justify-between gap-2 mb-3">
-                        <span className="px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300">
-                          ✓ Model Answer & Key Points
+                    {/* Header */}
+                    <div className="flex items-center justify-between gap-2 pb-2 border-b border-gray-100 dark:border-gray-800 shrink-0">
+                      <span className="px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300 flex items-center gap-1">
+                        <span>💡</span> Easy Recall Flashcard
+                      </span>
+                      <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 truncate max-w-[200px]">
+                        {activeCard.topicTitle}
+                      </span>
+                    </div>
+
+                    {/* Scrollable, clean body that NEVER crosses the box */}
+                    <div className="overflow-y-auto pr-1.5 my-2 flex-1 flex flex-col gap-2.5 text-left scrollbar-thin">
+                      {/* 1. Core Meaning */}
+                      <div className="p-3 rounded-xl bg-emerald-50/70 dark:bg-emerald-950/40 border border-emerald-200/60 dark:border-emerald-800/60">
+                        <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-800 dark:text-emerald-300 block mb-1">
+                          ⚡ Core Meaning (Easy to Understand):
                         </span>
-                        <span className="text-xs text-gray-500 dark:text-gray-400">
-                          {activeCard.topicTitle}
-                        </span>
+                        <p className="text-xs md:text-sm text-gray-900 dark:text-gray-100 font-medium leading-relaxed">
+                          {activeCard.easyRecall?.coreDefinition || activeCard.answer}
+                        </p>
                       </div>
 
-                      <p className="text-sm md:text-base text-gray-800 dark:text-gray-200 font-medium leading-relaxed whitespace-pre-line mb-4">
-                        {activeCard.answer}
-                      </p>
-
-                      {activeCard.keyPoints && activeCard.keyPoints.length > 0 && (
-                        <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-gray-200 dark:border-gray-700/60">
-                          <span className="text-[11px] font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wider block mb-1">
-                            Examiner Key Points:
+                      {/* 2. Key Formula / Rule if available */}
+                      {activeCard.easyRecall?.formula && (
+                        <div className="p-2.5 rounded-xl bg-indigo-50/70 dark:bg-indigo-950/40 border border-indigo-200/60 dark:border-indigo-800/60">
+                          <span className="text-[10px] font-extrabold uppercase tracking-wider text-indigo-800 dark:text-indigo-300 block mb-0.5">
+                            📐 Key Formula / Rule:
                           </span>
-                          <ul className="list-disc list-inside space-y-0.5 text-xs text-gray-600 dark:text-gray-400">
-                            {activeCard.keyPoints.map((kp, kIdx) => (
-                              <li key={kIdx}>{kp}</li>
-                            ))}
-                          </ul>
+                          <code className="text-xs font-bold text-indigo-950 dark:text-indigo-200 block break-words">
+                            {activeCard.easyRecall.formula}
+                          </code>
                         </div>
+                      )}
+
+                      {/* 3. 3 Key Points */}
+                      <div className="p-2.5 rounded-xl bg-gray-50 dark:bg-gray-800/60 border border-gray-200 dark:border-gray-700/60">
+                        <span className="text-[10px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-gray-300 block mb-1">
+                          🎯 3 Key Points to Remember for Exam:
+                        </span>
+                        <ul className="space-y-1 text-xs text-gray-700 dark:text-gray-300">
+                          {(activeCard.easyRecall?.bullets || activeCard.keyPoints || []).slice(0, 3).map((bp, bIdx) => (
+                            <li key={bIdx} className="flex items-start gap-1.5">
+                              <span className="text-emerald-500 font-bold shrink-0">•</span>
+                              <span className="leading-snug">{bp}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+
+                      {/* Optional Expandable University Essay */}
+                      {showFullAnswer ? (
+                        <div className="p-3 rounded-xl bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-xs text-gray-700 dark:text-gray-300 whitespace-pre-wrap leading-relaxed mt-1">
+                          <div className="flex items-center justify-between mb-1 pb-1 border-b border-gray-200 dark:border-gray-700">
+                            <span className="font-bold text-[11px] text-gray-800 dark:text-gray-200">Full University Answer:</span>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); setShowFullAnswer(false); }}
+                              className="text-[10px] text-primary-600 dark:text-primary-400 hover:underline font-bold"
+                            >
+                              ▲ Collapse
+                            </button>
+                          </div>
+                          {activeCard.answer}
+                        </div>
+                      ) : (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setShowFullAnswer(true); }}
+                          className="text-[10px] font-bold text-primary-600 dark:text-primary-400 hover:underline flex items-center gap-1 self-start pt-1 cursor-pointer"
+                        >
+                          <span>📖 View Full Detailed University Answer ({activeCard.marks || 5}M) →</span>
+                        </button>
                       )}
                     </div>
 
-                    <div className="pt-3 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between text-xs text-gray-400">
-                      <span>Rate your recall quality:</span>
-                      <span className="text-violet-500 font-medium">Click to flip back 🔄</span>
+                    {/* Footer */}
+                    <div className="pt-2 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between text-xs text-gray-400 shrink-0">
+                      <span>Rate your recall below:</span>
+                      <span className="text-violet-500 font-semibold hover:underline flex items-center gap-1 cursor-pointer">
+                        Flip back ↻
+                      </span>
                     </div>
                   </div>
                 </motion.div>
