@@ -210,20 +210,20 @@ export default function AkiDashboardCompanion({
   };
 
   return (
-    /* ── OUTER: flex-col — BUBBLE on TOP of Aki's head, AKI on BOTTOM — anchored bottom-right ── */
-    <div className="fixed bottom-3 right-3 z-40 select-none flex flex-col items-end pointer-events-none">
+    /* ── OUTER: fixed width 190px, overflow-hidden, nothing bleeds outside viewport ── */
+    <div className="fixed bottom-3 right-3 z-40 select-none flex flex-col items-end pointer-events-none w-[190px] overflow-visible">
 
       {/* ══════════════════════════════════════════════════════════════════ */}
-      {/* LEFT COLUMN — BACKGROUNDLESS SPEECH TEXT (max 180px, never bleeds) */}
+      {/* SPEECH BUBBLE — above Aki's head, slides up, fully contained      */}
       {/* ══════════════════════════════════════════════════════════════════ */}
       <AnimatePresence>
         {isExpanded && (
           <motion.div
-            initial={{ opacity: 0, x: 16, scale: 0.95 }}
-            animate={{ opacity: 1, x: 0, scale: 1 }}
-            exit={{ opacity: 0, x: 16, scale: 0.95 }}
-            transition={{ duration: 0.22 }}
-            className="pointer-events-auto flex flex-col items-start text-left max-w-[180px] drop-shadow-[0_2px_8px_rgba(0,0,0,0.55)] dark:drop-shadow-[0_2px_12px_rgba(0,0,0,0.9)] select-none"
+            initial={{ opacity: 0, y: 10, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 10, scale: 0.95 }}
+            transition={{ duration: 0.2 }}
+            className="pointer-events-auto flex flex-col items-start text-left w-full select-none mb-1"
           >
             {/* ── Controls row (tiny, on top of the text column) ── */}
             <div className="flex items-center gap-1 mb-1 flex-wrap">
