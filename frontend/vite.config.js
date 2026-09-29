@@ -12,9 +12,14 @@ export default defineConfig({
     host: '0.0.0.0',
     port: 5173,
     allowedHosts: true,
+    cors: true,
+    hmr: {
+      overlay: false
+    },
     watch: {
-      usePolling: false,
-      ignored: ['**/dist/**', '**/.git/**', '**/node_modules/**']
+      usePolling: true,
+      interval: 1000,
+      ignored: ['**/node_modules/**', '**/.git/**', '**/dist/**']
     },
     proxy: {
       '/api': {

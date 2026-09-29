@@ -1,5 +1,7 @@
 # Python
 backend/venv/
+backend/venv.nosync/
+*.nosync/
 backend/__pycache__/
 backend/**/__pycache__/
 *.py[cod]
@@ -7,6 +9,7 @@ backend/**/__pycache__/
 *.env
 .env
 .env.local
+.vercel/
 
 # Node
 frontend/node_modules/

@@ -75,44 +75,49 @@ class ExamPredictor:
     
     def _extract_weighted_topics(self, text: str) -> List[Dict[str, Any]]:
         """Extract topics with importance weights from material"""
-        # Split text into paragraphs/sections
+        boilerplate_pattern = re.compile(
+            r'\b(parul\s*university|vadodara|gujarat|naac|grade\s*a\+\+?|faculty\s+of|'
+            r'department\s+of|institute\s+of|assignment\s*\d*|lecture\s*\d*|module\s*\d*|'
+            r'unit\s*\d*|semester|roll\s*no|enrolment|academic\s*year|subject\s*code|'
+            r'all\s*rights\s*reserved|copyright|prepared\s*by|presented\s*by|dr\.|prof\.|'
+            r'page\s*\d+|slide\s*\d+)\b',
+            re.IGNORECASE
+        )
+
         paragraphs = [p.strip() for p in re.split(r'\n{2,}|---\s*Slide\s*\d+\s*---', text) if len(p.strip()) > 30]
-        
         topic_scores = {}
         
         for para in paragraphs:
-            # Extract potential topic (first sentence or heading-like text)
+            if boilerplate_pattern.search(para) and len(para.split()) < 15:
+                continue
+
             sentences = [s.strip() for s in re.split(r'[.!?]', para) if len(s.strip()) > 10]
             if not sentences:
                 continue
             
-            topic = sentences[0][:100]  # First sentence as topic identifier
+            topic = sentences[0][:80]
+            if boilerplate_pattern.search(topic):
+                continue
             
             # Calculate importance score
             importance = 0
             text_lower = para.lower()
             
-            # Check for importance keywords
             for keyword in self.IMPORTANCE_KEYWORDS:
                 if keyword in text_lower:
                     importance += 10
             
-            # Length indicates more coverage = more important
             importance += min(len(para) / 100, 20)
             
-            # Definitions are exam favorites
             if any(marker in text_lower for marker in ['is defined as', 'refers to', 'means', 'is the process of']):
                 importance += 25
             
-            # Lists/types are frequently tested
             list_items = re.findall(r'(?:^|\n)\s*[•\-\d]+[.)\s]', para)
             importance += len(list_items) * 5
             
-            # Examples suggest practical application questions
             if 'example' in text_lower or 'for instance' in text_lower or 'such as' in text_lower:
                 importance += 15
             
-            # Store with deduplication
             key = topic[:50].lower().strip()
             if key in topic_scores:
                 topic_scores[key]['score'] += importance
@@ -124,7 +129,6 @@ class ExamPredictor:
                     'content': para
                 }
         
-        # Sort by score and return
         sorted_topics = sorted(topic_scores.values(), key=lambda x: x['score'], reverse=True)
         
         # Normalize scores to 0-100

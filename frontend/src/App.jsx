@@ -9,22 +9,27 @@ import ExamPredictorTab from './components/ExamPredictorTab';
 import AnswerBankTab from './components/AnswerBankTab';
 import AdaptiveTab from './components/AdaptiveTab';
 import StudyPlanTab from './components/StudyPlanTab';
+import ResearchHubTab from './components/ResearchHubTab';
+import TransparencyAuditTab from './components/TransparencyAuditTab';
+import AgentSquadTab from './components/AgentSquadTab';
 import APIKeyModal from './components/APIKeyModal';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('upload');
   const [darkMode, setDarkMode] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [apiKeyModalOpen, setApiKeyModalOpen] = useState(false);
+  const [sessionKey, setSessionKey] = useState(1);
+  const [toastMessage, setToastMessage] = useState(null);
   
   // API Keys state with persistence
   const [apiKeys, setApiKeys] = useState(() => {
     try {
       const saved = localStorage.getItem('study_assistant_api_keys');
-      return saved ? JSON.parse(saved) : { gemini: '', openai: '', claude: '' };
+      return saved ? JSON.parse(saved) : { gemini: '', openai: '', claude: '', perplexity: '' };
     } catch {
-      return { gemini: '', openai: '', claude: '' };
+      return { gemini: '', openai: '', claude: '', perplexity: '' };
     }
   });
 
@@ -39,77 +44,36 @@ export default function App() {
     if (priority) localStorage.setItem('study_assistant_primary_priority', priority);
   };
   
-  // App state with automatic persistence for instant preview
-  const [appState, setAppState] = useState(() => {
-    try {
-      const saved = localStorage.getItem('study_assistant_workspace_v2');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        return {
-          ...parsed,
-          stats: parsed.stats || { pdfCount: 0, questionCount: 0, confidence: 0, answerCount: 0 }
-        };
-      }
-    } catch (e) {
-      console.warn("Failed to restore saved workspace:", e);
+  // App state initializes clean (0 PDFs, 0 Questions, 0 Answers)
+  const [appState, setAppState] = useState(() => ({
+    uploadedFile: null,
+    uploadedFiles: [],
+    extractedText: '',
+    results: null,
+    summaryData: null,
+    questions: [],
+    rankedQuestions: [],
+    predictedPaper: null,
+    answers: [],
+    captures: [],
+    stats: {
+      pdfCount: 0,
+      questionCount: 0,
+      confidence: 0,
+      answerCount: 0
     }
-    return {
-      uploadedFile: null,
-      extractedText: '',
-      results: null,
-      questions: [],
-      rankedQuestions: [],
-      predictedPaper: null,
-      answers: [],
-      captures: [],
-      stats: {
-        pdfCount: 0,
-        questionCount: 0,
-        confidence: 0,
-        answerCount: 0
-      }
-    };
-  });
+  }));
 
   const [lastSaved, setLastSaved] = useState(null);
 
-  // Auto-save app state to localStorage whenever it changes (debounced to ensure smooth UI)
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      try {
-        const stateToSave = {
-          uploadedFile: appState.uploadedFile ? {
-            name: appState.uploadedFile.name,
-            size: appState.uploadedFile.size,
-            type: appState.uploadedFile.type
-          } : null,
-          extractedText: appState.extractedText,
-          results: appState.results,
-          questions: appState.questions,
-          rankedQuestions: appState.rankedQuestions,
-          predictedPaper: appState.predictedPaper,
-          answers: appState.answers,
-          captures: appState.captures,
-          stats: appState.stats
-        };
-        localStorage.setItem('study_assistant_workspace_v2', JSON.stringify(stateToSave));
-        if (appState.uploadedFile || appState.extractedText || (appState.questions && appState.questions.length > 0)) {
-          setLastSaved(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
-        }
-      } catch (err) {
-        console.warn("Could not auto-save workspace to localStorage:", err);
-      }
-    }, 600);
-
-    return () => clearTimeout(timer);
-  }, [appState]);
-
-  const handleResetWorkspace = () => {
-    if (window.confirm("Are you sure you want to reset your current study session? (Your saved API keys will remain intact)")) {
+  const handleResetWorkspace = (showPrompt = false) => {
+    if (!showPrompt || window.confirm("Start a fresh study session? This will clear all uploaded PDFs, questions, and notes. (Your API keys will remain saved)")) {
       const emptyState = {
         uploadedFile: null,
+        uploadedFiles: [],
         extractedText: '',
         results: null,
+        summaryData: null,
         questions: [],
         rankedQuestions: [],
         predictedPaper: null,
@@ -118,8 +82,25 @@ export default function App() {
         stats: { pdfCount: 0, questionCount: 0, confidence: 0, answerCount: 0 }
       };
       setAppState(emptyState);
-      localStorage.removeItem('study_assistant_workspace_v2');
+      
+      // Purge all possible workspace cache keys
+      try {
+        localStorage.removeItem('study_assistant_workspace_v2');
+        localStorage.removeItem('study_workspace_questions');
+        localStorage.removeItem('study_workspace_summary');
+        localStorage.removeItem('study_assistant_sr_stats');
+        localStorage.removeItem('study_assistant_card_progress');
+        localStorage.removeItem('parul_gemini_active_model');
+        sessionStorage.clear();
+      } catch (e) {
+        console.warn("Error clearing storage:", e);
+      }
+
+      setSessionKey(prev => prev + 1);
       setActiveTab('upload');
+      setLastSaved(null);
+      setToastMessage("✨ Fresh session started! All previous data cleared. Upload new PDF(s) to begin.");
+      setTimeout(() => setToastMessage(null), 4000);
     }
   };
 
@@ -132,29 +113,47 @@ export default function App() {
   }, [darkMode]);
 
   const renderTab = () => {
+    const tabProps = {
+      appState,
+      setAppState,
+      setActiveTab,
+      apiKeys,
+      primaryPriority,
+      openApiKeyModal: () => setApiKeyModalOpen(true),
+      sessionKey,
+      startNewSession: () => handleResetWorkspace(false)
+    };
+
     switch (activeTab) {
       case 'upload': 
-        return <UploadTab appState={appState} setAppState={setAppState} setActiveTab={setActiveTab} />;
+        return <UploadTab {...tabProps} />;
+      case 'squad':
+        return <AgentSquadTab {...tabProps} />;
       case 'capture': 
-        return <ScreenCaptureTab appState={appState} setAppState={setAppState} setActiveTab={setActiveTab} apiKeys={apiKeys} openApiKeyModal={() => setApiKeyModalOpen(true)} />;
+        return <ScreenCaptureTab {...tabProps} />;
       case 'summary': 
-        return <SummaryTab appState={appState} setAppState={setAppState} setActiveTab={setActiveTab} apiKeys={apiKeys} openApiKeyModal={() => setApiKeyModalOpen(true)} />;
+        return <SummaryTab {...tabProps} />;
+      case 'research':
+        return <ResearchHubTab {...tabProps} />;
       case 'questions': 
-        return <QuestionEngineTab appState={appState} setAppState={setAppState} setActiveTab={setActiveTab} apiKeys={apiKeys} primaryPriority={primaryPriority} openApiKeyModal={() => setApiKeyModalOpen(true)} />;
+        return <QuestionEngineTab {...tabProps} />;
       case 'predictor': 
-        return <ExamPredictorTab appState={appState} setAppState={setAppState} setActiveTab={setActiveTab} apiKeys={apiKeys} primaryPriority={primaryPriority} openApiKeyModal={() => setApiKeyModalOpen(true)} />;
+        return <ExamPredictorTab {...tabProps} />;
       case 'answers': 
-        return <AnswerBankTab appState={appState} setAppState={setAppState} setActiveTab={setActiveTab} apiKeys={apiKeys} openApiKeyModal={() => setApiKeyModalOpen(true)} />;
+        return <AnswerBankTab {...tabProps} />;
       case 'adaptive': 
-        return <AdaptiveTab appState={appState} setAppState={setAppState} />;
+        return <AdaptiveTab {...tabProps} />;
+      case 'transparency':
+        return <TransparencyAuditTab appState={appState} setActiveTab={setActiveTab} />;
       case 'plan': 
-        return <StudyPlanTab appState={appState} setAppState={setAppState} />;
+        return <StudyPlanTab {...tabProps} />;
       default: 
-        return <UploadTab appState={appState} setAppState={setAppState} setActiveTab={setActiveTab} />;
+        return <UploadTab {...tabProps} />;
     }
   };
 
   const hasConfiguredKeys = Object.values(apiKeys).some(k => k && k.trim().length > 5);
+  const hasActiveSession = Boolean(appState.uploadedFile || (appState.uploadedFiles && appState.uploadedFiles.length > 0) || appState.extractedText);
 
   return (
     <div className="flex h-screen overflow-hidden bg-gray-50 dark:bg-gray-950 transition-colors duration-300">
@@ -170,32 +169,39 @@ export default function App() {
           <div className="flex items-center gap-3">
             <span className="text-2xl">🎓</span>
             <div>
-              <h1 className="text-lg md:text-xl font-bold tracking-tight leading-none">Parul Study Assistant</h1>
-              <span className="text-[10px] text-blue-100 font-medium tracking-wider uppercase">Exam Predictor & Syllabus AI</span>
+              <div className="flex items-center gap-2">
+                <h1 className="text-lg md:text-xl font-bold tracking-tight leading-none">Parul Study Assistant</h1>
+                <span className="px-2 py-0.5 rounded-full bg-white/20 text-[10px] font-semibold text-white/95 border border-white/25 hidden sm:inline-block">
+                  By Rohan Mitra
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5 mt-0.5">
+                <span className="text-[10px] text-blue-100 font-medium tracking-wider uppercase">Exam Predictor & Syllabus AI</span>
+                <span className="text-[10px] text-blue-200/80">• Made by Rohan Mitra (AI Architect & Coder)</span>
+              </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2">
             {lastSaved && (
-              <span className="hidden md:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/15 text-[11px] text-white/90 font-medium border border-white/20">
+              <span className="hidden lg:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/15 text-[11px] text-white/90 font-medium border border-white/20">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-300"></span>
                 <span>Saved {lastSaved}</span>
               </span>
             )}
 
-            {appState.uploadedFile && (
-              <button
-                onClick={handleResetWorkspace}
-                className="px-2.5 py-1 rounded-full bg-white/10 hover:bg-white/25 text-[11px] font-semibold transition-all text-white/90 border border-white/20 cursor-pointer"
-                title="Start a new document session (keeps your API keys)"
-              >
-                🔄 New Session
-              </button>
-            )}
+            <button
+              onClick={() => handleResetWorkspace(false)}
+              className="px-3 py-1.5 rounded-full bg-white/20 hover:bg-white/30 text-xs font-bold transition-all text-white border border-white/30 cursor-pointer shadow-sm flex items-center gap-1.5"
+              title="Start a completely new study session (clears previous PDFs & questions, keeps API keys)"
+            >
+              <span>🔄</span>
+              <span>New Session</span>
+            </button>
 
             <button
               onClick={() => setApiKeyModalOpen(true)}
-              className="px-3.5 py-1.5 rounded-full bg-white/20 hover:bg-white/30 text-xs font-bold transition-all flex items-center gap-2 border border-white/30 cursor-pointer shadow-sm"
+              className="px-3 py-1.5 rounded-full bg-white/20 hover:bg-white/30 text-xs font-bold transition-all flex items-center gap-2 border border-white/30 cursor-pointer shadow-sm"
               title="Configure Google Gemini, ChatGPT, and Claude API Keys with Auto-Switching"
             >
               <span>🔑</span>
@@ -214,13 +220,27 @@ export default function App() {
             </button>
           </div>
         </header>
+
+        {/* Floating Toast Message */}
+        <AnimatePresence>
+          {toastMessage && (
+            <motion.div
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="bg-emerald-600 text-white text-xs md:text-sm font-semibold py-2 px-4 shadow-lg text-center flex items-center justify-center gap-2 z-50"
+            >
+              <span>{toastMessage}</span>
+            </motion.div>
+          )}
+        </AnimatePresence>
         
         <main className="flex-1 overflow-y-auto p-4 md:p-8">
           <motion.div 
-            key={activeTab}
+            key={`${activeTab}-${sessionKey}`}
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3 }}
+            transition={{ duration: 0.2 }}
             className="max-w-6xl mx-auto h-full"
           >
             {renderTab()}

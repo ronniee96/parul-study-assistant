@@ -16,8 +16,10 @@ export default function ScreenCaptureTab({ appState, setAppState, setActiveTab, 
   const lastCapturedRef = useRef(null);
 
   useEffect(() => {
-    setAppState(prev => ({ ...prev, captures }));
-  }, [captures, setAppState]);
+    if (captures !== appState.captures) {
+      setAppState(prev => (prev.captures === captures ? prev : { ...prev, captures }));
+    }
+  }, [captures, appState.captures, setAppState]);
 
   useEffect(() => {
     return () => {
@@ -254,6 +256,14 @@ export default function ScreenCaptureTab({ appState, setAppState, setActiveTab, 
                 </p>
               </div>
             )}
+          </div>
+          
+          {/* Infinite Mirror Prevention Advice */}
+          <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/60 rounded-xl p-3 text-xs text-amber-800 dark:text-amber-300 flex items-start gap-2">
+            <span className="text-base shrink-0">💡</span>
+            <div>
+              <span className="font-bold">Prevent "Screen Reloading/Mirroring Loop":</span> When starting capture, choose your <b>PDF Reader Window</b>, <b>PowerPoint</b>, or an <b>External Tab</b> rather than "This Tab" or "Entire Screen" to avoid recursive display reflection.
+            </div>
           </div>
           
           {/* Primary Action Buttons */}

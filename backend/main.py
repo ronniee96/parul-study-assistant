@@ -19,9 +19,9 @@ from app.api.v1 import router as api_v1_router
 
 # Initialize FastAPI app
 app = FastAPI(
-    title="Ethical MBA Study Assistant",
-    description="A legitimate study assistant for processing authorized MBA study materials",
-    version="1.0.0",
+    title="Parul University AI Study Assistant API",
+    description="Multi-Agent AI Study Assistant with Academic Research Engine & Transparency Audit",
+    version="2.0.0",
     docs_url="/docs",
     redoc_url="/redoc"
 )
@@ -293,5 +293,8 @@ async def root():
 async def health_check():
     return {"status": "healthy", "service": "study-assistant-backend"}
 
-if __name__ == "__main__":
+def start():
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+
+if __name__ == "__main__":
+    start()

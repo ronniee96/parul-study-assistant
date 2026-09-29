@@ -1,0 +1,13 @@
+{
+  "name": "parul-study-assistant",
+  "version": "2.4.0",
+  "description": "AI-Powered Parul University Exam Predictor, Question Generator & Smart Study Assistant",
+  "author": "Rohan Mitra (AI Agents Architect & Lead Full-Stack Coder)",
+  "license": "MIT",
+  "scripts": {
+    "dev": "cd frontend && npm run dev",
+    "build": "cd frontend && npm install && npm run build",
+    "vercel-build": "cd frontend && npm install && npm run build",
+    "start": "cd frontend && npm run preview"
+  }
+}

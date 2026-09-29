@@ -23,6 +23,13 @@ export default function QuickStats({ stats }) {
         <span className="font-semibold text-gray-700 dark:text-gray-300">{stats.answerCount}</span>
         <span className="hidden md:inline text-gray-500 dark:text-gray-400">Answers</span>
       </div>
+
+      <div className="hidden lg:flex items-center gap-2 pl-4 border-l border-gray-200 dark:border-gray-800 text-xs text-gray-500 dark:text-gray-400">
+        <span>👨‍💻 Created by <strong className="text-primary-600 dark:text-primary-400 font-semibold">Rohan Mitra</strong></span>
+        <span className="px-1.5 py-0.5 rounded bg-primary-50 dark:bg-primary-950/60 text-primary-700 dark:text-primary-300 text-[10px] font-semibold border border-primary-200 dark:border-primary-800">
+          AI Architect & Lead Coder
+        </span>
+      </div>
     </div>
   );
 }

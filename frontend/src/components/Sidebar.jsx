@@ -3,12 +3,15 @@ import { motion } from 'framer-motion';
 
 const TABS = [
   { id: 'upload', label: 'Upload', icon: '📎', gradient: 'from-blue-400 to-indigo-500' },
+  { id: 'squad', label: 'AI Agent Squad', icon: '🤖', gradient: 'from-fuchsia-500 to-indigo-600' },
   { id: 'capture', label: 'Screen Capture', icon: '📸', gradient: 'from-purple-400 to-pink-500' },
   { id: 'summary', label: 'Summary & Notes', icon: '📝', gradient: 'from-teal-400 to-green-500' },
+  { id: 'research', label: 'Academic Hub', icon: '🌐', gradient: 'from-sky-400 to-blue-600' },
   { id: 'questions', label: 'Question Bank', icon: '❓', gradient: 'from-green-400 to-emerald-500' },
   { id: 'predictor', label: 'Exam Predictor', icon: '🎯', gradient: 'from-amber-400 to-orange-500' },
   { id: 'answers', label: 'Answer Bank', icon: '✅', gradient: 'from-cyan-400 to-blue-500' },
   { id: 'adaptive', label: 'Smart Learning', icon: '🧠', gradient: 'from-violet-400 to-purple-500' },
+  { id: 'transparency', label: 'AI Process & Audit', icon: '🔍', gradient: 'from-emerald-400 to-teal-600' },
   { id: 'plan', label: 'Study Plan', icon: '📅', gradient: 'from-rose-400 to-red-500' },
 ];
 
@@ -47,7 +50,37 @@ export default function Sidebar({ activeTab, setActiveTab, collapsed, setCollaps
           );
         })}
       </div>
-      <div className="p-4 border-t border-gray-200 dark:border-gray-800 flex justify-center">
+
+      {/* Maker / Coder Credit */}
+      <div className="p-3 mx-3 mb-2 rounded-xl bg-gradient-to-br from-primary-50 to-indigo-50/50 dark:from-gray-800/80 dark:to-gray-800/40 border border-primary-200/60 dark:border-gray-700/60 transition-all">
+        {!collapsed ? (
+          <div className="flex flex-col gap-1">
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 rounded-full bg-primary-600 text-white flex items-center justify-center text-xs font-bold shadow-xs">
+                RM
+              </div>
+              <div>
+                <span className="text-xs font-bold text-gray-900 dark:text-gray-100 block leading-tight">
+                  Rohan Mitra
+                </span>
+                <span className="text-[10px] text-primary-600 dark:text-primary-400 font-medium block leading-none">
+                  Maker & Lead AI Coder
+                </span>
+              </div>
+            </div>
+            <div className="mt-1 pt-1 border-t border-primary-200/40 dark:border-gray-700/40 flex items-center justify-between text-[9px] text-gray-500 dark:text-gray-400">
+              <span>AI Agents Architect</span>
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+            </div>
+          </div>
+        ) : (
+          <div className="flex justify-center" title="Maker: Rohan Mitra (AI Architect & Coder)">
+            <span className="text-lg">👨‍💻</span>
+          </div>
+        )}
+      </div>
+
+      <div className="p-3 border-t border-gray-200 dark:border-gray-800 flex justify-center">
         <button 
           onClick={() => setCollapsed(!collapsed)}
           className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400 transition-colors"

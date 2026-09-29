@@ -18,6 +18,7 @@ from app.services.exam_predictor import ExamPredictor
 from app.services.question_ranker import QuestionRanker
 from app.services.answer_generator import AnswerGenerator
 from app.services.pdf_service import PDFService
+from app.services.academic_service import AcademicResearchService
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -30,6 +31,7 @@ exam_predictor = ExamPredictor(ai_service)
 question_ranker = QuestionRanker()
 answer_generator = AnswerGenerator(ai_service)
 pdf_service = PDFService()
+academic_service = AcademicResearchService()
 
 @router.post("/upload")
 async def upload_file(file: UploadFile = File(...)):
@@ -133,6 +135,91 @@ async def process_document(
             status_code=500,
             detail=f"Internal server error while processing document: {str(e)}"
         )
+
+@router.post("/process-multiple")
+async def process_multiple_documents(
+    files: List[UploadFile] = File(...),
+    generate_summary: bool = True,
+    generate_questions: bool = False,
+    num_questions: int = 10
+):
+    """
+    Process multiple uploaded documents (PDFs, PPTs, Docs) simultaneously in a single batch.
+    Extracts, structures, and combines content across all files.
+    """
+    if not files:
+        raise HTTPException(status_code=400, detail="No files uploaded")
+
+    combined_texts = []
+    file_summaries = []
+    total_words = 0
+    total_chars = 0
+
+    for i, file in enumerate(files):
+        try:
+            contents = await file.read()
+            res = document_processor.process_file(contents, file.filename)
+            if res.get("success"):
+                text = res.get("text", "")
+                w_count = res.get("word_count", 0)
+                c_count = res.get("character_count", 0)
+                total_words += w_count
+                total_chars += c_count
+
+                header = f"=== [DOCUMENT {i+1}: {file.filename}] ===\n"
+                combined_texts.append(header + text)
+
+                file_summaries.append({
+                    "filename": file.filename,
+                    "file_type": res.get("file_type", "Document"),
+                    "word_count": w_count,
+                    "character_count": c_count,
+                    "success": True
+                })
+            else:
+                file_summaries.append({
+                    "filename": file.filename,
+                    "error": res.get("error", "Unknown extraction error"),
+                    "success": False
+                })
+        except Exception as e:
+            logger.error(f"Error processing {file.filename}: {e}")
+            file_summaries.append({
+                "filename": file.filename,
+                "error": str(e),
+                "success": False
+            })
+
+    full_extracted_text = "\n\n".join(combined_texts)
+
+    response_data = {
+        "message": f"Successfully processed {len(files)} documents",
+        "total_files": len(files),
+        "files": file_summaries,
+        "total_word_count": total_words,
+        "total_character_count": total_chars,
+        "extracted_text": full_extracted_text,
+        "extracted_text_preview": full_extracted_text[:1000] + "..." if len(full_extracted_text) > 1000 else full_extracted_text,
+        "features_requested": {
+            "summary": generate_summary,
+            "questions": generate_questions,
+            "question_count": num_questions if generate_questions else 0
+        }
+    }
+
+    if generate_summary and full_extracted_text:
+        summary_res = ai_service.summarize_text(full_extracted_text[:6000])
+        response_data["summary"] = summary_res
+
+    if generate_questions and full_extracted_text:
+        questions_res = ai_service.generate_questions(
+            full_extracted_text[:6000],
+            num_questions=num_questions,
+            question_types=["multiple_choice", "short_answer"]
+        )
+        response_data["questions"] = questions_res
+
+    return response_data
 
 @router.post("/summarize")
 async def generate_summary_endpoint(request: Request):
@@ -536,6 +623,65 @@ async def create_answer_guide_pdf(body: str = Form(...)):
     pdf_bytes = pdf_service.create_answer_guide_pdf(data.get('answers', []), data.get('metadata', {}))
     return StreamingResponse(io.BytesIO(pdf_bytes), media_type='application/pdf',
                              headers={'Content-Disposition': 'attachment; filename="study_guide.pdf"'})
+
+@router.post('/research/search')
+async def research_search_endpoint(request: Request):
+    """
+    Search academic literature, preprints, textbooks, and university domains:
+    arXiv, CrossRef, OpenAlex, OpenLibrary, Gutendex, Art Institute, Hipolabs
+    """
+    data = await request.json()
+    query = data.get("query", "").strip()
+    source = data.get("source", "all")
+    sources = data.get("sources")
+    perplexity_key = data.get("perplexity_key")
+
+    if not query:
+        raise HTTPException(status_code=400, detail="Query parameter is required")
+
+    if source == "arxiv":
+        return await academic_service.search_arxiv(query)
+    elif source == "crossref":
+        return await academic_service.search_crossref(query)
+    elif source == "openalex":
+        return await academic_service.search_openalex(query)
+    elif source == "openlibrary":
+        return await academic_service.search_openlibrary(query)
+    elif source == "gutendex":
+        return await academic_service.search_gutendex(query)
+    elif source == "artic":
+        return await academic_service.search_artic(query)
+    elif source == "universities":
+        return await academic_service.search_universities(name=query)
+    else:
+        # Unified parallel search across all sources
+        return await academic_service.unified_deep_search(query, sources=sources, perplexity_key=perplexity_key)
+
+@router.post('/research/ask-perplexity')
+async def ask_perplexity_endpoint(request: Request):
+    """
+    Query Perplexity AI for online research with real-time academic citations
+    """
+    data = await request.json()
+    prompt = data.get("prompt", "").strip()
+    api_key = data.get("api_key")
+    model = data.get("model", "sonar")
+
+    if not prompt:
+        raise HTTPException(status_code=400, detail="Prompt is required")
+
+    return await academic_service.ask_perplexity(prompt, api_key=api_key, model=model)
+
+@router.get('/research/audit-trail')
+async def get_audit_trail_endpoint(limit: int = 15):
+    """
+    Get system audit trail and transparency logs:
+    Shows how data was processed, agents invoked, skills used, and APIs queried
+    """
+    return {
+        "success": True,
+        "logs": academic_service.get_audit_trail(limit=limit)
+    }
 
 @router.get('/health')
 async def health_check():
