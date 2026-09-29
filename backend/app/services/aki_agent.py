@@ -125,10 +125,41 @@ class AkiStudyAgent:
                     "model": "gemini-1.5-flash"
                 }
 
-        # 3. Intelligent Fallback & Built-in Antigravity / Academic Knowledge Base
+        # 3. Arithmetic & Math Expression Solver (e.g., 2+2=, 15*8, 100/4, etc.)
+        math_clean = prompt.strip().replace('=', '').strip()
+        if re.match(r'^[0-9\.\s\+\-\*\/\(\)\%\^]+$', math_clean) and any(op in math_clean for op in ['+', '-', '*', '/', '%', '^']):
+            try:
+                norm_expr = math_clean.replace('^', '**')
+                val = eval(norm_expr, {"__builtins__": {}}, {})
+                if isinstance(val, (int, float)):
+                    return {
+                        "success": True,
+                        "agent": "Aki (Math & Formula Engine)",
+                        "response": f"🌸 **Aki's Calculation**:\n\n**`{math_clean} = {val}`** ✨\n\nNeed help with any math formulas, probability, standard deviation, or syllabus calculations? Ask Aki anytime! 📐",
+                        "mode": "math_engine"
+                    }
+            except Exception:
+                pass
+
+        # 4. Intelligent Fallback & Built-in Antigravity / Academic Knowledge Base
         lower_q = prompt.lower()
 
-        if any(w in lower_q for w in ["antigravity", "agent-first", "cross-surface"]):
+        if any(w in lower_q for w in ["phase", "lifecycle", "ideation", "requirements gathering"]):
+            ans = (
+                "🌸 **10-Phase Production Engineering Lifecycle**:\n\n"
+                "1. **Phase 1: Ideation & Requirements**: 3-5 user personas, core features, edge cases, feasibility, non-functional requirements (<1s load, WCAG).\n"
+                "2. **Phase 2: Project Setup**: Tech stack (TypeScript/Python), Git repo structure, README, CHANGELOG, Agile milestones.\n"
+                "3. **Phase 3: Design & Architecture**: Microservices, normalized DB schema, REST/OpenAPI specs, responsive wireframing.\n"
+                "4. **Phase 4: Security Standards**: OWASP Top 10, JWT/bcrypt, TLS 1.3/AES-256 encryption, rate limiting, dependency audit.\n"
+                "5. **Phase 5: Development / Coding**: Clean modular UI, REST APIs, AI rules.md standardization, PR reviews.\n"
+                "6. **Phase 6: Testing**: Unit tests (80% coverage), integration test flows, OWASP ZAP security, JMeter performance.\n"
+                "7. **Phase 7: Documentation & Logging**: JSDoc inline docs, Swagger UI, semantic versioning logs.\n"
+                "8. **Phase 8: Deployment**: CI/CD GitHub Actions workflow, Docker containers, hosting configs.\n"
+                "9. **Phase 9: Monitoring & Maintenance**: Sentry error tracking, automated daily cron backups, PostHog telemetry.\n"
+                "10. **Phase 10: Iteration & Scaling**: A/B testing, refactoring vibe debt, auto-scaling & caching! 🚀"
+            )
+            target = "transparency"
+        elif any(w in lower_q for w in ["antigravity", "agent-first", "cross-surface"]):
             ans = (
                 "🚀 **Google Antigravity Agent Architecture Overview**:\n\n"
                 "Google Antigravity introduces an **agent-first environment** that unifies the developer workspace:\n"

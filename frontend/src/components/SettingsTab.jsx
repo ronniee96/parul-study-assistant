@@ -823,9 +823,9 @@ export default function SettingsTab({
     <div className="flex flex-col gap-6 h-full p-4 max-w-6xl mx-auto overflow-y-auto w-full">
       {/* Header Banner */}
       <div className="glass-card p-6 bg-gradient-to-r from-slate-600/10 via-zinc-600/10 to-primary-600/10 border-slate-500/20">
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
+        <div className="flex flex-col xl:flex-row items-start xl:items-center justify-between gap-4 w-full">
+          <div className="flex-1 min-w-0 pr-0 xl:pr-4">
+            <div className="flex flex-wrap items-center gap-2 mb-1">
               <span className="text-2xl">⚙️</span>
               <h1 className="text-2xl font-bold bg-gradient-to-r from-slate-700 to-primary-700 dark:from-slate-200 dark:to-primary-300 bg-clip-text text-transparent">
                 Study Assistant Settings & Help Desk
@@ -836,12 +836,12 @@ export default function SettingsTab({
                 </span>
               )}
             </div>
-            <p className="text-sm text-gray-600 dark:text-gray-300">
+            <p className="text-sm text-gray-600 dark:text-gray-300 max-w-2xl">
               Customize study note processing, connect ChatGPT & Gemini models, audit predicted question papers, or access the Creator & Admin Portal with Apple Passkey.
             </p>
           </div>
 
-          <div className="flex items-center gap-2.5">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-2.5 shrink-0 self-start xl:self-center">
             <button
               onClick={() => {
                 if (isAdminLoggedIn) {

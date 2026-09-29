@@ -186,6 +186,56 @@ export default function AkiDashboardCompanion({
     }, 250);
   };
 
+  const [copiedAnswer, setCopiedAnswer] = useState(false);
+
+  // Safe client-side math evaluator for instant accurate calculation (e.g. "2+2=", "15*8", "100/4")
+  const evaluateClientMath = (query) => {
+    const q = query.trim();
+    const clean = q.replace(/=/g, '').trim();
+    if (/^[0-9\.\s\+\-\*\/\(\)\%\^]+$/.test(clean) && /[+\-*/%^]/.test(clean) && /[0-9]/.test(clean)) {
+      try {
+        const sanitized = clean.replace(/\^/g, '**');
+        const val = Function(`"use strict"; return (${sanitized})`)();
+        if (typeof val === 'number' && !isNaN(val) && isFinite(val)) {
+          return `🌸 **Aki's Calculation**:\n\n**${clean} = ${val}** ✨\n\nNeed help with any math formulas, probability, standard deviation, or syllabus calculations? Ask Aki anytime! 📐`;
+        }
+      } catch {}
+    }
+    return null;
+  };
+
+  // Client-side intelligent query solver fallback (covers math, exam blueprints, lifecycle phases, and notes)
+  const solveClientSideQuery = (query) => {
+    const q = query.trim();
+    const lower = q.toLowerCase();
+
+    const mathResult = evaluateClientMath(q);
+    if (mathResult) return mathResult;
+
+    if (lower.includes('phase') || lower.includes('lifecycle') || lower.includes('ideation') || lower.includes('requirements gathering')) {
+      return `🌸 **10-Phase Production Engineering Lifecycle**:\n\n1. **Phase 1: Ideation & Requirements**: User personas, edge cases, feasibility, non-functional requirements.\n2. **Phase 2: Project Setup**: Tech stack (TypeScript/Python), Git repo, README, CHANGELOG, Agile milestones.\n3. **Phase 3: Design & Architecture**: Microservices, normalized schema, REST APIs, responsive wireframes.\n4. **Phase 4: Security Standards**: OWASP Top 10, JWT/bcrypt auth, TLS 1.3/AES-256 encryption, rate limiting.\n5. **Phase 5: Development & Coding**: Clean modular UI, REST APIs, AI rules.md standardization.\n6. **Phase 6: Testing**: Unit tests (80% coverage), integration, security & performance.\n7. **Phase 7: Documentation & Logging**: JSDoc inline docs, Swagger UI, semantic versioning.\n8. **Phase 8: Deployment**: CI/CD GitHub Actions workflow, Docker containers.\n9. **Phase 9: Monitoring & Maintenance**: Sentry telemetry, cron backups, feedback loops.\n10. **Phase 10: Iteration & Scaling**: A/B testing, refactoring vibe debt, auto-scaling! 🚀`;
+    }
+
+    if (lower.includes('10 mark') || lower.includes('10-mark') || lower.includes('case study') || lower.includes('blueprint')) {
+      return `📝 **Aki's 10-Mark Blueprint for Parul University**:\n\n• **Part 1 (Executive Intro - 2 marks)**: Core definition with standard academic terminology.\n• **Part 2 (Visual Framework - 2 marks)**: ASCII diagram, workflow, or 2x2 matrix.\n• **Part 3 (Analytical Core - 4 marks)**: 4 points with distinct subheadings & real-world example.\n• **Part 4 (Conclusion & Impact - 2 marks)**: Summary and managerial takeaway! 🏆`;
+    }
+
+    if (lower.includes('exam') || lower.includes('predict') || lower.includes('syllabus') || lower.includes('pattern')) {
+      return `🎯 **Parul University Standard Exam Structure**:\n\n• **Section A**: 5 questions × 2 marks = 10 marks (Definitions & formulas)\n• **Section B**: 5 questions × 5 marks = 25 marks (Descriptive & analytical)\n• **Section C**: 2 questions × 12.5 marks = 25 marks (Case studies & essays)\n\nTotal: 60 Marks (3 Hours duration). Check the **Exam Predictor** tab for your full paper! 📄`;
+    }
+
+    if (lower.includes('divyanshu') || lower.includes('president') || lower.includes('patron')) {
+      return `🏛️ **Divyanshu Ji (Academic Patron)**:\n\nPresides over Parul University's NAAC Grade A++ academic rigor, Bloom's Taxonomy syllabus governance, and exam question paper standardization!`;
+    }
+
+    if (appState?.extractedText && appState.extractedText.length > 50) {
+      const words = appState.extractedText.split(/\s+/).slice(0, 40).join(' ');
+      return `📚 **From Your Course Notes**:\n\nI analyzed your uploaded document:\n"${words}..."\n\nI can generate MCQs, Section B descriptive questions, or 10-mark case studies from this! What would you like to practice? 🌸`;
+    }
+
+    return `🌸 **Aki's Study Guidance**:\n\nRegarding "${q}":\nStudy consistently with active recall! Use the **Question Bank** tab to solve 25 high-probability questions, or drop lecture slides in **Upload** for an instant exam blueprint! 💖`;
+  };
+
   // Ask Aki AI Agent (Google Antigravity & Study Agent)
   const handleSendAkiQuery = async (customPrompt) => {
     const q = customPrompt || userQuery;
@@ -193,6 +243,16 @@ export default function AkiDashboardCompanion({
 
     setIsAskingAki(true);
     handleAkiClick();
+    setIsExpanded(true);
+
+    // Check instant client-side math first (0ms latency!)
+    const instantMath = evaluateClientMath(q);
+    if (instantMath) {
+      setAkiChatReply(instantMath);
+      setIsAskingAki(false);
+      setUserQuery('');
+      return;
+    }
 
     try {
       const res = await fetch('/api/v1/aki/chat', {
@@ -201,18 +261,19 @@ export default function AkiDashboardCompanion({
         body: JSON.stringify({
           prompt: q.trim(),
           context: appState?.extractedText || '',
-          api_key: apiKeys?.gemini || ''
+          api_key: apiKeys?.gemini || '',
+          api_keys: apiKeys || {}
         })
       });
 
       if (res.ok) {
         const data = await res.json();
-        setAkiChatReply(data.response || data.message || "Aki processed your request!");
+        setAkiChatReply(data.response || data.message || solveClientSideQuery(q));
       } else {
-        throw new Error("Offline fallback");
+        setAkiChatReply(solveClientSideQuery(q));
       }
     } catch {
-      setAkiChatReply("Daijoubu! Aki is right here with you! Let's conquer this semester exam together! 🌸💪");
+      setAkiChatReply(solveClientSideQuery(q));
     } finally {
       setIsAskingAki(false);
       setUserQuery('');
@@ -220,11 +281,13 @@ export default function AkiDashboardCompanion({
   };
 
   return (
-    /* ── OUTER: fixed width 190px, overflow-hidden, nothing bleeds outside viewport ── */
-    <div className="fixed bottom-3 right-3 z-40 select-none flex flex-col items-end pointer-events-none w-[190px] overflow-visible">
+    /* ── OUTER: responsive width, smoothly expands when chat is open ── */
+    <div className={`fixed bottom-3 right-3 z-40 select-none flex flex-col items-end pointer-events-none transition-all duration-300 ${
+      showChatInput ? 'w-[290px] sm:w-[340px]' : 'w-[190px]'
+    } overflow-visible`}>
 
       {/* ══════════════════════════════════════════════════════════════════ */}
-      {/* SPEECH BUBBLE — above Aki's head, slides up, fully contained      */}
+      {/* SPEECH BUBBLE / CHAT BOX — above Aki's head, slides up             */}
       {/* ══════════════════════════════════════════════════════════════════ */}
       <AnimatePresence>
         {isExpanded && (
@@ -241,9 +304,17 @@ export default function AkiDashboardCompanion({
                 🌸 Aki
               </span>
               <button
-                onClick={(e) => { e.stopPropagation(); setShowChatInput(!showChatInput); }}
-                className="text-[10px] text-gray-700 dark:text-gray-200 hover:text-pink-600 cursor-pointer bg-white/75 dark:bg-black/70 rounded-full px-1.5 py-0.5 backdrop-blur-xs"
-                title="Ask Aki a quick study question"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowChatInput(!showChatInput);
+                  setIsExpanded(true);
+                }}
+                className={`text-[10px] cursor-pointer rounded-full px-1.5 py-0.5 backdrop-blur-xs transition-all ${
+                  showChatInput
+                    ? 'bg-pink-600 text-white font-bold ring-2 ring-pink-400'
+                    : 'text-gray-700 dark:text-gray-200 hover:text-pink-600 bg-white/75 dark:bg-black/70'
+                }`}
+                title="Ask Aki a quick study or math question"
               >💬</button>
               <button
                 onClick={(e) => { e.stopPropagation(); handleRedirectToFeedback(); }}
@@ -257,34 +328,100 @@ export default function AkiDashboardCompanion({
               >✕</button>
             </div>
 
-            {/* ── Chat input mode ── */}
+            {/* ── Chat input mode with Dedicated Answering Bar ── */}
             {showChatInput ? (
               <div
-                className="w-full p-2 rounded-xl bg-white/90 dark:bg-gray-900/90 backdrop-blur-md border border-pink-400/40 shadow-lg"
+                className="w-full p-2.5 rounded-2xl bg-white/95 dark:bg-gray-900/95 backdrop-blur-md border border-pink-300/80 dark:border-pink-700/80 shadow-2xl flex flex-col gap-2"
                 onClick={(e) => e.stopPropagation()}
               >
-                {akiChatReply ? (
-                  <p className="text-[11px] text-gray-800 dark:text-gray-200 mb-2 leading-snug">
-                    🌸 <strong>Aki:</strong> {akiChatReply}
-                  </p>
-                ) : (
-                  <p className="text-[10px] text-gray-600 dark:text-gray-400 mb-1">
-                    Ask Aki anything!
-                  </p>
-                )}
-                <form onSubmit={(e) => { e.preventDefault(); handleSendAkiQuery(); }} className="flex items-center gap-1">
+                {/* ── DEDICATED AKI ANSWERING BAR ── */}
+                <div className="w-full bg-gradient-to-br from-pink-50/90 to-purple-50/90 dark:from-gray-950 dark:to-purple-950/40 border border-pink-200/80 dark:border-pink-800/80 rounded-xl p-2.5 shadow-xs">
+                  <div className="flex items-center justify-between pb-1.5 mb-1.5 border-b border-pink-200/60 dark:border-pink-800/60">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs">🌸</span>
+                      <span className="text-[10px] font-extrabold uppercase tracking-wider text-pink-700 dark:text-pink-300">
+                        Aki's Answering Bar
+                      </span>
+                    </div>
+                    {akiChatReply && (
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(akiChatReply);
+                          setCopiedAnswer(true);
+                          setTimeout(() => setCopiedAnswer(false), 2000);
+                        }}
+                        className="text-[9px] font-bold text-gray-500 hover:text-pink-600 dark:text-gray-400 cursor-pointer flex items-center gap-1 transition-colors"
+                        title="Copy answer"
+                      >
+                        <span>{copiedAnswer ? '✓ Copied' : '📋 Copy'}</span>
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Answering Bar Content */}
+                  <div className="max-h-[160px] overflow-y-auto pr-1 text-left select-text">
+                    {isAskingAki ? (
+                      <div className="flex items-center gap-2 py-2 text-xs font-semibold text-pink-600 dark:text-pink-300 animate-pulse">
+                        <span className="animate-spin text-sm">⚡</span>
+                        <span>Aki is calculating & synthesizing answer...</span>
+                      </div>
+                    ) : akiChatReply ? (
+                      <div className="text-xs text-gray-900 dark:text-gray-100 font-medium leading-relaxed whitespace-pre-wrap">
+                        {akiChatReply}
+                      </div>
+                    ) : (
+                      <div className="text-[11px] text-gray-600 dark:text-gray-400 py-1 space-y-1">
+                        <p className="font-semibold text-pink-600 dark:text-pink-400">
+                          💬 Ask Aki anything!
+                        </p>
+                        <p className="text-[10px] text-gray-500 dark:text-gray-400 leading-snug">
+                          Type math (e.g. <code>2+2=</code>), formulas, exam predictions, or syllabus questions.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Quick prompt suggestion chips */}
+                <div className="flex flex-wrap items-center gap-1">
+                  {[
+                    { label: '2+2=', prompt: '2+2=' },
+                    { label: '10-Mark Blueprint', prompt: '10-mark blueprint' },
+                    { label: 'Exam Pattern', prompt: 'Parul University exam pattern' },
+                    { label: '10 Phases', prompt: '10 phases of software development lifecycle' }
+                  ].map((chip) => (
+                    <button
+                      key={chip.label}
+                      onClick={() => handleSendAkiQuery(chip.prompt)}
+                      className="px-2 py-0.5 rounded-full bg-pink-100/80 hover:bg-pink-200 dark:bg-pink-950/80 dark:hover:bg-pink-900 text-pink-800 dark:text-pink-200 text-[9px] font-bold transition-all cursor-pointer"
+                    >
+                      {chip.label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Question Input Bar */}
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    handleSendAkiQuery();
+                  }}
+                  className="flex items-center gap-1.5"
+                >
                   <input
                     type="text"
                     value={userQuery}
                     onChange={(e) => setUserQuery(e.target.value)}
-                    placeholder="Ask Aki..."
-                    className="flex-1 px-2 py-1 text-xs bg-white dark:bg-gray-950 border border-pink-300 dark:border-pink-800 rounded-lg focus:outline-none"
+                    placeholder="Ask Aki (e.g. 2+2=, formulas)..."
+                    className="flex-1 px-2.5 py-1.5 text-xs bg-white dark:bg-gray-950 border border-pink-300 dark:border-pink-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-500 text-gray-900 dark:text-white"
                   />
                   <button
                     type="submit"
                     disabled={isAskingAki || !userQuery.trim()}
-                    className="px-2 py-1 bg-pink-600 text-white font-bold text-[10px] rounded-lg cursor-pointer disabled:opacity-50"
-                  >Send</button>
+                    className="px-3 py-1.5 bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-700 hover:to-purple-700 text-white font-extrabold text-[11px] rounded-xl cursor-pointer disabled:opacity-50 shadow-md transition-all shrink-0 active:scale-95"
+                  >
+                    Send
+                  </button>
                 </form>
               </div>
             ) : (
