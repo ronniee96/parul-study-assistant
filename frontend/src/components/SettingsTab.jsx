@@ -2132,13 +2132,16 @@ export default function SettingsTab({
                       }`}>
                         {item.status === 'resolved' ? '✓ Resolved' : '● Open Issue'}
                       </span>
-                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${
-                        item.severity === 'critical'
-                          ? 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300'
-                          : 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300'
-                      }`}>
-                        {item.severity}
-                      </span>
+                      {/* Only show severity badge for open (unresolved) issues */}
+                      {item.status !== 'resolved' && (
+                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${
+                          item.severity === 'critical'
+                            ? 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300'
+                            : 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300'
+                        }`}>
+                          {item.severity}
+                        </span>
+                      )}
                     </div>
                   </div>
 
