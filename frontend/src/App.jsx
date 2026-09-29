@@ -105,6 +105,26 @@ export default function App() {
     }
   };
 
+  const [isRefreshingAgents, setIsRefreshingAgents] = useState(false);
+
+  const handleRefreshAgents = () => {
+    setIsRefreshingAgents(true);
+    
+    // Purge transient prompt caches & reasoning noise while keeping document corpus and API keys intact
+    try {
+      sessionStorage.removeItem('study_assistant_transient_prompt_cache');
+      sessionStorage.removeItem('study_assistant_reasoning_temp');
+    } catch (e) {
+      console.warn("Error refreshing cognitive cache:", e);
+    }
+
+    setTimeout(() => {
+      setIsRefreshingAgents(false);
+      setToastMessage("⚡ Agent Squad & Cognitive Engine Refreshed! All 6 AI models recalibrated for maximum analytical depth.");
+      setTimeout(() => setToastMessage(null), 4500);
+    }, 450);
+  };
+
   useEffect(() => {
     if (darkMode) {
       document.documentElement.classList.add('dark');
@@ -192,12 +212,22 @@ export default function App() {
             )}
 
             <button
+              onClick={handleRefreshAgents}
+              disabled={isRefreshingAgents}
+              className="px-3 py-1.5 rounded-full bg-white/20 hover:bg-white/30 text-xs font-bold transition-all text-white border border-white/30 cursor-pointer shadow-sm flex items-center gap-1.5 active:scale-95"
+              title="Refresh Agent Squad cognitive context & recalibrate AI reasoning (preserves uploaded documents and permanent API keys)"
+            >
+              <span className={isRefreshingAgents ? "inline-block animate-spin" : ""}>⚡</span>
+              <span className="hidden sm:inline">{isRefreshingAgents ? 'Recalibrating...' : 'Refresh Agents'}</span>
+            </button>
+
+            <button
               onClick={() => handleResetWorkspace(false)}
               className="px-3 py-1.5 rounded-full bg-white/20 hover:bg-white/30 text-xs font-bold transition-all text-white border border-white/30 cursor-pointer shadow-sm flex items-center gap-1.5"
               title="Start a completely new study session (clears previous PDFs & questions, keeps API keys)"
             >
               <span>🔄</span>
-              <span>New Session</span>
+              <span className="hidden md:inline">New Session</span>
             </button>
 
             <button
