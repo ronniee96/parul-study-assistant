@@ -39,7 +39,7 @@ export default function AkiDashboardCompanion({
   setActiveTab = () => {},
   apiKeys = {}
 }) {
-  const [isExpanded, setIsExpanded] = useState(true);
+  const [isExpanded, setIsExpanded] = useState(false);
   const [currentQuoteIdx, setCurrentQuoteIdx] = useState(() => Math.floor(Math.random() * ANIME_CHEER_QUOTES.length));
   const [actionState, setActionState] = useState('idle'); // 'idle' | 'jumping'
   const [emotes, setEmotes] = useState([]);
@@ -59,12 +59,13 @@ export default function AkiDashboardCompanion({
     return () => clearInterval(blinkInterval);
   }, []);
 
-  // Auto-hide speech bubble after 3 seconds whenever quote changes or bubble opens
+  // Auto-hide speech bubble 3 seconds after each new quote is shown
   useEffect(() => {
     if (!isExpanded) return;
     const hideTimer = setTimeout(() => setIsExpanded(false), 3000);
     return () => clearTimeout(hideTimer);
-  }, [currentQuoteIdx, isExpanded]);
+  }, [currentQuoteIdx]); // only resets timer when quote changes, not on every render
+
 
   const activeQuote = ANIME_CHEER_QUOTES[currentQuoteIdx] || ANIME_CHEER_QUOTES[0];
 
@@ -136,6 +137,7 @@ export default function AkiDashboardCompanion({
     playAnimeSparkleChime();
     setActionState('jumping');
     setIsTalking(true);
+    setIsExpanded(true); // always show bubble when Aki is clicked
 
     // Randomize to a brand-new quote from the 50 quotes!
     setCurrentQuoteIdx(prev => {
@@ -145,6 +147,7 @@ export default function AkiDashboardCompanion({
       } while (next === prev && ANIME_CHEER_QUOTES.length > 1);
       return next;
     });
+
 
     // Burst ONLY English & Romaji cheer emotes (NO Japanese characters!)
     const emoteIcons = ['✨', '💖', '⭐', '🌸', '🎉', 'GANBARE! 🔥', 'FIGHT! 💪', 'LET\'S GO! 🚀', 'PLUS ULTRA! ⚡', 'YOU GOT THIS! ⭐', 'SASAGEYO! ⚔️'];

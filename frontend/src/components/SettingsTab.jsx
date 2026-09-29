@@ -1549,8 +1549,6 @@ export default function SettingsTab({
                         {/* 3. AUTHOR & SUBTLE SECONDARY NOTE */}
                         <div className="flex items-center justify-center gap-1.5 text-[10px] text-gray-500 dark:text-gray-400 mt-1.5 font-medium">
                           <span>— {ANIME_CHEER_QUOTES[currentQuoteIdx]?.author}</span>
-                          <span>•</span>
-                          <span className="text-gray-400 dark:text-gray-500 italic">JP: {ANIME_CHEER_QUOTES[currentQuoteIdx]?.kanji}</span>
                         </div>
                       </div>
 
