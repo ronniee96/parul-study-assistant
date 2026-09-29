@@ -282,7 +282,7 @@ export default function AkiDashboardCompanion({
 
   return (
     /* ── OUTER: responsive width, smoothly expands when chat is open ── */
-    <div className={`fixed bottom-20 right-4 sm:right-6 z-40 select-none flex flex-col items-end pointer-events-none transition-all duration-300 ${
+    <div className={`fixed bottom-24 right-5 sm:right-7 z-40 select-none flex flex-col items-end pointer-events-none transition-all duration-300 ${
       showChatInput ? 'w-[290px] sm:w-[340px]' : 'w-[190px]'
     } overflow-visible`}>
 
@@ -525,10 +525,14 @@ export default function AkiDashboardCompanion({
           />
         </motion.div>
 
-        {/* Pill toggle to show/hide speech */}
+        {/* Pill toggle to show/hide speech — ONLY appears when hovering or interacting with Aki */}
         <div
           onClick={() => setIsExpanded(!isExpanded)}
-          className="mt-1 px-2.5 py-0.5 rounded-full bg-pink-500/90 hover:bg-pink-600 text-white font-extrabold text-[9px] shadow-md backdrop-blur-md transition-all flex items-center gap-1 cursor-pointer hover:scale-105 active:scale-95"
+          className={`mt-1 px-2.5 py-0.5 rounded-full bg-pink-500/90 hover:bg-pink-600 text-white font-extrabold text-[9px] shadow-md backdrop-blur-md transition-all duration-200 flex items-center gap-1 cursor-pointer hover:scale-105 active:scale-95 ${
+            isExpanded
+              ? 'opacity-100 scale-100 pointer-events-auto'
+              : 'opacity-0 scale-90 pointer-events-none group-hover:opacity-100 group-hover:scale-100 group-hover:pointer-events-auto'
+          }`}
           title={isExpanded ? 'Hide Aki speech' : 'Show Aki speech'}
         >
           <span>🌸</span>
