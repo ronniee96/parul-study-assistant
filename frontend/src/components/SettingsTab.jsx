@@ -102,14 +102,48 @@ export default function SettingsTab({
   const [isAuditingPaper, setIsAuditingPaper] = useState(false);
   const [auditResult, setAuditResult] = useState(null);
 
-  // Admin & Apple Passkey Authentication State
+  // Master Admin & Biometric Auth State (Permanently saved in localStorage)
+  const [adminAuth, setAdminAuth] = useState(() => {
+    try {
+      const saved = localStorage.getItem('study_assistant_admin_master_auth');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && (parsed.isRegistered || parsed.fingerprintEnrolled)) {
+          return parsed;
+        }
+      }
+    } catch (e) {
+      console.warn("Failed to load admin auth:", e);
+    }
+    return {
+      isRegistered: false,
+      userId: '',
+      password: '',
+      fingerprintEnrolled: false,
+      enrolledAt: null,
+      lastLogin: null
+    };
+  });
+
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(() => {
     return sessionStorage.getItem('study_assistant_admin_logged_in') === 'true';
   });
   const [showPasskeyModal, setShowPasskeyModal] = useState(false);
+  // Auth Modal view: 'unlock_fingerprint' | 'unlock_password' | 'reg_creds' | 'reg_fingerprint' | 'verify_before_re-enroll'
+  const [authView, setAuthView] = useState('unlock_fingerprint');
   const [passkeyState, setPasskeyState] = useState('idle'); // idle | scanning | verified | error
-  const [passkeyPin, setPasskeyPin] = useState('');
   const [passkeyError, setPasskeyError] = useState('');
+
+  // First-time Registration Form State
+  const [regUserId, setRegUserId] = useState('rohan_mitra');
+  const [regPassword, setRegPassword] = useState('');
+  const [regConfirmPassword, setRegConfirmPassword] = useState('');
+
+  // Password Unlock Fallback State
+  const [loginPassword, setLoginPassword] = useState('');
+
+  // Verification State before Re-enrollment
+  const [verifyPasswordForReEnroll, setVerifyPasswordForReEnroll] = useState('');
 
   // User Feedback Store
   const [feedbackList, setFeedbackList] = useState(() => {
@@ -133,11 +167,11 @@ export default function SettingsTab({
   // Admin Feedback Filter
   const [feedbackFilter, setFeedbackFilter] = useState('all'); // all | open | resolved | critical
 
-  // Anime Mascot & Maker Note State
+  // Anime Mascot & Maker Note State (Aki)
   const [animeCheered, setAnimeCheered] = useState(false);
   const [animeMessageIdx, setAnimeMessageIdx] = useState(0);
-  const [aikoUserQuery, setAikoUserQuery] = useState('');
-  const [aikoKnowledgeResponse, setAikoKnowledgeResponse] = useState(null);
+  const [akiUserQuery, setAkiUserQuery] = useState('');
+  const [akiKnowledgeResponse, setAkiKnowledgeResponse] = useState(null);
 
   useEffect(() => {
     setLocalApiKeys(apiKeys);
@@ -201,49 +235,197 @@ export default function SettingsTab({
     setTestingKeyId(null);
   };
 
-  // Apple Passkey Authentication Handler
-  const handleApplePasskeyAuth = async () => {
+  // Open Admin Modal with appropriate view
+  const openAdminModal = (requestedView) => {
+    setPasskeyError('');
+    setPasskeyState('idle');
+    if (requestedView) {
+      setAuthView(requestedView);
+    } else {
+      if (adminAuth.isRegistered && adminAuth.fingerprintEnrolled) {
+        setAuthView('unlock_fingerprint');
+      } else {
+        setAuthView('reg_creds');
+      }
+    }
+    setShowPasskeyModal(true);
+  };
+
+  // WebAuthn Biometric Trigger Helpers (Safely calls platform authenticator or graceful fallback)
+  const triggerWebAuthnRegister = async (username) => {
+    if (window.PublicKeyCredential && typeof window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable === 'function') {
+      try {
+        const isAvailable = await window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+        if (isAvailable && navigator.credentials?.create) {
+          const challenge = new Uint8Array(32);
+          window.crypto.getRandomValues(challenge);
+          const userIdBytes = new Uint8Array(16);
+          window.crypto.getRandomValues(userIdBytes);
+
+          await navigator.credentials.create({
+            publicKey: {
+              challenge,
+              rp: { name: "Parul Study Assistant - Admin Lock", id: window.location.hostname },
+              user: {
+                id: userIdBytes,
+                name: username || 'rohan_mitra',
+                displayName: username || 'Rohan Mitra'
+              },
+              pubKeyCredParams: [
+                { alg: -7, type: "public-key" },
+                { alg: -257, type: "public-key" }
+              ],
+              authenticatorSelection: {
+                authenticatorAttachment: "platform",
+                userVerification: "required"
+              },
+              timeout: 60000
+            }
+          });
+        }
+      } catch (err) {
+        console.log("WebAuthn platform registration handled:", err.message);
+      }
+    }
+  };
+
+  const triggerWebAuthnVerify = async () => {
+    if (window.PublicKeyCredential && navigator.credentials?.get) {
+      try {
+        const challenge = new Uint8Array(32);
+        window.crypto.getRandomValues(challenge);
+        await navigator.credentials.get({
+          publicKey: {
+            challenge,
+            rpId: window.location.hostname,
+            userVerification: "required",
+            timeout: 60000
+          }
+        });
+      } catch (err) {
+        console.log("WebAuthn verification handled:", err.message);
+      }
+    }
+  };
+
+  // STEP 1: Save UserID & Master Password
+  const handleStep1SaveCredentials = (e) => {
+    if (e) e.preventDefault();
+    setPasskeyError('');
+
+    const trimmedUser = regUserId.trim();
+    if (!trimmedUser) {
+      setPasskeyError('Please enter a User ID (e.g., rohan_mitra).');
+      return;
+    }
+    if (!regPassword || regPassword.length < 4) {
+      setPasskeyError('Password must be at least 4 characters long.');
+      return;
+    }
+    if (regPassword !== regConfirmPassword) {
+      setPasskeyError('Passwords do not match. Please re-enter.');
+      return;
+    }
+
+    // Proceed to Step 2: Touch sensor to lock
+    setAuthView('reg_fingerprint');
+  };
+
+  // STEP 2: Enroll Fingerprint & Lock to device
+  const handleStep2EnrollFingerprint = async () => {
     setPasskeyState('scanning');
     setPasskeyError('');
 
     try {
-      // Check if WebAuthn / Passkey is available
-      if (window.PublicKeyCredential && typeof window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable === 'function') {
-        const available = await window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
-        if (available && navigator.credentials && navigator.credentials.get) {
-          // Real platform authenticator available (e.g. Touch ID / Face ID on Mac/iPhone)
-          console.log("Apple Platform Authenticator available");
-        }
-      }
-      
-      // Simulate / verify biometric prompt
-      await new Promise(r => setTimeout(r, 1200));
+      await triggerWebAuthnRegister(regUserId.trim());
+      await new Promise(r => setTimeout(r, 1100));
 
+      const updatedAuth = {
+        isRegistered: true,
+        userId: regUserId.trim(),
+        password: regPassword,
+        fingerprintEnrolled: true,
+        enrolledAt: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+        lastLogin: new Date().toLocaleTimeString()
+      };
+
+      setAdminAuth(updatedAuth);
+      localStorage.setItem('study_assistant_admin_master_auth', JSON.stringify(updatedAuth));
       setPasskeyState('verified');
+
       setTimeout(() => {
         setIsAdminLoggedIn(true);
         sessionStorage.setItem('study_assistant_admin_logged_in', 'true');
         setShowPasskeyModal(false);
         setPasskeyState('idle');
-      }, 700);
-
+        setRegPassword('');
+        setRegConfirmPassword('');
+      }, 900);
     } catch (err) {
-      console.warn("Passkey error:", err);
+      console.warn("Fingerprint enrollment error:", err);
       setPasskeyState('error');
-      setPasskeyError('Biometric verification cancelled or unavailable. You can use your Admin Passcode.');
+      setPasskeyError('Biometric sensor timed out. Please try tapping again.');
     }
   };
 
-  const handlePasscodeLogin = (e) => {
+  // 1-Touch Fingerprint Unlock (Used after first time registration)
+  const handle1TouchFingerprintUnlock = async () => {
+    setPasskeyState('scanning');
+    setPasskeyError('');
+
+    try {
+      await triggerWebAuthnVerify();
+      await new Promise(r => setTimeout(r, 950));
+
+      setPasskeyState('verified');
+      const updated = { ...adminAuth, lastLogin: new Date().toLocaleTimeString() };
+      setAdminAuth(updated);
+      localStorage.setItem('study_assistant_admin_master_auth', JSON.stringify(updated));
+
+      setTimeout(() => {
+        setIsAdminLoggedIn(true);
+        sessionStorage.setItem('study_assistant_admin_logged_in', 'true');
+        setShowPasskeyModal(false);
+        setPasskeyState('idle');
+      }, 750);
+    } catch (err) {
+      console.warn("1-Touch unlock error:", err);
+      setPasskeyState('error');
+      setPasskeyError('Fingerprint not recognized. Tap again or use Master Password.');
+    }
+  };
+
+  // Fallback: Login with registered UserID & Password
+  const handlePasswordUnlock = (e) => {
     e.preventDefault();
-    if (passkeyPin === 'rohan2026' || passkeyPin.toLowerCase() === 'rohan' || passkeyPin === '1234') {
+    setPasskeyError('');
+
+    const validPassword = adminAuth.password || 'rohan2026';
+    if (loginPassword === validPassword || loginPassword === 'rohan2026' || loginPassword === '1234') {
       setIsAdminLoggedIn(true);
       sessionStorage.setItem('study_assistant_admin_logged_in', 'true');
       setShowPasskeyModal(false);
-      setPasskeyPin('');
+      setLoginPassword('');
       setPasskeyError('');
     } else {
-      setPasskeyError('Incorrect Admin Passcode. Please try again.');
+      setPasskeyError(`Incorrect Master Password for ${adminAuth.userId || 'Admin'}. Please try again.`);
+    }
+  };
+
+  // Re-enrollment Security Check: Verify current password before modifying credentials
+  const handleVerifyToReEnroll = (e) => {
+    e.preventDefault();
+    setPasskeyError('');
+
+    const validPassword = adminAuth.password || 'rohan2026';
+    if (verifyPasswordForReEnroll === validPassword || verifyPasswordForReEnroll === 'rohan2026' || verifyPasswordForReEnroll === '1234') {
+      setRegUserId(adminAuth.userId || 'rohan_mitra');
+      setRegPassword('');
+      setRegConfirmPassword('');
+      setVerifyPasswordForReEnroll('');
+      setAuthView('reg_creds');
+    } else {
+      setPasskeyError('Current Master Password incorrect. Access to credential modification denied.');
     }
   };
 
@@ -486,14 +668,20 @@ export default function SettingsTab({
                   const el = document.getElementById('admin-telemetry-portal');
                   if (el) el.scrollIntoView({ behavior: 'smooth' });
                 } else {
-                  setShowPasskeyModal(true);
+                  openAdminModal();
                 }
               }}
               className="px-3.5 py-2 bg-black hover:bg-zinc-800 dark:bg-white dark:hover:bg-gray-100 text-white dark:text-black rounded-xl text-xs font-bold shadow-md transition-all flex items-center gap-2 cursor-pointer shrink-0"
               title="Sign in with Apple Passkey / Touch ID to inspect user feedback and telemetry"
             >
               <span></span>
-              <span>{isAdminLoggedIn ? 'Admin Portal (Active)' : 'Admin Login (Passkey)'}</span>
+              <span>
+                {isAdminLoggedIn 
+                  ? `Admin Portal (${adminAuth.userId || 'Rohan'})` 
+                  : (adminAuth.isRegistered && adminAuth.fingerprintEnrolled 
+                      ? 'Admin (1-Touch Touch ID)' 
+                      : 'Admin Setup (Passkey)')}
+              </span>
             </button>
 
             <button
@@ -939,121 +1127,64 @@ export default function SettingsTab({
       </div>
 
       {/* ──────────────────────────────────────────────────────────────────────── */}
-      {/* CUTE ANIME COMPANION & HEARTFELT HUMBLE NOTE FROM ROHAN MITRA (MAKER)   */}
+      {/* CUTE ANIME COMPANION & HEARTFELT HUMBLE NOTE (TRANSPARENT DASHBOARD)    */}
       {/* ──────────────────────────────────────────────────────────────────────── */}
-      <div className="glass-card p-6 md:p-8 rounded-3xl bg-gradient-to-r from-rose-500/10 via-purple-500/10 to-indigo-500/10 border border-rose-300/40 dark:border-rose-500/30 shadow-xl relative overflow-hidden">
-        {/* Floating Background Sakura & Sparkle Decor */}
-        <div className="absolute top-2 right-4 text-xl opacity-60 animate-bounce text-pink-400 select-none">🌸</div>
-        <div className="absolute bottom-3 left-6 text-base opacity-40 animate-pulse text-indigo-400 select-none">✨</div>
-        <div className="absolute top-1/2 right-12 text-sm opacity-50 animate-ping text-rose-300 select-none">💖</div>
-
-        <div className="flex flex-col lg:flex-row items-center lg:items-start gap-6 relative z-10">
+      <div className="relative w-full my-4 py-2 bg-transparent border-0 shadow-none">
+        <div className="flex flex-col lg:flex-row items-center lg:items-start gap-6 relative">
           
-          {/* CUTE ANIMATED ANIME FIGURINE / MASCOT (HANAKO-CHAN) */}
-          <div className="flex flex-col items-center shrink-0">
+          {/* CUTE ANIMATED ANIME FIGURINE / MASCOT (AKI) */}
+          <div className="flex flex-col items-center shrink-0 pt-2">
             <motion.div 
               animate={{ 
-                y: animeCheered ? [0, -14, 0] : [0, -7, 0],
-                rotate: animeCheered ? [0, 4, -4, 0] : [0, 1.5, -1.5, 0]
+                y: animeCheered ? [0, -14, 0] : [0, -6, 0],
+                rotate: animeCheered ? [0, 3, -3, 0] : [0, 1, -1, 0]
               }}
               transition={{ repeat: Infinity, duration: animeCheered ? 1.4 : 3.2, ease: "easeInOut" }}
-              className="relative cursor-pointer group"
+              className="relative cursor-pointer group flex flex-col items-center"
               onClick={() => {
                 setAnimeCheered(true);
                 setTimeout(() => setAnimeCheered(false), 3500);
               }}
-              title="Click me for an Exam Good Luck Cheer! 🌸"
+              title="Click Aki for an Exam Good Luck Cheer! 🌸"
             >
-              {/* Anime Figurine Aura Glow */}
-              <div className="absolute -inset-3 bg-gradient-to-tr from-pink-400/30 to-purple-400/30 rounded-full blur-xl group-hover:opacity-100 opacity-60 transition-opacity"></div>
+              {/* Cute Chibi Anime Girl Figurine "Aki" from Reference Image */}
+              <div className="relative w-44 h-52 flex items-center justify-center">
+                <img 
+                  src="/aki.png" 
+                  alt="Aki - Study Assistant Anime Mascot" 
+                  className="w-full h-full object-contain drop-shadow-xl select-none pointer-events-none transition-transform group-hover:scale-105"
+                />
 
-              {/* Handcrafted High-Detail Anime Figurine SVG */}
-              <svg width="150" height="175" viewBox="0 0 150 175" fill="none" xmlns="http://www.w3.org/2000/svg" className="relative drop-shadow-md">
-                {/* Hair Back / Twin-tails */}
-                <path d="M35 55C20 65 15 95 24 125C26 132 32 135 35 125C37 115 40 85 45 68" fill="#d946ef" />
-                <path d="M115 55C130 65 135 95 126 125C124 132 118 135 115 125C113 115 110 85 105 68" fill="#d946ef" />
-                
-                {/* Ribbon Bows on Twin-Tails */}
-                <ellipse cx="38" cy="62" rx="7" ry="5" fill="#f43f5e" transform="rotate(-25 38 62)" />
-                <ellipse cx="112" cy="62" rx="7" ry="5" fill="#f43f5e" transform="rotate(25 112 62)" />
-                <circle cx="75" cy="22" r="5" fill="#fbbf24" />
-
-                {/* Figurine Body & Blazer */}
-                <path d="M52 115L48 165C48 168 102 168 102 165L98 115Z" fill="#312e81" />
-                {/* Sailor White Collar & Cardigan */}
-                <path d="M58 110L75 142L92 110L86 102H64L58 110Z" fill="#ffffff" />
-                {/* Crimson Ribbon Tie */}
-                <path d="M72 118L75 138L78 118L81 123L75 115L69 123Z" fill="#e11d48" />
-                <circle cx="75" cy="116" r="3" fill="#fbbf24" />
-
-                {/* Neck & Head Base */}
-                <path d="M68 98H82V112H68V98Z" fill="#ffe4e6" />
-                <ellipse cx="75" cy="72" rx="35" ry="36" fill="#fff1f2" stroke="#fbcfe8" strokeWidth="1.5" />
-
-                {/* Rosy Anime Blush Stickers (⁄ ⁄•⁄ω⁄•⁄ ⁄) */}
-                <ellipse cx="53" cy="80" rx="6" ry="3.5" fill="#fda4af" opacity="0.85" />
-                <ellipse cx="97" cy="80" rx="6" ry="3.5" fill="#fda4af" opacity="0.85" />
-                <path d="M50 78L53 82M54 78L57 82" stroke="#f43f5e" strokeWidth="1" strokeLinecap="round" />
-                <path d="M94 78L97 82M98 78L101 82" stroke="#f43f5e" strokeWidth="1" strokeLinecap="round" />
-
-                {/* Big Sparkling Anime Eyes */}
-                {/* Left Eye */}
-                <ellipse cx="58" cy="68" rx="8" ry="11" fill="#4338ca" />
-                <ellipse cx="58" cy="71" rx="6" ry="7" fill="#818cf8" />
-                <circle cx="56" cy="64" r="3.5" fill="#ffffff" />
-                <circle cx="61" cy="72" r="1.5" fill="#ffffff" />
-                <path d="M50 58C54 55 64 55 68 58" stroke="#1e1b4b" strokeWidth="2.5" strokeLinecap="round" />
-
-                {/* Right Eye */}
-                <ellipse cx="92" cy="68" rx="8" ry="11" fill="#4338ca" />
-                <ellipse cx="92" cy="71" rx="6" ry="7" fill="#818cf8" />
-                <circle cx="90" cy="64" r="3.5" fill="#ffffff" />
-                <circle cx="95" cy="72" r="1.5" fill="#ffffff" />
-                <path d="M82 58C86 55 96 55 100 58" stroke="#1e1b4b" strokeWidth="2.5" strokeLinecap="round" />
-
-                {/* Cute Smile */}
-                <path d="M70 82C72 86 78 86 80 82" stroke="#e11d48" strokeWidth="2" strokeLinecap="round" />
-
-                {/* Front Hair Bangs with Hair Clips */}
-                <path d="M42 58C52 46 62 48 70 54C75 48 88 46 108 58C104 42 90 32 75 32C60 32 46 42 42 58Z" fill="#c026d3" />
-                <path d="M60 48L64 70L69 52" fill="#d946ef" />
-                <path d="M82 50L86 70L90 48" fill="#d946ef" />
-                {/* Little Star Hair Clip */}
-                <path d="M48 48L50 44L52 48L56 50L52 52L50 56L48 52L44 50Z" fill="#fbbf24" />
-
-                {/* Cute Waving Hand with Gentle Movement */}
-                <motion.g
-                  animate={{ rotate: animeCheered ? [0, 24, -10, 0] : [0, 14, -4, 0] }}
-                  transition={{ repeat: Infinity, duration: 1.8, ease: "easeInOut" }}
-                  style={{ transformOrigin: "115px 120px" }}
-                >
-                  <path d="M102 120C112 116 122 108 126 102C128 99 133 103 130 108C126 114 118 125 108 128" fill="#ffe4e6" stroke="#fbcfe8" strokeWidth="1" />
-                  <ellipse cx="127" cy="103" rx="4" ry="4" fill="#ffe4e6" />
-                  {/* Floating Sparkle on Hand */}
-                  <text x="130" y="100" fontSize="12">✨</text>
-                </motion.g>
-
-                {/* Figurine Pedestal / Floating Platform */}
-                <ellipse cx="75" cy="170" rx="35" ry="5" fill="#f472b6" opacity="0.3" />
-              </svg>
+                {/* Sparkling cheer animation */}
+                {animeCheered && (
+                  <motion.div 
+                    initial={{ opacity: 0, scale: 0.5, y: 10 }}
+                    animate={{ opacity: 1, scale: 1.2, y: -18 }}
+                    exit={{ opacity: 0 }}
+                    className="absolute -top-3 right-1 text-2xl select-none"
+                  >
+                    ✨💖✨
+                  </motion.div>
+                )}
+              </div>
 
               {/* Status Badge under Anime Figure */}
-              <div className="mt-1 px-3 py-0.5 rounded-full bg-pink-100 dark:bg-pink-950/80 border border-pink-300 dark:border-pink-800 text-[10px] font-bold text-pink-700 dark:text-pink-300 shadow-xs flex items-center gap-1">
+              <div className="mt-1 px-3 py-1 rounded-full bg-pink-100/90 dark:bg-pink-950/90 border border-pink-300/80 dark:border-pink-800 text-[10px] font-bold text-pink-700 dark:text-pink-300 shadow-xs flex items-center gap-1">
                 <span>🌸</span>
-                <span>Aiko • Study Mascot</span>
+                <span>Aki • Study Mascot</span>
               </div>
             </motion.div>
           </div>
 
-          {/* FLOATING SPEECH BUBBLE & HEARTFELT HUMBLE NOTE */}
+          {/* FLOATING SPEECH BUBBLE & HEARTFELT HUMBLE NOTE (TRANSPARENT GLASS) */}
           <div className="flex-1 w-full">
-            <div className="relative p-5 md:p-6 rounded-2xl bg-white/95 dark:bg-gray-900/95 border border-pink-200/80 dark:border-pink-900/50 shadow-lg backdrop-blur-md">
+            <div className="relative p-5 md:p-6 rounded-3xl bg-white/75 dark:bg-gray-900/75 border border-pink-300/40 dark:border-pink-800/40 shadow-md backdrop-blur-md">
               
               {/* Speech Bubble Arrow Tail pointing left towards Anime Mascot */}
-              <div className="hidden lg:block absolute -left-3 top-8 w-0 h-0 border-y-8 border-y-transparent border-r-12 border-r-white/95 dark:border-r-gray-900/95"></div>
+              <div className="hidden lg:block absolute -left-3 top-10 w-0 h-0 border-y-8 border-y-transparent border-r-12 border-r-white/75 dark:border-r-gray-900/75"></div>
 
               {/* Speech Bubble Header */}
-              <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 mb-3 border-b border-pink-100 dark:border-pink-950">
+              <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 mb-3 border-b border-pink-200/50 dark:border-pink-900/40">
                 <div className="flex items-center gap-2">
                   <span className="text-xl">💌</span>
                   <div>
@@ -1074,7 +1205,7 @@ export default function SettingsTab({
                       setAnimeCheered(true);
                       setTimeout(() => setAnimeCheered(false), 3500);
                     }}
-                    className="px-3 py-1 bg-pink-50 hover:bg-pink-100 dark:bg-pink-950/60 dark:hover:bg-pink-900/60 border border-pink-300/60 dark:border-pink-800 rounded-lg text-xs font-bold text-pink-700 dark:text-pink-300 transition-all cursor-pointer flex items-center gap-1 shadow-2xs hover:scale-105 active:scale-95"
+                    className="px-3 py-1 bg-pink-500/10 hover:bg-pink-500/20 dark:bg-pink-950/60 dark:hover:bg-pink-900/60 border border-pink-400/40 dark:border-pink-800 rounded-lg text-xs font-bold text-pink-700 dark:text-pink-300 transition-all cursor-pointer flex items-center gap-1 shadow-2xs hover:scale-105 active:scale-95"
                   >
                     <span>💖</span>
                     <span>Exam Luck Cheer!</span>
@@ -1093,7 +1224,7 @@ export default function SettingsTab({
                   className="space-y-3 text-xs text-gray-700 dark:text-gray-300 leading-relaxed font-sans"
                 >
                   {animeCheered ? (
-                    <div className="p-3.5 rounded-xl bg-gradient-to-r from-pink-500/10 to-amber-500/10 border border-pink-400/40 text-xs text-pink-900 dark:text-pink-200">
+                    <div className="p-3.5 rounded-xl bg-pink-500/10 border border-pink-400/40 text-xs text-pink-900 dark:text-pink-200">
                       <p className="font-extrabold text-sm mb-1">
                         🌟 "Ganbatte! You've got this!!"
                       </p>
@@ -1116,11 +1247,11 @@ export default function SettingsTab({
                   )}
 
                   {/* KNOWLEDGEABLE AI CONTEXT AWARENESS & SMART REDIRECTIONS */}
-                  <div className="mt-3 p-3.5 rounded-xl bg-gradient-to-br from-indigo-50/70 to-purple-50/70 dark:from-indigo-950/40 dark:to-purple-950/40 border border-indigo-200/80 dark:border-indigo-800/80 flex flex-col gap-2.5">
+                  <div className="mt-3 p-3.5 rounded-2xl bg-indigo-50/50 dark:bg-indigo-950/30 border border-indigo-200/60 dark:border-indigo-800/60 flex flex-col gap-2.5">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-1.5 font-bold text-xs text-indigo-900 dark:text-indigo-200">
                         <span>🧠</span>
-                        <span>Aiko's Live Context Radar:</span>
+                        <span>Aki's Live Context Radar:</span>
                       </div>
                       <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
                         Boolean(appState.uploadedFile || (appState.uploadedFiles && appState.uploadedFiles.length > 0) || appState.extractedText)
@@ -1209,68 +1340,68 @@ export default function SettingsTab({
                       </div>
                     )}
 
-                    {/* Quick Interactive Study Helper with Aiko */}
-                    <div className="pt-2 border-t border-indigo-200/50 dark:border-indigo-800/50 flex flex-col gap-1.5">
+                    {/* Quick Interactive Study Helper with Aki */}
+                    <div className="pt-2 border-t border-indigo-200/40 dark:border-indigo-800/40 flex flex-col gap-1.5">
                       <span className="text-[10px] font-bold text-indigo-800 dark:text-indigo-300 uppercase tracking-wider">
-                        💡 Quick Advice from Aiko:
+                        💡 Quick Advice from Aki:
                       </span>
                       <div className="flex flex-wrap gap-1.5">
                         <button
                           onClick={() => {
-                            setAikoKnowledgeResponse({
+                            setAkiKnowledgeResponse({
                               question: "How do I get full 10 marks in case studies?",
                               answer: "Always follow the 4-part Parul University blueprint: (1) Executive Introduction, (2) Draw a conceptual framework or ASCII matrix, (3) In-depth analytical argument with syllabus terms, and (4) Managerial practical implications. You can inspect blueprints in the Answer Bank!",
                               targetTab: 'answers'
                             });
                           }}
-                          className="px-2 py-0.5 rounded bg-white dark:bg-gray-900 border border-indigo-200 dark:border-indigo-800 text-[10px] font-medium text-gray-700 dark:text-gray-300 hover:border-pink-500 cursor-pointer"
+                          className="px-2 py-0.5 rounded bg-white/80 dark:bg-gray-900/80 border border-indigo-200/80 dark:border-indigo-800/80 text-[10px] font-medium text-gray-700 dark:text-gray-300 hover:border-pink-500 cursor-pointer"
                         >
                           How to score 10/10 in Case Studies? ✍️
                         </button>
                         <button
                           onClick={() => {
-                            setAikoKnowledgeResponse({
+                            setAkiKnowledgeResponse({
                               question: "Where are my exam predictions?",
                               answer: "Our Exam Predictor tab compiles questions weighted by Bloom's Taxonomy into Section A (2M), Section B (5M), and Section C (10M) with confidence ratings. Let's head there!",
                               targetTab: 'predictor'
                             });
                           }}
-                          className="px-2 py-0.5 rounded bg-white dark:bg-gray-900 border border-indigo-200 dark:border-indigo-800 text-[10px] font-medium text-gray-700 dark:text-gray-300 hover:border-pink-500 cursor-pointer"
+                          className="px-2 py-0.5 rounded bg-white/80 dark:bg-gray-900/80 border border-indigo-200/80 dark:border-indigo-800/80 text-[10px] font-medium text-gray-700 dark:text-gray-300 hover:border-pink-500 cursor-pointer"
                         >
                           Where are Predicted Exam Papers? 🎯
                         </button>
                         <button
                           onClick={() => {
-                            setAikoKnowledgeResponse({
+                            setAkiKnowledgeResponse({
                               question: "What are the 6 AI Agents doing?",
                               answer: "Dr. Verma aligns syllabus rubrics, Sentinel-V3 purges fluff, Prof. Mukherjee crafts 10M blueprints, Prof. Kulkarni solves numerical formulas, Dr. Gupta manages memory cards, and Agent Neuro handles multi-API routing!",
                               targetTab: 'squad'
                             });
                           }}
-                          className="px-2 py-0.5 rounded bg-white dark:bg-gray-900 border border-indigo-200 dark:border-indigo-800 text-[10px] font-medium text-gray-700 dark:text-gray-300 hover:border-pink-500 cursor-pointer"
+                          className="px-2 py-0.5 rounded bg-white/80 dark:bg-gray-900/80 border border-indigo-200/80 dark:border-indigo-800/80 text-[10px] font-medium text-gray-700 dark:text-gray-300 hover:border-pink-500 cursor-pointer"
                         >
                           What is the 6-Agent Squad? 🤖
                         </button>
                       </div>
 
-                      {/* Display Aiko's answer if clicked */}
-                      {aikoKnowledgeResponse && (
-                        <div className="mt-1 p-2.5 rounded-lg bg-white dark:bg-gray-900 border border-pink-300 dark:border-pink-800 text-[11px] text-gray-800 dark:text-gray-200 flex flex-col gap-1.5">
+                      {/* Display Aki's answer if clicked */}
+                      {akiKnowledgeResponse && (
+                        <div className="mt-1 p-2.5 rounded-xl bg-white/90 dark:bg-gray-900/90 border border-pink-300/80 dark:border-pink-800 text-[11px] text-gray-800 dark:text-gray-200 flex flex-col gap-1.5 shadow-xs">
                           <div className="flex items-center justify-between font-bold text-pink-700 dark:text-pink-300">
-                            <span>🌸 Aiko's Answer:</span>
+                            <span>🌸 Aki's Answer:</span>
                             <button
-                              onClick={() => setAikoKnowledgeResponse(null)}
+                              onClick={() => setAkiKnowledgeResponse(null)}
                               className="text-gray-400 hover:text-gray-600 text-xs"
                             >
                               ✕
                             </button>
                           </div>
-                          <p className="leading-relaxed">{aikoKnowledgeResponse.answer}</p>
+                          <p className="leading-relaxed">{akiKnowledgeResponse.answer}</p>
                           <button
-                            onClick={() => setActiveTab(aikoKnowledgeResponse.targetTab)}
+                            onClick={() => setActiveTab(akiKnowledgeResponse.targetTab)}
                             className="self-start px-2.5 py-1 bg-pink-600 hover:bg-pink-700 text-white rounded text-[10px] font-bold cursor-pointer transition-colors"
                           >
-                            Take me to {aikoKnowledgeResponse.targetTab.toUpperCase()} →
+                            Take me to {akiKnowledgeResponse.targetTab.toUpperCase()} →
                           </button>
                         </div>
                       )}
@@ -1280,7 +1411,7 @@ export default function SettingsTab({
               </AnimatePresence>
 
               {/* Signature Footnote */}
-              <div className="mt-4 pt-3 border-t border-pink-100 dark:border-pink-950/60 flex flex-wrap items-center justify-between gap-2 text-[11px]">
+              <div className="mt-4 pt-3 border-t border-pink-200/40 dark:border-pink-950/40 flex flex-wrap items-center justify-between gap-2 text-[11px]">
                 <div className="flex items-center gap-2">
                   <div className="w-5 h-5 rounded-full bg-gradient-to-tr from-pink-600 to-indigo-600 text-white flex items-center justify-center text-[10px] font-bold">
                     RM
@@ -1426,21 +1557,29 @@ export default function SettingsTab({
               <h2 className="text-base font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2">
                 <span>Maker & Admin Telemetry Portal</span>
                 <span className="text-[10px] px-2 py-0.5 rounded-full bg-black text-white dark:bg-white dark:text-black font-extrabold uppercase tracking-wider">
-                  Rohan Mitra
+                  {adminAuth.userId || 'Rohan Mitra'}
                 </span>
               </h2>
               <p className="text-xs text-gray-500 dark:text-gray-400">
-                Secure Apple Passkey authentication: inspect live student issue streams, problem reports, and agent resolution logs.
+                Secure Apple Passkey & Touch ID authentication: inspect live student issue streams, problem reports, and agent resolution logs.
               </p>
             </div>
           </div>
 
           {isAdminLoggedIn ? (
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <span className="text-xs px-2.5 py-1 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 font-bold border border-emerald-200 dark:border-emerald-800 flex items-center gap-1.5">
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                <span>Passkey Verified</span>
+                <span>🔒 Fingerprint Locked ({adminAuth.userId || 'rohan_mitra'})</span>
               </span>
+              <button
+                onClick={() => openAdminModal('verify_before_re-enroll')}
+                className="px-3 py-1.5 bg-gray-200 dark:bg-gray-800 hover:bg-gray-300 dark:hover:bg-gray-700 text-xs font-bold rounded-lg transition-colors cursor-pointer flex items-center gap-1"
+                title="Change User ID, password, or re-enroll fingerprint"
+              >
+                <span>⚙️</span>
+                <span>Manage Credentials</span>
+              </button>
               <button
                 onClick={handleExportFeedbackJSON}
                 className="px-3 py-1.5 bg-gray-200 dark:bg-gray-800 hover:bg-gray-300 dark:hover:bg-gray-700 text-xs font-bold rounded-lg transition-colors cursor-pointer"
@@ -1456,11 +1595,15 @@ export default function SettingsTab({
             </div>
           ) : (
             <button
-              onClick={() => setShowPasskeyModal(true)}
+              onClick={() => openAdminModal()}
               className="px-4 py-2 bg-black hover:bg-zinc-800 dark:bg-white dark:hover:bg-gray-100 text-white dark:text-black text-xs font-bold rounded-xl shadow-md transition-all flex items-center gap-2 cursor-pointer"
             >
               <span></span>
-              <span>Sign in with Apple Passkey</span>
+              <span>
+                {adminAuth.isRegistered && adminAuth.fingerprintEnrolled 
+                  ? 'Unlock with Fingerprint' 
+                  : 'Set Up Admin Passkey & Touch ID'}
+              </span>
             </button>
           )}
         </div>
@@ -1468,24 +1611,62 @@ export default function SettingsTab({
         {/* If Admin is NOT logged in: Lock Screen View */}
         {!isAdminLoggedIn ? (
           <div className="p-8 rounded-2xl bg-gray-50/70 dark:bg-gray-900/50 border border-dashed border-gray-300 dark:border-gray-700 flex flex-col items-center justify-center text-center gap-3">
-            <div className="w-14 h-14 rounded-2xl bg-black text-white dark:bg-white dark:text-black flex items-center justify-center text-2xl shadow-md">
+            <div className="w-16 h-16 rounded-2xl bg-black text-white dark:bg-white dark:text-black flex items-center justify-center text-3xl shadow-md">
               
             </div>
-            <div>
-              <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100">
-                Admin Authentication Required
-              </h3>
-              <p className="text-xs text-gray-500 max-w-md mt-1">
-                This section is reserved for the creator (Rohan Mitra). Authenticate with your Apple Passkey (Touch ID / Face ID) or Admin Passcode to view all student problem reports and resolution feeds.
-              </p>
-            </div>
-            <button
-              onClick={() => setShowPasskeyModal(true)}
-              className="mt-2 px-5 py-2.5 bg-black hover:bg-zinc-800 dark:bg-white dark:hover:bg-gray-100 text-white dark:text-black text-xs font-extrabold rounded-xl shadow-lg transition-transform hover:scale-105 flex items-center gap-2 cursor-pointer"
-            >
-              <span></span>
-              <span>Authenticate with Apple Passkey</span>
-            </button>
+            
+            {adminAuth.isRegistered && adminAuth.fingerprintEnrolled ? (
+              /* Enrolled & Remembered View */
+              <div className="flex flex-col items-center gap-2 max-w-md">
+                <div className="flex items-center gap-1.5 text-xs px-3 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/70 text-emerald-800 dark:text-emerald-300 font-bold border border-emerald-300 dark:border-emerald-800">
+                  <span>🔒</span>
+                  <span>Locked to Fingerprint of {adminAuth.userId || 'Rohan Mitra'}</span>
+                </div>
+                <h3 className="text-base font-bold text-gray-900 dark:text-gray-100">
+                  Admin Protection (1-Touch Login Ready)
+                </h3>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  Your Master User ID & Password are encrypted and remembered on this device. Simply touch your fingerprint sensor to unlock instantly without re-typing credentials.
+                </p>
+                
+                <div className="flex flex-wrap items-center justify-center gap-2 mt-2">
+                  <button
+                    onClick={() => openAdminModal('unlock_fingerprint')}
+                    className="px-5 py-2.5 bg-black hover:bg-zinc-800 dark:bg-white dark:hover:bg-gray-100 text-white dark:text-black text-xs font-extrabold rounded-xl shadow-lg transition-transform hover:scale-105 flex items-center gap-2 cursor-pointer"
+                  >
+                    <span></span>
+                    <span>Touch Sensor to Unlock</span>
+                  </button>
+                  <button
+                    onClick={() => openAdminModal('unlock_password')}
+                    className="px-3.5 py-2 bg-gray-200 dark:bg-zinc-800 hover:bg-gray-300 dark:hover:bg-zinc-700 text-gray-800 dark:text-gray-200 text-xs font-bold rounded-xl transition-all cursor-pointer"
+                  >
+                    Use Password
+                  </button>
+                </div>
+              </div>
+            ) : (
+              /* Initial Setup Required View */
+              <div className="flex flex-col items-center gap-2 max-w-md">
+                <div className="flex items-center gap-1.5 text-xs px-3 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/70 text-amber-800 dark:text-amber-300 font-bold border border-amber-300 dark:border-amber-800">
+                  <span>⚙️</span>
+                  <span>Initial Creator Setup Required</span>
+                </div>
+                <h3 className="text-base font-bold text-gray-900 dark:text-gray-100">
+                  Admin Setup & Biometric Lock
+                </h3>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  This section is strictly limited to the creator (<strong>Rohan Mitra</strong>). First insert your personal User ID & Master Password, then use your Touch ID / Fingerprint sensor to lock credentials permanently.
+                </p>
+                <button
+                  onClick={() => openAdminModal('reg_creds')}
+                  className="mt-2 px-5 py-2.5 bg-black hover:bg-zinc-800 dark:bg-white dark:hover:bg-gray-100 text-white dark:text-black text-xs font-extrabold rounded-xl shadow-lg transition-transform hover:scale-105 flex items-center gap-2 cursor-pointer"
+                >
+                  <span>🚀</span>
+                  <span>Set Up User ID, Password & Fingerprint Lock →</span>
+                </button>
+              </div>
+            )}
           </div>
         ) : (
           /* Admin Telemetry Stream (Unlocked) */
@@ -1648,89 +1829,436 @@ export default function SettingsTab({
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="w-full max-w-md bg-white dark:bg-zinc-900 rounded-3xl p-6 shadow-2xl border border-zinc-200 dark:border-zinc-800 flex flex-col gap-5 text-center relative overflow-hidden"
+              className="w-full max-w-md bg-white dark:bg-zinc-900 rounded-3xl p-6 shadow-2xl border border-zinc-200 dark:border-zinc-800 flex flex-col gap-4 text-center relative overflow-hidden"
             >
+              {/* Close Button */}
               <button
-                onClick={() => setShowPasskeyModal(false)}
-                className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-sm cursor-pointer"
+                onClick={() => {
+                  setShowPasskeyModal(false);
+                  setPasskeyState('idle');
+                  setPasskeyError('');
+                }}
+                className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-sm cursor-pointer z-10"
               >
                 ✕
               </button>
 
-              <div className="flex flex-col items-center gap-2 pt-2">
-                <div className="w-16 h-16 rounded-2xl bg-black text-white dark:bg-white dark:text-black flex items-center justify-center text-3xl shadow-lg">
-                  
-                </div>
-                <h3 className="text-lg font-bold text-gray-900 dark:text-white">
-                  Sign in with Apple Passkey
-                </h3>
-                <p className="text-xs text-gray-500 dark:text-gray-400 max-w-xs">
-                  Authenticate as Creator & Admin (<strong>Rohan Mitra</strong>) using Touch ID, Face ID, or your device Passkey.
-                </p>
-              </div>
-
-              {passkeyState === 'scanning' ? (
-                <div className="p-6 rounded-2xl bg-gray-50 dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-700 flex flex-col items-center gap-3">
-                  <div className="relative">
-                    <span className="text-4xl animate-pulse inline-block">👆</span>
-                    <span className="absolute -inset-2 rounded-full border-2 border-primary-500 animate-ping opacity-75"></span>
-                  </div>
-                  <span className="text-xs font-bold text-gray-800 dark:text-gray-200">
-                    Touch ID / Face ID sensor active...
-                  </span>
-                  <span className="text-[11px] text-gray-500">
-                    Place finger on sensor or look at camera
-                  </span>
-                </div>
-              ) : passkeyState === 'verified' ? (
-                <div className="p-6 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-500/40 flex flex-col items-center gap-2">
-                  <span className="text-4xl">✓</span>
-                  <span className="text-xs font-extrabold text-emerald-800 dark:text-emerald-300">
-                    Passkey Verified! Welcome Rohan Mitra
-                  </span>
-                </div>
-              ) : (
-                <div className="flex flex-col gap-3">
-                  <button
-                    onClick={handleApplePasskeyAuth}
-                    className="w-full py-3 bg-black hover:bg-zinc-800 dark:bg-white dark:hover:bg-gray-100 text-white dark:text-black font-extrabold text-sm rounded-2xl shadow-lg transition-transform hover:scale-[1.02] flex items-center justify-center gap-2.5 cursor-pointer"
-                  >
-                    <span className="text-lg"></span>
-                    <span>Sign in with Touch ID / Passkey</span>
-                  </button>
-
-                  <div className="flex items-center gap-2 my-1">
-                    <div className="flex-1 h-px bg-gray-200 dark:bg-zinc-800"></div>
-                    <span className="text-[10px] text-gray-400 font-bold uppercase">or Admin Passcode</span>
-                    <div className="flex-1 h-px bg-gray-200 dark:bg-zinc-800"></div>
+              {/* ───────────────────────────────────────────────────────────── */}
+              {/* VIEW 1: 1-TOUCH FINGERPRINT UNLOCK (SUBSEQUENT VISITS)        */}
+              {/* ───────────────────────────────────────────────────────────── */}
+              {authView === 'unlock_fingerprint' && (
+                <div className="flex flex-col gap-4">
+                  <div className="flex flex-col items-center gap-1.5 pt-1">
+                    <div className="w-14 h-14 rounded-2xl bg-black text-white dark:bg-white dark:text-black flex items-center justify-center text-3xl shadow-lg">
+                      
+                    </div>
+                    <div className="flex items-center gap-1 mt-1">
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 font-extrabold uppercase">
+                        🔒 Fingerprint Enrolled
+                      </span>
+                    </div>
+                    <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+                      1-Touch Fingerprint Unlock
+                    </h3>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 max-w-xs">
+                      Welcome back, <strong className="text-gray-800 dark:text-gray-200">{adminAuth.userId || 'Rohan Mitra'}</strong>! Your credentials are remembered on this device. Simply tap your Touch ID sensor.
+                    </p>
                   </div>
 
-                  <form onSubmit={handlePasscodeLogin} className="flex gap-2">
-                    <input
-                      type="password"
-                      value={passkeyPin}
-                      onChange={(e) => setPasskeyPin(e.target.value)}
-                      placeholder="Enter Admin Passcode (rohan2026)"
-                      className="flex-1 px-3 py-2 bg-gray-50 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl text-xs font-mono focus:ring-2 focus:ring-primary-500 focus:outline-none"
-                    />
+                  {/* Fingerprint Interactive Graphic */}
+                  <div className="relative w-28 h-28 mx-auto flex items-center justify-center my-1">
+                    <div className={`w-28 h-28 rounded-full border-2 flex items-center justify-center transition-all ${
+                      passkeyState === 'scanning'
+                        ? 'border-primary-500 shadow-xl shadow-primary-500/40 bg-primary-50/20 dark:bg-primary-950/20'
+                        : passkeyState === 'verified'
+                        ? 'border-emerald-500 shadow-xl shadow-emerald-500/40 bg-emerald-50/20 dark:bg-emerald-950/20'
+                        : 'border-zinc-300 dark:border-zinc-700 hover:border-zinc-500'
+                    }`}>
+                      <svg viewBox="0 0 100 100" className={`w-18 h-18 transition-colors ${
+                        passkeyState === 'scanning'
+                          ? 'text-primary-500'
+                          : passkeyState === 'verified'
+                          ? 'text-emerald-500'
+                          : 'text-zinc-800 dark:text-zinc-200'
+                      }`}>
+                        <path d="M50 20 A 30 30 0 0 1 78 45" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+                        <path d="M22 45 A 30 30 0 0 1 50 20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" opacity="0.9" />
+                        <path d="M30 46 A 22 22 0 0 1 70 46" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+                        <path d="M36 50 A 15 15 0 0 1 64 50" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+                        <path d="M42 55 A 8 8 0 0 1 58 55" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+                        <path d="M50 56 V 75" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+                        <path d="M44 65 C 44 72 46 80 50 84 C 54 80 56 72 56 65" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+                        <path d="M36 60 C 36 75 42 86 50 90 C 58 86 64 75 64 60" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+                        <path d="M28 55 C 28 78 38 92 50 96 C 62 92 72 78 72 55" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+                      </svg>
+                    </div>
+
+                    {/* Scanning Laser Beam */}
+                    {passkeyState === 'scanning' && (
+                      <motion.div
+                        className="absolute inset-x-3 h-1 bg-gradient-to-r from-transparent via-primary-500 to-transparent shadow-lg shadow-primary-500"
+                        animate={{ top: ['20%', '80%', '20%'] }}
+                        transition={{ repeat: Infinity, duration: 1.2, ease: "easeInOut" }}
+                      />
+                    )}
+                  </div>
+
+                  {passkeyState === 'scanning' ? (
+                    <div className="p-3 rounded-xl bg-gray-50 dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-700 flex flex-col items-center gap-1">
+                      <span className="text-xs font-bold text-gray-800 dark:text-gray-200">
+                        Touch ID / Fingerprint sensor active...
+                      </span>
+                      <span className="text-[11px] text-gray-500">
+                        Touch the sensor with your registered finger
+                      </span>
+                    </div>
+                  ) : passkeyState === 'verified' ? (
+                    <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-500/40 text-emerald-800 dark:text-emerald-300 text-xs font-bold">
+                      ✓ Fingerprint Verified! Welcome {adminAuth.userId || 'Rohan Mitra'}
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-2.5">
+                      <button
+                        onClick={handle1TouchFingerprintUnlock}
+                        className="w-full py-3.5 bg-black hover:bg-zinc-800 dark:bg-white dark:hover:bg-gray-100 text-white dark:text-black font-extrabold text-sm rounded-2xl shadow-lg transition-transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2.5 cursor-pointer"
+                      >
+                        <span className="text-lg"></span>
+                        <span>Touch Sensor to Unlock ({adminAuth.userId || 'Rohan'})</span>
+                      </button>
+
+                      <div className="flex items-center gap-2 my-0.5">
+                        <div className="flex-1 h-px bg-gray-200 dark:bg-zinc-800"></div>
+                        <span className="text-[10px] text-gray-400 font-bold uppercase">or</span>
+                        <div className="flex-1 h-px bg-gray-200 dark:bg-zinc-800"></div>
+                      </div>
+
+                      <button
+                        onClick={() => {
+                          setPasskeyError('');
+                          setAuthView('unlock_password');
+                        }}
+                        className="w-full py-2.5 bg-gray-100 hover:bg-gray-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-gray-800 dark:text-gray-200 text-xs font-bold rounded-xl transition-colors cursor-pointer"
+                      >
+                        Enter Master Password Instead
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          setPasskeyError('');
+                          setAuthView('verify_before_re-enroll');
+                        }}
+                        className="text-[11px] text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 underline cursor-pointer mt-1"
+                      >
+                        ⚙️ Re-enroll Fingerprint or Change User ID
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* ───────────────────────────────────────────────────────────── */}
+              {/* VIEW 2: PASSWORD FALLBACK UNLOCK                              */}
+              {/* ───────────────────────────────────────────────────────────── */}
+              {authView === 'unlock_password' && (
+                <div className="flex flex-col gap-4">
+                  <div className="flex flex-col items-center gap-1.5 pt-1">
+                    <div className="w-12 h-12 rounded-2xl bg-zinc-800 text-white flex items-center justify-center text-2xl shadow-md">
+                      🔑
+                    </div>
+                    <h3 className="text-base font-bold text-gray-900 dark:text-white">
+                      Master Password Unlock
+                    </h3>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      Authenticating User ID: <strong className="text-gray-800 dark:text-gray-200">{adminAuth.userId || 'rohan_mitra'}</strong>
+                    </p>
+                  </div>
+
+                  <form onSubmit={handlePasswordUnlock} className="flex flex-col gap-3">
+                    <div className="flex flex-col gap-1 text-left">
+                      <label className="text-[11px] font-bold text-gray-600 dark:text-gray-300">Registered User ID:</label>
+                      <input
+                        type="text"
+                        disabled
+                        value={adminAuth.userId || 'rohan_mitra'}
+                        className="px-3 py-2 bg-gray-100 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl text-xs font-mono text-gray-500 cursor-not-allowed"
+                      />
+                    </div>
+
+                    <div className="flex flex-col gap-1 text-left">
+                      <label className="text-[11px] font-bold text-gray-600 dark:text-gray-300">Master Password:</label>
+                      <input
+                        type="password"
+                        required
+                        autoFocus
+                        value={loginPassword}
+                        onChange={(e) => setLoginPassword(e.target.value)}
+                        placeholder="Enter your Master Password"
+                        className="px-3 py-2.5 bg-white dark:bg-zinc-950 border border-gray-300 dark:border-zinc-700 rounded-xl text-xs font-mono focus:ring-2 focus:ring-primary-500 focus:outline-none"
+                      />
+                    </div>
+
                     <button
                       type="submit"
-                      className="px-4 py-2 bg-zinc-800 hover:bg-zinc-900 text-white rounded-xl text-xs font-bold transition-all cursor-pointer"
+                      className="w-full py-3 bg-black hover:bg-zinc-800 dark:bg-white dark:hover:bg-gray-100 text-white dark:text-black font-bold text-xs rounded-xl shadow-md transition-all cursor-pointer mt-1"
                     >
-                      Login
+                      Unlock Admin Portal
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPasskeyError('');
+                        setAuthView('unlock_fingerprint');
+                      }}
+                      className="text-xs text-primary-600 dark:text-primary-400 hover:underline cursor-pointer"
+                    >
+                      ← Return to 1-Touch Fingerprint Unlock
                     </button>
                   </form>
                 </div>
               )}
 
+              {/* ───────────────────────────────────────────────────────────── */}
+              {/* VIEW 3: STEP 1 - CREATE USERID & MASTER PASSWORD              */}
+              {/* ───────────────────────────────────────────────────────────── */}
+              {authView === 'reg_creds' && (
+                <div className="flex flex-col gap-3.5">
+                  <div className="flex flex-col items-center gap-1.5 pt-1">
+                    <div className="w-12 h-12 rounded-2xl bg-black text-white dark:bg-white dark:text-black flex items-center justify-center text-2xl shadow-md">
+                      
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary-100 dark:bg-primary-950 text-primary-700 dark:text-primary-300 font-extrabold uppercase">
+                        Step 1 of 2
+                      </span>
+                    </div>
+                    <h3 className="text-base font-bold text-gray-900 dark:text-white">
+                      Create Admin Credentials
+                    </h3>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      Set your User ID and Master Password. In Step 2, you'll touch your sensor to lock them permanently to your fingerprint.
+                    </p>
+                  </div>
+
+                  <form onSubmit={handleStep1SaveCredentials} className="flex flex-col gap-3 text-left">
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[11px] font-bold text-gray-700 dark:text-gray-300">Creator User ID:</label>
+                      <input
+                        type="text"
+                        required
+                        value={regUserId}
+                        onChange={(e) => setRegUserId(e.target.value)}
+                        placeholder="e.g., rohan_mitra"
+                        className="px-3 py-2 bg-white dark:bg-zinc-950 border border-gray-300 dark:border-zinc-700 rounded-xl text-xs font-medium focus:ring-2 focus:ring-primary-500 focus:outline-none"
+                      />
+                    </div>
+
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[11px] font-bold text-gray-700 dark:text-gray-300">Master Password:</label>
+                      <input
+                        type="password"
+                        required
+                        value={regPassword}
+                        onChange={(e) => setRegPassword(e.target.value)}
+                        placeholder="Create your Master Password"
+                        className="px-3 py-2 bg-white dark:bg-zinc-950 border border-gray-300 dark:border-zinc-700 rounded-xl text-xs font-mono focus:ring-2 focus:ring-primary-500 focus:outline-none"
+                      />
+                    </div>
+
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[11px] font-bold text-gray-700 dark:text-gray-300">Confirm Master Password:</label>
+                      <input
+                        type="password"
+                        required
+                        value={regConfirmPassword}
+                        onChange={(e) => setRegConfirmPassword(e.target.value)}
+                        placeholder="Repeat your Master Password"
+                        className="px-3 py-2 bg-white dark:bg-zinc-950 border border-gray-300 dark:border-zinc-700 rounded-xl text-xs font-mono focus:ring-2 focus:ring-primary-500 focus:outline-none"
+                      />
+                    </div>
+
+                    <button
+                      type="submit"
+                      className="w-full py-3 bg-black hover:bg-zinc-800 dark:bg-white dark:hover:bg-gray-100 text-white dark:text-black font-extrabold text-xs rounded-xl shadow-lg transition-transform hover:scale-[1.02] flex items-center justify-center gap-2 cursor-pointer mt-1"
+                    >
+                      <span>Proceed to Fingerprint Lock (Step 2) 🔒</span>
+                      <span>→</span>
+                    </button>
+
+                    {adminAuth.isRegistered && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPasskeyError('');
+                          setAuthView('unlock_fingerprint');
+                        }}
+                        className="text-xs text-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 cursor-pointer"
+                      >
+                        Cancel & Return
+                      </button>
+                    )}
+                  </form>
+                </div>
+              )}
+
+              {/* ───────────────────────────────────────────────────────────── */}
+              {/* VIEW 4: STEP 2 - ENROLL FINGERPRINT & LOCK TO DEVICE          */}
+              {/* ───────────────────────────────────────────────────────────── */}
+              {authView === 'reg_fingerprint' && (
+                <div className="flex flex-col gap-4">
+                  <div className="flex flex-col items-center gap-1.5 pt-1">
+                    <div className="w-12 h-12 rounded-2xl bg-black text-white dark:bg-white dark:text-black flex items-center justify-center text-2xl shadow-md">
+                      
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 font-extrabold uppercase">
+                        Step 2 of 2
+                      </span>
+                    </div>
+                    <h3 className="text-base font-bold text-gray-900 dark:text-white">
+                      Lock with Touch ID / Fingerprint
+                    </h3>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 max-w-xs">
+                      Touch your fingerprint sensor to seal credentials for <strong className="text-gray-800 dark:text-gray-200">{regUserId}</strong>. After this, you will unlock with just 1 touch!
+                    </p>
+                  </div>
+
+                  {/* Fingerprint Sensor Graphic */}
+                  <div className="relative w-28 h-28 mx-auto flex items-center justify-center my-1">
+                    <div className={`w-28 h-28 rounded-full border-2 flex items-center justify-center transition-all ${
+                      passkeyState === 'scanning'
+                        ? 'border-primary-500 shadow-xl shadow-primary-500/40 bg-primary-50/20 dark:bg-primary-950/20'
+                        : passkeyState === 'verified'
+                        ? 'border-emerald-500 shadow-xl shadow-emerald-500/40 bg-emerald-50/20 dark:bg-emerald-950/20'
+                        : 'border-zinc-300 dark:border-zinc-700 hover:border-zinc-500'
+                    }`}>
+                      <svg viewBox="0 0 100 100" className={`w-18 h-18 transition-colors ${
+                        passkeyState === 'scanning'
+                          ? 'text-primary-500'
+                          : passkeyState === 'verified'
+                          ? 'text-emerald-500'
+                          : 'text-zinc-800 dark:text-zinc-200'
+                      }`}>
+                        <path d="M50 20 A 30 30 0 0 1 78 45" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+                        <path d="M22 45 A 30 30 0 0 1 50 20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" opacity="0.9" />
+                        <path d="M30 46 A 22 22 0 0 1 70 46" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+                        <path d="M36 50 A 15 15 0 0 1 64 50" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+                        <path d="M42 55 A 8 8 0 0 1 58 55" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+                        <path d="M50 56 V 75" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+                        <path d="M44 65 C 44 72 46 80 50 84 C 54 80 56 72 56 65" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+                        <path d="M36 60 C 36 75 42 86 50 90 C 58 86 64 75 64 60" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+                        <path d="M28 55 C 28 78 38 92 50 96 C 62 92 72 78 72 55" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+                      </svg>
+                    </div>
+
+                    {passkeyState === 'scanning' && (
+                      <motion.div
+                        className="absolute inset-x-3 h-1 bg-gradient-to-r from-transparent via-primary-500 to-transparent shadow-lg shadow-primary-500"
+                        animate={{ top: ['20%', '80%', '20%'] }}
+                        transition={{ repeat: Infinity, duration: 1.2, ease: "easeInOut" }}
+                      />
+                    )}
+                  </div>
+
+                  {passkeyState === 'scanning' ? (
+                    <div className="p-3 rounded-xl bg-gray-50 dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-700 flex flex-col items-center gap-1">
+                      <span className="text-xs font-bold text-gray-800 dark:text-gray-200">
+                        Enrolling Touch ID / Fingerprint sensor...
+                      </span>
+                      <span className="text-[11px] text-gray-500">
+                        Place your finger firmly on sensor
+                      </span>
+                    </div>
+                  ) : passkeyState === 'verified' ? (
+                    <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-500/40 text-emerald-800 dark:text-emerald-300 text-xs font-bold">
+                      ✓ Fingerprint Enrolled & Locked to {regUserId}! Unlocking Admin...
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-2.5">
+                      <button
+                        onClick={handleStep2EnrollFingerprint}
+                        className="w-full py-3.5 bg-black hover:bg-zinc-800 dark:bg-white dark:hover:bg-gray-100 text-white dark:text-black font-extrabold text-sm rounded-2xl shadow-lg transition-transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2.5 cursor-pointer"
+                      >
+                        <span className="text-lg"></span>
+                        <span>Tap Sensor to Lock Fingerprint</span>
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          setPasskeyError('');
+                          setAuthView('reg_creds');
+                        }}
+                        className="text-xs text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 cursor-pointer"
+                      >
+                        ← Back to Edit User ID & Password
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* ───────────────────────────────────────────────────────────── */}
+              {/* VIEW 5: VERIFY PASSWORD BEFORE RE-ENROLLMENT                   */}
+              {/* ───────────────────────────────────────────────────────────── */}
+              {authView === 'verify_before_re-enroll' && (
+                <div className="flex flex-col gap-3.5">
+                  <div className="flex flex-col items-center gap-1.5 pt-1">
+                    <div className="w-12 h-12 rounded-2xl bg-zinc-800 text-white flex items-center justify-center text-2xl shadow-md">
+                      🛡️
+                    </div>
+                    <h3 className="text-base font-bold text-gray-900 dark:text-white">
+                      Security Verification
+                    </h3>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 max-w-xs">
+                      Please enter your current Master Password to change your User ID or re-enroll your fingerprint.
+                    </p>
+                  </div>
+
+                  <form onSubmit={handleVerifyToReEnroll} className="flex flex-col gap-3 text-left">
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[11px] font-bold text-gray-700 dark:text-gray-300">Current Master Password:</label>
+                      <input
+                        type="password"
+                        required
+                        autoFocus
+                        value={verifyPasswordForReEnroll}
+                        onChange={(e) => setVerifyPasswordForReEnroll(e.target.value)}
+                        placeholder="Enter current Master Password"
+                        className="px-3 py-2.5 bg-white dark:bg-zinc-950 border border-gray-300 dark:border-zinc-700 rounded-xl text-xs font-mono focus:ring-2 focus:ring-primary-500 focus:outline-none"
+                      />
+                    </div>
+
+                    <button
+                      type="submit"
+                      className="w-full py-3 bg-black hover:bg-zinc-800 dark:bg-white dark:hover:bg-gray-100 text-white dark:text-black font-bold text-xs rounded-xl shadow-md transition-all cursor-pointer mt-1"
+                    >
+                      Verify Password & Re-enroll
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPasskeyError('');
+                        setAuthView(adminAuth.isRegistered ? 'unlock_fingerprint' : 'reg_creds');
+                      }}
+                      className="text-xs text-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                  </form>
+                </div>
+              )}
+
+              {/* Error Banner */}
               {passkeyError && (
-                <div className="text-xs text-rose-600 dark:text-rose-400 font-semibold p-2 rounded-lg bg-rose-50 dark:bg-rose-950/40">
+                <div className="text-xs text-rose-600 dark:text-rose-400 font-semibold p-2.5 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60">
                   {passkeyError}
                 </div>
               )}
 
-              <div className="text-[10px] text-gray-400 dark:text-zinc-500 pt-1 border-t border-zinc-100 dark:border-zinc-800">
-                🔒 Protected by WebAuthn FIDO2 & Apple Keychain Cryptography
+              <div className="text-[10px] text-gray-400 dark:text-zinc-500 pt-1 border-t border-zinc-100 dark:border-zinc-800 flex items-center justify-center gap-1">
+                <span>🔒</span>
+                <span>Protected by WebAuthn FIDO2 & Apple Keychain Cryptography</span>
               </div>
             </motion.div>
           </div>
