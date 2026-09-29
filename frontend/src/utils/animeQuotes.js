@@ -11,7 +11,8 @@ export const ANIME_CHEER_QUOTES = [
     badge: "⚔️ Titan Conqueror",
     color: "from-indigo-500 via-purple-600 to-slate-700",
     sfx: "⚡ Sasageyo~! (Dedicate Your Heart!)",
-    voice: "Dedicate full focus to your 3-hour exam! Clear all doubts, cite core theories, and conquer the semester! 🛡️⚡"
+    voice: "Dedicate full focus to your 3-hour exam! Clear all doubts, cite core theories, and conquer the semester! 🛡️⚡",
+    pose: "sasageyo"
   },
   {
     id: 'q-2',
@@ -22,7 +23,8 @@ export const ANIME_CHEER_QUOTES = [
     badge: "🔥 Unyielding Spirit",
     color: "from-orange-500 via-red-500 to-pink-500",
     sfx: "💪 Ganbatte~! (Never Give Up!)",
-    voice: "Even if a mock question or numerical feels tough, try again! Consistency creates absolute exam miracles! 🌸✨"
+    voice: "Even if a mock question or numerical feels tough, try again! Consistency creates absolute exam miracles! 🌸✨",
+    pose: "victory"
   },
   {
     id: 'q-3',
@@ -33,7 +35,8 @@ export const ANIME_CHEER_QUOTES = [
     badge: "⚡ Plus Ultra Spirit",
     color: "from-amber-400 via-orange-500 to-red-500",
     sfx: "💥 Genkai Toppa! (Surpass Limits!)",
-    voice: "Push through that last chapter! You have the brains and the grit to crush this entire syllabus! 💥📚"
+    voice: "Push through that last chapter! You have the brains and the grit to crush this entire syllabus! 💥📚",
+    pose: "power"
   },
   {
     id: 'q-4',
@@ -44,7 +47,8 @@ export const ANIME_CHEER_QUOTES = [
     badge: "🏆 Champion Mentality",
     color: "from-emerald-400 via-teal-500 to-cyan-500",
     sfx: "🏀 Katsu zo~! (Victory is Ours!)",
-    voice: "Stay calm when reading Section C case studies. Break down the problem step-by-step and capture every mark! 🏀🎯"
+    voice: "Stay calm when reading Section C case studies. Break down the problem step-by-step and capture every mark! 🏀🎯",
+    pose: "thinking"
   },
   {
     id: 'q-5',
@@ -55,7 +59,8 @@ export const ANIME_CHEER_QUOTES = [
     badge: "🍥 Shinobi Determination",
     color: "from-orange-400 via-amber-500 to-yellow-500",
     sfx: "🍥 Dattebayo~! (Believe It!)",
-    voice: "Believe it! You've prepared thoroughly with the AI squad. You have the exact knowledge needed to ace this test! 🍥⚔️"
+    voice: "Believe it! You've prepared thoroughly with the AI squad. You have the exact knowledge needed to ace this test! 🍥⚔️",
+    pose: "jutsu"
   },
   {
     id: 'q-6',
@@ -209,7 +214,8 @@ export const ANIME_CHEER_QUOTES = [
     badge: "🕶️ Limitless Confidence",
     color: "from-cyan-400 via-sky-500 to-indigo-600",
     sfx: "✨ Hollow Purple! (Muradaki)",
-    voice: "Walk into that exam hall with 100% swagger and zero anxiety. You have prepared with 6 AI Professors! 🕶️💪"
+    voice: "Walk into that exam hall with 100% swagger and zero anxiety. You have prepared with 6 AI Professors! 🕶️💪",
+    pose: "thinking"
   },
   {
     id: 'q-20',
@@ -220,7 +226,44 @@ export const ANIME_CHEER_QUOTES = [
     badge: "⭐ Star Platinum Focus",
     color: "from-purple-600 via-indigo-600 to-zinc-800",
     sfx: "👊 ORA ORA ORA! (Rapid Answers)",
-    voice: "Stop procrastinating! Pick up that pen, tackle Section A in 25 minutes, and roll smoothly through Section B! ⭐👊"
+    voice: "Stop procrastinating! Pick up that pen, tackle Section A in 25 minutes, and roll smoothly through Section B! ⭐👊",
+    pose: "jojo"
+  },
+  {
+    id: 'q-jojo-giorno',
+    romaji: "KONO GIORNO GIOVANNA NI WA YUME GA ARU!",
+    english: "I, Giorno Giovanna, have a dream — to top this semester with golden conviction!",
+    kanji: "このジョルノ・ジョバァーナには夢がある！",
+    author: "Giorno Giovanna — JoJo's Bizarre Adventure",
+    badge: "⭐ Golden Wind Resolve",
+    color: "from-amber-400 via-purple-600 to-indigo-800",
+    sfx: "🌟 MUDA MUDA MUDA! (Golden Resolve)",
+    voice: "Turn your study sessions into pure gold! Write every Section C answer with absolute clarity and mastery! 🌟✨",
+    pose: "jojo"
+  },
+  {
+    id: 'q-jojo-dio',
+    romaji: "KONO DIO DA!",
+    english: "Stand at the very pinnacle of your academic journey!",
+    kanji: "このDIOだ！",
+    author: "Dio Brando — JoJo's Bizarre Adventure",
+    badge: "👑 Apex Dominance",
+    color: "from-yellow-400 via-amber-500 to-purple-800",
+    sfx: "⚡ ZA WARUDO! (Time Stops for Focus)",
+    voice: "Command your attention like time has frozen! Dive into your revision and claim absolute victory! 👑⚡",
+    pose: "jojo"
+  },
+  {
+    id: 'q-jojo-joseph',
+    romaji: "TSUGI NI OMAE WA... TO YU!",
+    english: "Your next line is: 'This exam question is already solved!'",
+    kanji: "次にお前は…と言う！",
+    author: "Joseph Joestar — JoJo's Bizarre Adventure",
+    badge: "🧠 Tactical Mastermind",
+    color: "from-purple-500 via-pink-500 to-indigo-600",
+    sfx: "✨ Stand Proud! (Hamon & Spirit)",
+    voice: "Outsmart the question paper! Anticipate every question pattern using Divyanshu Ji's AI predictions! 🧠🕶️",
+    pose: "jojo"
   },
   {
     id: 'q-21',
@@ -231,7 +274,8 @@ export const ANIME_CHEER_QUOTES = [
     badge: "🔥 Eight Gates of Youth",
     color: "from-emerald-500 via-teal-600 to-green-700",
     sfx: "🥋 Springtime of Youth! (Seishun Passion)",
-    voice: "Have faith in your brain! Your late-night study hours will pay off tenfold on results day! 🔥🥋"
+    voice: "Have faith in your brain! Your late-night study hours will pay off tenfold on results day! 🔥🥋",
+    pose: "victory"
   },
   {
     id: 'q-22',
@@ -319,7 +363,7 @@ export const ANIME_CHEER_QUOTES = [
     badge: "⚔️ Titania Blade",
     color: "from-rose-500 via-pink-600 to-purple-600",
     sfx: "⚔️ Requip Armor! (Instant Armor Swap)",
-    voice: "Equip your mind with Dr. Divyanshu's Bloom's Taxonomy rubrics and answer every question like Titania! ⚔️🌸"
+    voice: "Equip your mind with Divyanshu Ji's Bloom's Taxonomy rubrics and answer every question like Titania! ⚔️🌸"
   },
   {
     id: 'q-30',

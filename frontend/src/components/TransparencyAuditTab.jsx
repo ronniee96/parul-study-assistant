@@ -18,7 +18,7 @@ export default function TransparencyAuditTab({ appState = {}, setActiveTab }) {
       color: 'text-blue-500 bg-blue-50 dark:bg-blue-950/40 border-blue-200 dark:border-blue-800'
     },
     {
-      agent: 'Dr. Divyanshu: President of Parul University 🏛️',
+      agent: 'Divyanshu Ji 🏛️',
       status: 'Standing By',
       quote: 'Parul University curriculum standards aligned. Ready to generate 100% exam-accurate blueprints under NAAC Grade A++ rigor!',
       color: 'text-amber-500 bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-800'
@@ -269,7 +269,7 @@ export default function TransparencyAuditTab({ appState = {}, setActiveTab }) {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-2">
           {[
             {
-              role: 'Dr. Divyanshu: President of Parul University',
+              role: 'Divyanshu Ji',
               icon: '🏛️',
               badge: 'President & Academic Patron',
               color: 'border-l-amber-500',

@@ -52,7 +52,7 @@ const DEFAULT_FEEDBACK = [
     rating: 4,
     timestamp: 'Yesterday at 04:45 PM',
     status: 'open',
-    assignedAgent: 'Dr. Divyanshu (President of Parul University)',
+    assignedAgent: 'Divyanshu Ji',
     agentResolution: null
   }
 ];
@@ -337,7 +337,7 @@ export default function SettingsTab({
   }, [apiKeys]);
 
   const AGENT_PERSONAS = [
-    { id: 'dr_divyanshu', name: 'Dr. Divyanshu (University President)', role: 'President & Chief Academic Patron', icon: '🏛️', desc: 'Presides over university academic excellence, Bloom\'s Taxonomy governance, and overall exam syllabus integrity.' },
+    { id: 'dr_divyanshu', name: 'Divyanshu Ji', role: 'President & Chief Academic Patron', icon: '🏛️', desc: 'Presides over university academic excellence, Bloom\'s Taxonomy governance, and overall exam syllabus integrity.' },
     { id: 'prof_mukherjee', name: 'Prof. Mukherjee', role: 'Descriptive & Frameworks Lead', icon: '✍️', desc: 'Specializes in 10-mark blueprints, ASCII process flowcharts, and managerial essays.' },
     { id: 'prof_kulkarni', name: 'Prof. Kulkarni', role: 'Applied Case & Quantitative Analyst', icon: '📊', desc: 'Emphasizes numerical formulas, SWOT/BCG matrices, and real-world corporate case studies.' },
     { id: 'dr_gupta', name: 'Dr. Gupta', role: 'Pedagogy & Memory Retention', icon: '🧠', desc: 'Focuses on high-yield recall, examiner trap warnings, and simple mnemonics.' },
@@ -628,7 +628,7 @@ export default function SettingsTab({
   };
 
   // Admin Action: Dispatch Agent Auto-Fix to a user complaint
-  const handleAdminAutoFix = (feedbackId, agentName = 'Dr. Divyanshu (President of Parul University)') => {
+  const handleAdminAutoFix = (feedbackId, agentName = 'Divyanshu Ji') => {
     const updatedList = feedbackList.map(item => {
       if (item.id === feedbackId) {
         return {
@@ -649,15 +649,15 @@ export default function SettingsTab({
     }
   };
 
-  // Bulk Auto-Resolve all pending issues with Dr. Divyanshu & Squad
+  // Bulk Auto-Resolve all pending issues with Divyanshu Ji & Squad
   const handleAutoResolveAllIssues = () => {
     const updatedList = feedbackList.map(item => {
       if (item.status === 'open') {
         return {
           ...item,
           status: 'resolved',
-          assignedAgent: 'Dr. Divyanshu (President of Parul University)',
-          agentResolution: 'Directly verified and resolved by Dr. Divyanshu & AI Squad. Root cause remediated with NAAC Grade A++ academic compliance.'
+          assignedAgent: 'Divyanshu Ji',
+          agentResolution: 'Directly verified and resolved by Divyanshu Ji & AI Squad. Root cause remediated with NAAC Grade A++ academic compliance.'
         };
       }
       return item;
@@ -946,7 +946,7 @@ export default function SettingsTab({
               onChange={(e) => updateSetting('examinerPersona', e.target.value)}
               className="mt-1 w-full px-3 py-2 bg-white dark:bg-gray-950 border border-gray-300 dark:border-gray-700 rounded-lg text-xs font-medium focus:ring-2 focus:ring-primary-500 focus:outline-none"
             >
-              <option value="dr_divyanshu">Dr. Divyanshu (University President — Academic Patron)</option>
+              <option value="dr_divyanshu">Divyanshu Ji (President & Academic Patron)</option>
               <option value="prof_mukherjee">Prof. Mukherjee (Qualitative Frameworks & Diagrams)</option>
               <option value="prof_kulkarni">Prof. Kulkarni (Applied Case & Quantitative Analyst)</option>
               <option value="dr_gupta">Dr. Gupta (Pedagogy & High-Retention Memory)</option>
@@ -1535,19 +1535,19 @@ export default function SettingsTab({
                         </span>
                       </div>
 
-                      <div className="p-4 rounded-2xl bg-gradient-to-br from-pink-500/10 via-purple-500/10 to-indigo-500/10 border border-pink-300/40 dark:border-pink-700/40 text-center relative overflow-hidden shadow-2xs">
-                        {/* 1. ENGLISH TRANSLATION IN BIG BOLD LETTERS ON TOP */}
-                        <p className="font-black text-xl sm:text-2xl md:text-3xl tracking-wide uppercase bg-gradient-to-r from-pink-600 via-purple-600 to-indigo-600 dark:from-pink-300 dark:via-purple-300 dark:to-indigo-300 bg-clip-text text-transparent font-sans drop-shadow-xs">
-                          "{ANIME_CHEER_QUOTES[currentQuoteIdx]?.english}"
-                        </p>
-
-                        {/* 2. BIG BOLD ROMAJI CATCHPHRASE (EASY FOR STUDENTS TO READ & CHANT) */}
-                        <p className="text-sm sm:text-base font-extrabold text-indigo-700 dark:text-indigo-300 tracking-wider mt-1.5 font-mono">
+                      <div className="p-3 sm:p-3.5 rounded-2xl bg-gradient-to-br from-pink-500/10 via-purple-500/10 to-indigo-500/10 border border-pink-300/40 dark:border-pink-700/40 text-center relative overflow-hidden shadow-2xs">
+                        {/* 1. ROMAJI CATCHPHRASE ON TOP (NORMAL BALANCED SIZE) */}
+                        <p className="text-sm sm:text-base font-black tracking-wide uppercase bg-gradient-to-r from-pink-600 via-purple-600 to-indigo-600 dark:from-pink-300 dark:via-purple-300 dark:to-indigo-300 bg-clip-text text-transparent font-mono drop-shadow-xs">
                           ⚡ {ANIME_CHEER_QUOTES[currentQuoteIdx]?.romaji}
                         </p>
 
+                        {/* 2. ENGLISH TRANSLATION BELOW (CLEAN & READABLE) */}
+                        <p className="text-xs sm:text-sm text-gray-800 dark:text-gray-200 font-bold mt-1 leading-snug">
+                          "{ANIME_CHEER_QUOTES[currentQuoteIdx]?.english}"
+                        </p>
+
                         {/* 3. AUTHOR & SUBTLE SECONDARY NOTE */}
-                        <div className="flex items-center justify-center gap-1.5 text-[11px] text-gray-500 dark:text-gray-400 mt-2 font-medium">
+                        <div className="flex items-center justify-center gap-1.5 text-[10px] text-gray-500 dark:text-gray-400 mt-1.5 font-medium">
                           <span>— {ANIME_CHEER_QUOTES[currentQuoteIdx]?.author}</span>
                           <span>•</span>
                           <span className="text-gray-400 dark:text-gray-500 italic">JP: {ANIME_CHEER_QUOTES[currentQuoteIdx]?.kanji}</span>
@@ -2049,7 +2049,7 @@ export default function SettingsTab({
                 <div>
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-black text-gray-900 dark:text-gray-100">
-                      Live Telemetry Daemon • Dr. Divyanshu (President) Auto-Resolution Stream
+                      Live Telemetry Daemon • Divyanshu Ji Auto-Resolution Stream
                     </span>
                     <span className="px-2 py-0.2 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 font-extrabold text-[9px] border border-emerald-300/60">
                       Active 24/7
@@ -2065,7 +2065,7 @@ export default function SettingsTab({
                 <button
                   onClick={handleAutoResolveAllIssues}
                   className="px-3 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer hover:scale-102 active:scale-98"
-                  title="Auto-resolve all pending student problems with Dr. Divyanshu and AI Squad"
+                  title="Auto-resolve all pending student problems with Divyanshu Ji and AI Squad"
                 >
                   <span>⚡</span>
                   <span>Auto-Resolve All ({feedbackList.filter(f => f.status === 'open').length} Pending)</span>
@@ -2171,11 +2171,11 @@ export default function SettingsTab({
                     <div className="flex items-center gap-2">
                       {item.status !== 'resolved' && (
                         <button
-                          onClick={() => handleAdminAutoFix(item.id, 'Dr. Divyanshu (President of Parul University)')}
+                          onClick={() => handleAdminAutoFix(item.id, 'Divyanshu Ji')}
                           className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-[11px] transition-colors cursor-pointer flex items-center gap-1"
                         >
                           <span>⚡</span>
-                          <span>Dispatch Dr. Divyanshu Auto-Fix</span>
+                          <span>Dispatch Divyanshu Ji Auto-Fix</span>
                         </button>
                       )}
                       <button

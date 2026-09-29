@@ -43,7 +43,6 @@ export default function AkiDashboardCompanion({
   const [currentQuoteIdx, setCurrentQuoteIdx] = useState(() => Math.floor(Math.random() * ANIME_CHEER_QUOTES.length));
   const [actionState, setActionState] = useState('idle'); // 'idle' | 'jumping'
   const [emotes, setEmotes] = useState([]);
-  const [manualPose, setManualPose] = useState(null); // null (auto) | '/aki_sasageyo.png' | '/aki_victory.png' | '/aki_love.png' | '/aki.png'
   const [isBlinking, setIsBlinking] = useState(false);
   const [isTalking, setIsTalking] = useState(false);
   const [showChatInput, setShowChatInput] = useState(false);
@@ -62,23 +61,64 @@ export default function AkiDashboardCompanion({
 
   const activeQuote = ANIME_CHEER_QUOTES[currentQuoteIdx] || ANIME_CHEER_QUOTES[0];
 
-  // Dynamic Pose Matching based on active quote or state
+  // Dynamic 100% Automatic Pose Matching based on active quote and anime lore (Default Auto)
   const getAkiPoseImage = () => {
-    if (manualPose) return manualPose;
-    const text = ((activeQuote?.romaji || '') + ' ' + (activeQuote?.english || '') + ' ' + (activeQuote?.author || '')).toLowerCase();
+    // 1. Direct pose attribute on quote
+    if (activeQuote?.pose) {
+      const p = activeQuote.pose.toLowerCase();
+      if (p === 'jojo') return '/aki_jojo.png';
+      if (p === 'power') return '/aki_power.png';
+      if (p === 'jutsu') return '/aki_jutsu.png';
+      if (p === 'thinking') return '/aki_thinking.png';
+      if (p === 'shy') return '/aki_shy.png';
+      if (p === 'sasageyo') return '/aki_sasageyo.png';
+      if (p === 'victory') return '/aki_victory.png';
+      if (p === 'love') return '/aki_love.png';
+      if (p === 'sleeping') return '/aki_sleeping.png';
+    }
+
+    const text = ((activeQuote?.romaji || '') + ' ' + (activeQuote?.english || '') + ' ' + (activeQuote?.author || '') + ' ' + (activeQuote?.badge || '') + ' ' + (activeQuote?.sfx || '')).toLowerCase();
     
+    // JoJo's Bizarre Adventure (Menacing, Jotaro, Giorno, Dio, Joseph, Ora Ora, Muda Muda)
+    if (text.includes('jojo') || text.includes('jotaro') || text.includes('giorno') || text.includes('dio') || text.includes('ora') || text.includes('muda') || text.includes('yare yare') || text.includes('daze') || text.includes('star platinum') || text.includes('bizarre') || text.includes('menacing')) {
+      return '/aki_jojo.png';
+    }
+
+    // Power-Up / Super Saiyan (Dragon Ball, Genkai toppa, aura, electric energy)
+    if (text.includes('genkai') || text.includes('super saiyan') || text.includes('dragon ball') || text.includes('goku') || text.includes('vegeta') || text.includes('power') || text.includes('surpass') || text.includes('unbreakable') || text.includes('toppa')) {
+      return '/aki_power.png';
+    }
+
+    // Shinobi Jutsu hand signs (Naruto, ninja, chakra, nindo, tiger seal)
+    if (text.includes('ninja') || text.includes('naruto') || text.includes('jutsu') || text.includes('shinobi') || text.includes('nindo') || text.includes('dattebayo') || text.includes('hokage') || text.includes('sasuke') || text.includes('kakashi')) {
+      return '/aki_jutsu.png';
+    }
+
+    // Thinking / Detective genius pose (L, Death Note, Detective Conan, deduction, analysis)
+    if (text.includes('think') || text.includes('detective') || text.includes('conan') || text.includes('death note') || text.includes('lawliet') || text.includes('analysis') || text.includes('logic') || text.includes('seikai') || text.includes('strategy') || text.includes('deduction')) {
+      return '/aki_thinking.png';
+    }
+
+    // Shy / Blushing bashful pose
+    if (text.includes('shy') || text.includes('blush') || text.includes('embarrass') || text.includes('sweet') || text.includes('gentle') || text.includes('bashful') || text.includes('komi') || text.includes('hinata') || text.includes('anya')) {
+      return '/aki_shy.png';
+    }
+
     // Attack on Titan salute ("Shinzo o Sasageyo!")
-    if (text.includes('sasageyo') || text.includes('titan') || text.includes('erwin') || text.includes('eren')) {
+    if (text.includes('sasageyo') || text.includes('titan') || text.includes('erwin') || text.includes('eren') || text.includes('scout') || text.includes('dedicate')) {
       return '/aki_sasageyo.png';
     }
+
     // Victory & Champion peace signs
-    if (text.includes('victory') || text.includes('win') || text.includes('katsu') || text.includes('champion') || text.includes('plus ultra') || text.includes('smash')) {
+    if (text.includes('victory') || text.includes('win') || text.includes('katsu') || text.includes('champion') || text.includes('plus ultra') || text.includes('smash') || text.includes('all might') || text.includes('conquer')) {
       return '/aki_victory.png';
     }
-    // Love & Heart & Kindness
+
+    // Love & Heart & Kizuna
     if (text.includes('love') || text.includes('heart') || text.includes('kizuna') || text.includes('kindness') || text.includes('believe') || text.includes('peace') || text.includes('yume')) {
       return '/aki_love.png';
     }
+
     return '/aki.png';
   };
 
@@ -166,66 +206,71 @@ export default function AkiDashboardCompanion({
     <div className="fixed bottom-3 right-3 z-40 select-none flex flex-col items-end pointer-events-none">
       
       {/* ──────────────────────────────────────────────────────────────────── */}
-      {/* COMPACT MANGA / ANIME CHAT BUBBLE (LIGHTWEIGHT, NO HEAVY OVERWHELM)   */}
+      {/* BACKGROUNDLESS ANIME SPEECH DIALOGUE (SPEAKING DIRECTLY FROM MOUTH)   */}
       {/* ──────────────────────────────────────────────────────────────────── */}
       <AnimatePresence>
         {isExpanded && (
           <motion.div
-            initial={{ opacity: 0, y: 12, scale: 0.94 }}
+            initial={{ opacity: 0, y: 10, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 12, scale: 0.94 }}
+            exit={{ opacity: 0, y: 10, scale: 0.95 }}
             transition={{ duration: 0.2 }}
-            className="pointer-events-auto mb-2 w-[280px] sm:w-[320px] rounded-2xl p-3 sm:p-3.5 backdrop-blur-md bg-white/85 dark:bg-gray-950/85 border border-pink-400/40 dark:border-pink-500/30 shadow-[0_8px_24px_rgba(244,114,182,0.18)] text-gray-800 dark:text-gray-100 flex flex-col gap-2 relative"
+            className="pointer-events-auto mb-1 w-[260px] sm:w-[310px] text-right flex flex-col items-end relative drop-shadow-[0_2px_8px_rgba(0,0,0,0.5)] dark:drop-shadow-[0_2px_12px_rgba(0,0,0,0.9)] cursor-pointer select-none"
+            onClick={handleAkiClick}
+            title="Click to cycle quote & watch Aki jump! 🌸"
           >
-            {/* Speech Bubble Arrow Tail pointing down right towards Aki */}
-            <div className="absolute -bottom-2 right-10 w-0 h-0 border-x-6 border-x-transparent border-t-8 border-t-white/85 dark:border-t-gray-950/85 drop-shadow-xs"></div>
-
-            {/* Compact Header: Name, Mood & Minimize */}
-            <div className="flex items-center justify-between border-b border-pink-200/50 dark:border-pink-900/40 pb-1.5">
-              <div className="flex items-center gap-1.5">
-                <span className="text-base">🌸</span>
-                <span className="font-extrabold text-xs tracking-wide bg-gradient-to-r from-pink-600 to-indigo-600 bg-clip-text text-transparent">
-                  Aki
-                </span>
-                <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-pink-100/90 dark:bg-pink-950/90 text-pink-700 dark:text-pink-300 font-bold border border-pink-300/40">
-                  {activeQuote.badge?.split(' ')[0] || '🌸'} Cheer
-                </span>
-              </div>
-
-              <div className="flex items-center gap-1">
-                <button
-                  onClick={() => setShowChatInput(!showChatInput)}
-                  className={`p-1 rounded-md text-[10px] font-bold cursor-pointer transition-colors ${
-                    showChatInput ? 'bg-pink-600 text-white' : 'text-gray-500 hover:text-pink-600'
-                  }`}
-                  title="Ask Aki a quick study question"
-                >
-                  💬
-                </button>
-                <button
-                  onClick={() => setIsExpanded(false)}
-                  className="w-5 h-5 rounded-full flex items-center justify-center text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-200/50 text-[11px] cursor-pointer"
-                  title="Minimize chat box"
-                >
-                  ✕
-                </button>
-              </div>
+            {/* Minimalist Top Indicator & Controls (Transparent, Backgroundless) */}
+            <div className="flex items-center gap-1.5 mb-0.5">
+              <span className="text-[10px] font-extrabold tracking-wide text-pink-600 dark:text-pink-300 bg-white/70 dark:bg-black/70 px-2 py-0.5 rounded-full backdrop-blur-xs">
+                🌸 Aki
+              </span>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowChatInput(!showChatInput);
+                }}
+                className="text-[11px] p-0.5 text-gray-700 dark:text-gray-200 hover:text-pink-600 cursor-pointer bg-white/70 dark:bg-black/70 rounded-full px-1.5 backdrop-blur-xs"
+                title="Ask Aki a quick study question"
+              >
+                💬
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleRedirectToFeedback();
+                }}
+                className="text-[9px] font-bold text-rose-600 dark:text-rose-400 bg-white/70 dark:bg-black/70 px-1.5 py-0.5 rounded-full backdrop-blur-xs cursor-pointer hover:bg-rose-100"
+                title="Facing any issue? Report to Divyanshu Ji & Squad"
+              >
+                🚨 Issue?
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsExpanded(false);
+                }}
+                className="text-gray-500 hover:text-gray-800 dark:hover:text-gray-100 text-xs px-1 cursor-pointer bg-white/70 dark:bg-black/70 rounded-full backdrop-blur-xs"
+                title="Hide speech"
+              >
+                ✕
+              </button>
             </div>
 
-            {/* CHAT CONTENT */}
+            {/* CHAT INPUT MODE (OPTIONAL, DISCREET) */}
             {showChatInput ? (
-              /* Quick Question Chat Mode */
-              <div className="flex flex-col gap-2 py-1">
+              <div 
+                className="w-full p-2 rounded-xl bg-white/90 dark:bg-gray-900/90 backdrop-blur-md border border-pink-400/40 text-left shadow-lg mt-1"
+                onClick={(e) => e.stopPropagation()}
+              >
                 {akiChatReply ? (
-                  <div className="p-2 rounded-xl bg-pink-500/10 border border-pink-400/30 text-[11px] leading-relaxed text-gray-800 dark:text-gray-200 max-h-32 overflow-y-auto">
+                  <p className="text-[11px] text-gray-800 dark:text-gray-200 mb-2 leading-snug">
                     🌸 <strong>Aki:</strong> {akiChatReply}
-                  </div>
+                  </p>
                 ) : (
-                  <p className="text-[10px] text-gray-600 dark:text-gray-400">
-                    Ask Aki anything about exam prep, 10-mark blueprints, or Antigravity!
+                  <p className="text-[10px] text-gray-600 dark:text-gray-400 mb-1">
+                    Ask Aki anything about exam prep or Antigravity!
                   </p>
                 )}
-
                 <form
                   onSubmit={(e) => {
                     e.preventDefault();
@@ -237,102 +282,46 @@ export default function AkiDashboardCompanion({
                     type="text"
                     value={userQuery}
                     onChange={(e) => setUserQuery(e.target.value)}
-                    placeholder="Ask Aki a quick question..."
-                    className="flex-1 px-2.5 py-1 bg-white/90 dark:bg-gray-900/90 border border-pink-300/60 dark:border-pink-800 rounded-lg text-[11px] focus:outline-none focus:ring-1 focus:ring-pink-500"
+                    placeholder="Ask Aki..."
+                    className="flex-1 px-2 py-1 text-xs bg-white dark:bg-gray-950 border border-pink-300 dark:border-pink-800 rounded-lg focus:outline-none"
                   />
                   <button
                     type="submit"
                     disabled={isAskingAki || !userQuery.trim()}
-                    className="px-2.5 py-1 bg-pink-600 hover:bg-pink-700 text-white font-bold text-[10px] rounded-lg cursor-pointer disabled:opacity-50"
+                    className="px-2 py-1 bg-pink-600 text-white font-bold text-[10px] rounded-lg cursor-pointer disabled:opacity-50"
                   >
-                    {isAskingAki ? '...' : 'Send'}
+                    Send
                   </button>
                 </form>
               </div>
             ) : (
-              /* Compact Anime Cheer Card: ENGLISH ON TOP, BIG BOLD ROMAJI SECOND */
-              <div className="flex flex-col gap-1.5 py-0.5">
-                <div className="p-2.5 rounded-xl bg-gradient-to-br from-pink-500/10 via-purple-500/10 to-indigo-500/10 border border-pink-300/40 dark:border-pink-800/40 text-center">
-                  {/* 1. ENGLISH TRANSLATION IN BIG BOLD LETTERS ON TOP */}
-                  <p className="font-black text-xs sm:text-sm tracking-wide uppercase bg-gradient-to-r from-pink-600 via-purple-600 to-indigo-600 dark:from-pink-300 dark:via-purple-300 dark:to-indigo-300 bg-clip-text text-transparent font-sans">
-                    "{activeQuote.english}"
-                  </p>
-
-                  {/* 2. BIG BOLD ROMAJI CATCHPHRASE (EASY TO READ & CHANT) */}
-                  <p className="text-[11px] sm:text-xs font-extrabold text-indigo-700 dark:text-indigo-300 tracking-wider mt-0.5 font-mono">
-                    ⚡ {activeQuote.romaji}
-                  </p>
-
-                  {/* 3. SUBTLE AUTHOR / SOURCE */}
-                  <span className="text-[9px] text-gray-500 dark:text-gray-400 block mt-1 font-medium">
-                    — {activeQuote.author}
-                  </span>
-                </div>
-
-                {/* Aki's Short Cheering Voice Line */}
-                <p className="text-[10px] text-gray-700 dark:text-gray-300 leading-snug px-0.5">
-                  🌸 <strong>Aki:</strong> "{activeQuote.voice}"
+              /* PURE BACKGROUNDLESS FLOATING MANGA DIALOGUE DIRECTLY FROM HER MOUTH */
+              <div className="flex flex-col items-end text-right px-1">
+                {/* 1. ROMAJI HEADING ON TOP (CLEAN, BALANCED FONT SIZE, NO BOX) */}
+                <p className="font-mono font-black text-xs sm:text-sm uppercase tracking-wider text-purple-700 dark:text-purple-300 text-shadow-sm">
+                  ⚡ {activeQuote.romaji}
                 </p>
 
-                {/* Compact Action Buttons */}
-                <div className="flex items-center justify-between pt-1 gap-1">
-                  <button
-                    onClick={handleAkiClick}
-                    className="flex-1 py-1 bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white font-extrabold text-[10px] rounded-lg shadow-2xs transition-transform hover:scale-102 active:scale-98 flex items-center justify-center gap-1 cursor-pointer"
-                  >
-                    <span>🎲</span>
-                    <span>Next Cheer! ✨</span>
-                  </button>
+                {/* 2. ENGLISH TRANSLATION BELOW IN CLEAN READABLE FONT */}
+                <p className="font-sans font-bold text-xs sm:text-[13px] text-gray-900 dark:text-white leading-snug mt-0.5 text-shadow-sm">
+                  "{activeQuote.english}"
+                </p>
 
-                  <button
-                    onClick={handleRedirectToFeedback}
-                    className="px-2 py-1 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-300/60 dark:border-rose-800 text-rose-700 dark:text-rose-300 font-bold text-[9px] rounded-lg transition-colors flex items-center gap-1 cursor-pointer"
-                    title="Facing any problem on the website? Redirect to Rohan's issue form!"
-                  >
-                    <span>🚨</span>
-                    <span>Issue?</span>
-                  </button>
-                </div>
+                {/* 3. SUBTLE AUTHOR / ANIME SOURCE */}
+                <span className="text-[10px] text-gray-600 dark:text-gray-300 font-semibold mt-0.5">
+                  — {activeQuote.author}
+                </span>
 
-                {/* Interactive Pose Switcher Pills */}
-                <div className="flex items-center justify-center gap-1 pt-0.5 border-t border-pink-100 dark:border-pink-950/60">
-                  <span className="text-[8px] text-gray-400 font-bold uppercase tracking-wider">Pose:</span>
-                  <button
-                    onClick={() => setManualPose('/aki_sasageyo.png')}
-                    className={`px-1.5 py-0.2 rounded text-[8px] font-bold cursor-pointer transition-colors ${
-                      manualPose === '/aki_sasageyo.png' ? 'bg-indigo-600 text-white' : 'text-gray-500 hover:text-indigo-600'
-                    }`}
-                    title="Shinzo o Sasageyo! (Attack on Titan salute)"
-                  >
-                    ⚔️ Sasageyo
-                  </button>
-                  <button
-                    onClick={() => setManualPose('/aki_victory.png')}
-                    className={`px-1.5 py-0.2 rounded text-[8px] font-bold cursor-pointer transition-colors ${
-                      manualPose === '/aki_victory.png' ? 'bg-pink-600 text-white' : 'text-gray-500 hover:text-pink-600'
-                    }`}
-                    title="Victory peace sign"
-                  >
-                    ✌️ Victory
-                  </button>
-                  <button
-                    onClick={() => setManualPose('/aki_love.png')}
-                    className={`px-1.5 py-0.2 rounded text-[8px] font-bold cursor-pointer transition-colors ${
-                      manualPose === '/aki_love.png' ? 'bg-rose-600 text-white' : 'text-gray-500 hover:text-rose-600'
-                    }`}
-                    title="Finger heart love sign"
-                  >
-                    💖 Love
-                  </button>
-                  <button
-                    onClick={() => setManualPose(null)}
-                    className={`px-1 py-0.2 rounded text-[8px] font-bold cursor-pointer transition-colors ${
-                      manualPose === null ? 'bg-purple-600 text-white' : 'text-gray-500 hover:text-purple-600'
-                    }`}
-                    title="Auto-match pose to quote"
-                  >
-                    Auto
-                  </button>
+                {/* 4. AKI'S CHEERING VOICE LINE */}
+                <p className="text-[11px] text-pink-600 dark:text-pink-300 font-medium leading-snug mt-1 text-shadow-xs max-w-[270px]">
+                  🌸 "{activeQuote.voice}"
+                </p>
+
+                {/* Manga Dialogue Tail pointing directly towards Aki's mouth */}
+                <div className="w-6 h-3 relative mt-0.5 mr-12 opacity-85">
+                  <svg viewBox="0 0 24 12" className="w-6 h-3 text-pink-500 fill-current">
+                    <path d="M 0 0 C 14 1 18 8 22 12 C 16 6 8 2 0 0 Z" />
+                  </svg>
                 </div>
               </div>
             )}

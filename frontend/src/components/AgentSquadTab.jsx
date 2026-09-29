@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 const AGENTS = [
   {
     id: 'president',
-    name: 'Dr. Divyanshu Patel',
+    name: 'Divyanshu Ji',
     role: 'University President & Chief Academic Patron',
     avatar: '🏛️',
     model: 'Gemini 1.5 Pro / GPT-4o Enterprise',

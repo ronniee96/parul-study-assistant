@@ -1388,7 +1388,7 @@ export default function ExamPredictorTab({ appState, setActiveTab }) {
                 Parul University Multi-Agent Exam Board Approval
               </p>
               <p className="text-[11px]">
-                Verified by Dr. Divyanshu (President), Prof. Mukherjee (Strategist), and Dr. Gupta (Solutions).
+                Verified by Divyanshu Ji, Prof. Mukherjee (Strategist), and Dr. Gupta (Solutions).
               </p>
             </div>
           </div>
