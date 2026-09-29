@@ -44,7 +44,7 @@ export default function TransparencyAuditTab({
       color: 'text-blue-500 bg-blue-50 dark:bg-blue-950/40 border-blue-200 dark:border-blue-800'
     },
     {
-      agent: 'Divyanshu Ji 🏛️',
+      agent: 'Academic Patron 🏛️',
       status: 'Standing By',
       quote: 'Parul University curriculum standards aligned. Ready to generate 100% exam-accurate blueprints under NAAC Grade A++ rigor!',
       color: 'text-amber-500 bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-800'
@@ -316,9 +316,9 @@ export default function TransparencyAuditTab({
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-2">
           {[
             {
-              role: 'Divyanshu Ji',
+              role: 'Academic Patron',
               icon: '🏛️',
-              badge: 'Academic Patron',
+              badge: 'Syllabus & Curriculum Governance',
               color: 'border-l-amber-500',
               tasks: [
                 'Structures 2-mark, 5-mark, and 10-mark distribution',

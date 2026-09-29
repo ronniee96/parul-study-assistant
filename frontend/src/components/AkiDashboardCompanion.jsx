@@ -224,8 +224,8 @@ export default function AkiDashboardCompanion({
       return `🎯 **Parul University Standard Exam Structure**:\n\n• **Section A**: 5 questions × 2 marks = 10 marks (Definitions & formulas)\n• **Section B**: 5 questions × 5 marks = 25 marks (Descriptive & analytical)\n• **Section C**: 2 questions × 12.5 marks = 25 marks (Case studies & essays)\n\nTotal: 60 Marks (3 Hours duration). Check the **Exam Predictor** tab for your full paper! 📄`;
     }
 
-    if (lower.includes('divyanshu') || lower.includes('president') || lower.includes('patron')) {
-      return `🏛️ **Divyanshu Ji (Academic Patron)**:\n\nPresides over Parul University's NAAC Grade A++ academic rigor, Bloom's Taxonomy syllabus governance, and exam question paper standardization!`;
+    if (lower.includes('patron') || lower.includes('governance') || lower.includes('syllabus council')) {
+      return `🏛️ **Academic Patron**:\n\nPresides over Parul University's NAAC Grade A++ academic rigor, Bloom's Taxonomy syllabus governance, and exam question paper standardization!`;
     }
 
     if (appState?.extractedText && appState.extractedText.length > 50) {
@@ -319,7 +319,7 @@ export default function AkiDashboardCompanion({
               <button
                 onClick={(e) => { e.stopPropagation(); handleRedirectToFeedback(); }}
                 className="text-[9px] font-bold text-rose-600 dark:text-rose-400 bg-white/75 dark:bg-black/70 px-1.5 py-0.5 rounded-full backdrop-blur-xs cursor-pointer hover:bg-rose-100"
-                title="Report issue to Divyanshu Ji & Squad"
+                title="Report issue to Academic Patron & Squad"
               >🚨</button>
               <button
                 onClick={(e) => { e.stopPropagation(); setIsExpanded(false); }}

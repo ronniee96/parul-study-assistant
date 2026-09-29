@@ -4,8 +4,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 const AGENTS = [
   {
     id: 'president',
-    name: 'Divyanshu Ji',
-    role: 'Academic Patron',
+    name: 'Academic Patron',
+    role: 'Syllabus & Curriculum Governance',
     avatar: '🏛️',
     model: 'Gemini 1.5 Pro / GPT-4o Enterprise',
     gradient: 'from-blue-600 via-indigo-600 to-purple-700',

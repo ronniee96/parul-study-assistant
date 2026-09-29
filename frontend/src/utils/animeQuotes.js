@@ -262,7 +262,7 @@ export const ANIME_CHEER_QUOTES = [
     badge: "🧠 Tactical Mastermind",
     color: "from-purple-500 via-pink-500 to-indigo-600",
     sfx: "✨ Stand Proud! (Hamon & Spirit)",
-    voice: "Outsmart the question paper! Anticipate every question pattern using Divyanshu Ji's AI predictions! 🧠🕶️",
+    voice: "Outsmart the question paper! Anticipate every question pattern using our AI predictions! 🧠🕶️",
     pose: "jojo"
   },
   {
@@ -363,7 +363,7 @@ export const ANIME_CHEER_QUOTES = [
     badge: "⚔️ Titania Blade",
     color: "from-rose-500 via-pink-600 to-purple-600",
     sfx: "⚔️ Requip Armor! (Instant Armor Swap)",
-    voice: "Equip your mind with Divyanshu Ji's Bloom's Taxonomy rubrics and answer every question like Titania! ⚔️🌸"
+    voice: "Equip your mind with Bloom's Taxonomy rubrics and answer every question like Titania! ⚔️🌸"
   },
   {
     id: 'q-30',

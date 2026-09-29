@@ -52,7 +52,7 @@ const DEFAULT_FEEDBACK = [
     rating: 4,
     timestamp: 'Yesterday at 04:45 PM',
     status: 'open',
-    assignedAgent: 'Divyanshu Ji',
+    assignedAgent: 'Academic Patron',
     agentResolution: null
   }
 ];
@@ -337,7 +337,7 @@ export default function SettingsTab({
   }, [apiKeys]);
 
   const AGENT_PERSONAS = [
-    { id: 'dr_divyanshu', name: 'Divyanshu Ji', role: 'Academic Patron', icon: '🏛️', desc: 'Presides over university academic excellence, Bloom\'s Taxonomy governance, and overall exam syllabus integrity.' },
+    { id: 'academic_patron', name: 'Academic Patron', role: 'Syllabus & Curriculum Governance', icon: '🏛️', desc: 'Presides over university academic excellence, Bloom\'s Taxonomy governance, and overall exam syllabus integrity.' },
     { id: 'prof_mukherjee', name: 'Prof. Mukherjee', role: 'Descriptive & Frameworks Lead', icon: '✍️', desc: 'Specializes in 10-mark blueprints, ASCII process flowcharts, and managerial essays.' },
     { id: 'prof_kulkarni', name: 'Prof. Kulkarni', role: 'Applied Case & Quantitative Analyst', icon: '📊', desc: 'Emphasizes numerical formulas, SWOT/BCG matrices, and real-world corporate case studies.' },
     { id: 'dr_gupta', name: 'Dr. Gupta', role: 'Pedagogy & Memory Retention', icon: '🧠', desc: 'Focuses on high-yield recall, examiner trap warnings, and simple mnemonics.' },
@@ -628,7 +628,7 @@ export default function SettingsTab({
   };
 
   // Admin Action: Dispatch Agent Auto-Fix to a user complaint
-  const handleAdminAutoFix = (feedbackId, agentName = 'Divyanshu Ji') => {
+  const handleAdminAutoFix = (feedbackId, agentName = 'Academic Patron') => {
     const updatedList = feedbackList.map(item => {
       if (item.id === feedbackId) {
         return {
@@ -649,15 +649,15 @@ export default function SettingsTab({
     }
   };
 
-  // Bulk Auto-Resolve all pending issues with Divyanshu Ji & Squad
+  // Bulk Auto-Resolve all pending issues with Academic Patron & Squad
   const handleAutoResolveAllIssues = () => {
     const updatedList = feedbackList.map(item => {
       if (item.status === 'open') {
         return {
           ...item,
           status: 'resolved',
-          assignedAgent: 'Divyanshu Ji',
-          agentResolution: 'Directly verified and resolved by Divyanshu Ji & AI Squad. Root cause remediated with NAAC Grade A++ academic compliance.'
+          assignedAgent: 'Academic Patron',
+          agentResolution: 'Directly verified and resolved by Academic Patron & AI Squad. Root cause remediated with NAAC Grade A++ academic compliance.'
         };
       }
       return item;
@@ -946,7 +946,7 @@ export default function SettingsTab({
               onChange={(e) => updateSetting('examinerPersona', e.target.value)}
               className="mt-1 w-full px-3 py-2 bg-white dark:bg-gray-950 border border-gray-300 dark:border-gray-700 rounded-lg text-xs font-medium focus:ring-2 focus:ring-primary-500 focus:outline-none"
             >
-              <option value="dr_divyanshu">Divyanshu Ji (Academic Patron)</option>
+              <option value="academic_patron">Academic Patron (Institutional Rigor & Syllabus)</option>
               <option value="prof_mukherjee">Prof. Mukherjee (Qualitative Frameworks & Diagrams)</option>
               <option value="prof_kulkarni">Prof. Kulkarni (Applied Case & Quantitative Analyst)</option>
               <option value="dr_gupta">Dr. Gupta (Pedagogy & High-Retention Memory)</option>
@@ -2047,7 +2047,7 @@ export default function SettingsTab({
                 <div>
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-black text-gray-900 dark:text-gray-100">
-                      Live Telemetry Daemon • Divyanshu Ji Auto-Resolution Stream
+                      Live Telemetry Daemon • Academic Patron Auto-Resolution Stream
                     </span>
                     <span className="px-2 py-0.2 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 font-extrabold text-[9px] border border-emerald-300/60">
                       Active 24/7
@@ -2063,7 +2063,7 @@ export default function SettingsTab({
                 <button
                   onClick={handleAutoResolveAllIssues}
                   className="px-3 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer hover:scale-102 active:scale-98"
-                  title="Auto-resolve all pending student problems with Divyanshu Ji and AI Squad"
+                  title="Auto-resolve all pending student problems with Academic Patron and AI Squad"
                 >
                   <span>⚡</span>
                   <span>Auto-Resolve All ({feedbackList.filter(f => f.status === 'open').length} Pending)</span>
@@ -2172,11 +2172,11 @@ export default function SettingsTab({
                     <div className="flex items-center gap-2">
                       {item.status !== 'resolved' && (
                         <button
-                          onClick={() => handleAdminAutoFix(item.id, 'Divyanshu Ji')}
+                          onClick={() => handleAdminAutoFix(item.id, 'Academic Patron')}
                           className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-[11px] transition-colors cursor-pointer flex items-center gap-1"
                         >
                           <span>⚡</span>
-                          <span>Dispatch Divyanshu Ji Auto-Fix</span>
+                          <span>Dispatch Academic Patron Auto-Fix</span>
                         </button>
                       )}
                       <button
