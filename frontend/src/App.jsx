@@ -12,6 +12,7 @@ import StudyPlanTab from './components/StudyPlanTab';
 import ResearchHubTab from './components/ResearchHubTab';
 import TransparencyAuditTab from './components/TransparencyAuditTab';
 import AgentSquadTab from './components/AgentSquadTab';
+import SettingsTab from './components/SettingsTab';
 import APIKeyModal from './components/APIKeyModal';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -168,6 +169,8 @@ export default function App() {
         return <TransparencyAuditTab appState={appState} setActiveTab={setActiveTab} />;
       case 'plan': 
         return <StudyPlanTab {...tabProps} />;
+      case 'settings':
+        return <SettingsTab {...tabProps} handleSaveApiKeys={handleSaveApiKeys} />;
       default: 
         return <UploadTab {...tabProps} />;
     }
@@ -240,6 +243,16 @@ export default function App() {
                 {hasConfiguredKeys ? `AI Engines: Active (${primaryPriority.toUpperCase()})` : 'Connect AI Keys'}
               </span>
               <span className={`w-2 h-2 rounded-full ${hasConfiguredKeys ? 'bg-emerald-400 animate-pulse' : 'bg-amber-300'}`}></span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('settings')}
+              className={`p-2 rounded-full transition-colors cursor-pointer text-xs ${
+                activeTab === 'settings' ? 'bg-white/30 text-white ring-2 ring-white/50' : 'hover:bg-white/20 text-white/90'
+              }`}
+              title="Study Assistant Settings, Answer Preferences & Agent Help Desk"
+            >
+              <span>⚙️</span>
             </button>
 
             <button 

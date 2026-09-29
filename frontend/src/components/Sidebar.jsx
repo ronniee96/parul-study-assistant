@@ -13,6 +13,7 @@ const TABS = [
   { id: 'adaptive', label: 'Smart Learning', icon: '🧠', gradient: 'from-violet-400 to-purple-500' },
   { id: 'transparency', label: 'AI Process & Audit', icon: '🔍', gradient: 'from-emerald-400 to-teal-600' },
   { id: 'plan', label: 'Study Plan', icon: '📅', gradient: 'from-rose-400 to-red-500' },
+  { id: 'settings', label: 'Settings & Help', icon: '⚙️', gradient: 'from-slate-500 to-zinc-700' },
 ];
 
 export default function Sidebar({ activeTab, setActiveTab, collapsed, setCollapsed }) {
