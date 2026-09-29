@@ -221,28 +221,28 @@ export default function TransparencyAuditTab({ appState = {}, setActiveTab }) {
 
         {/* Global Transparency Key Metrics */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-5">
-          <div className="glass-card p-3 border-emerald-300 dark:border-emerald-800 flex flex-col items-center text-center">
+          <div className="glass-card p-3 border-emerald-300 dark:border-emerald-800 flex flex-col items-center text-center shadow-xs">
             <span className="text-[11px] text-gray-500 dark:text-gray-400 font-semibold uppercase">Active Subagents</span>
-            <span className="text-2xl font-extrabold text-emerald-600 dark:text-emerald-400 mt-0.5">4 Agents</span>
-            <span className="text-[10px] text-emerald-500">Autonomous & Specialized</span>
+            <span className="text-2xl font-extrabold text-emerald-600 dark:text-emerald-400 mt-0.5">6 Agents</span>
+            <span className="text-[10px] text-emerald-500 font-medium">Autonomous Squad & Verified</span>
           </div>
 
-          <div className="glass-card p-3 border-teal-300 dark:border-teal-800 flex flex-col items-center text-center">
+          <div className="glass-card p-3 border-teal-300 dark:border-teal-800 flex flex-col items-center text-center shadow-xs">
             <span className="text-[11px] text-gray-500 dark:text-gray-400 font-semibold uppercase">Skills Deployed</span>
             <span className="text-2xl font-extrabold text-teal-600 dark:text-teal-400 mt-0.5">6 Core Skills</span>
-            <span className="text-[10px] text-teal-500">Guardrails & Optimization</span>
+            <span className="text-[10px] text-teal-500 font-medium">Guardrails & Optimization</span>
           </div>
 
-          <div className="glass-card p-3 border-sky-300 dark:border-sky-800 flex flex-col items-center text-center">
+          <div className="glass-card p-3 border-sky-300 dark:border-sky-800 flex flex-col items-center text-center shadow-xs">
             <span className="text-[11px] text-gray-500 dark:text-gray-400 font-semibold uppercase">Connected APIs</span>
-            <span className="text-2xl font-extrabold text-sky-600 dark:text-sky-400 mt-0.5">8 Engines</span>
-            <span className="text-[10px] text-sky-500">Multi-API Failover</span>
+            <span className="text-2xl font-extrabold text-sky-600 dark:text-sky-400 mt-0.5">12 Engines</span>
+            <span className="text-[10px] text-sky-500 font-medium">Free & Multi-API Failover</span>
           </div>
 
-          <div className="glass-card p-3 border-purple-300 dark:border-purple-800 flex flex-col items-center text-center">
+          <div className="glass-card p-3 border-purple-300 dark:border-purple-800 flex flex-col items-center text-center shadow-xs">
             <span className="text-[11px] text-gray-500 dark:text-gray-400 font-semibold uppercase">Citation Grounding</span>
             <span className="text-2xl font-extrabold text-purple-600 dark:text-purple-400 mt-0.5">100% Traceable</span>
-            <span className="text-[10px] text-purple-500">Zero Unverified Hallucinations</span>
+            <span className="text-[10px] text-purple-500 font-medium">Zero Unverified Hallucinations</span>
           </div>
         </div>
       </div>
@@ -254,70 +254,92 @@ export default function TransparencyAuditTab({ appState = {}, setActiveTab }) {
         <div className="flex items-center justify-between">
           <div>
             <h3 className="text-base font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2">
-              <span>🤖</span> Autonomous Multi-Agent Hierarchy
+              <span>🤖</span> Autonomous Multi-Agent Hierarchy (6 Active Specialists)
             </h3>
             <p className="text-xs text-gray-500 dark:text-gray-400">
-              How independent specialized agents collaborate to analyze, research, format, and verify university exam material.
+              How independent specialized agents collaborate to ingest, research, structure, evaluate, and verify university exam material.
             </p>
           </div>
           <span className="text-xs px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300 font-bold">
-            Role-Based Multi-Agent System
+            6-Agent Collaborative Ensemble
           </span>
         </div>
 
-        {/* 4 Agent Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-2">
+        {/* 6 Agent Cards Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-2">
           {[
             {
-              role: 'Agent 1: Orchestrator & Ingestion',
-              icon: '📡',
-              badge: 'FastAPI / Async Pipe',
-              color: 'border-l-blue-500',
+              role: 'Dr. Verma: Dean of Academics & Strategy',
+              icon: '🎓',
+              badge: 'Curriculum & Blueprint Lead',
+              color: 'border-l-amber-500',
               tasks: [
-                'Captures lecture slides (1s stream buffer)',
-                'Performs OCR character & layout extraction',
-                'Suppresses duplicate consecutive frames'
+                'Structures 2-mark, 5-mark, and 10-mark distribution',
+                'Calibrates questions against Bloom\'s Taxonomy tiers',
+                'Synthesizes official university end-semester rubrics'
               ]
             },
             {
-              role: 'Agent 2: Academic Researcher',
-              icon: '🌐',
-              badge: 'Multi-API Fan-out',
-              color: 'border-l-sky-500',
-              tasks: [
-                'Concurrently queries arXiv, CrossRef, OpenAlex',
-                'Fetches DOI metadata & textbook covers',
-                'Queries Perplexity Sonar for live citations'
-              ]
-            },
-            {
-              role: 'Agent 3: Pedagogy & Exam Matcher',
-              icon: '🎯',
-              badge: 'Curriculum Rules',
-              color: 'border-l-violet-500',
-              tasks: [
-                'Structures 2-mark, 5-mark, and 12-mark questions',
-                'Calculates difficulty & exam likelihood confidence',
-                'Calibrates SM-2 spaced repetition intervals'
-              ]
-            },
-            {
-              role: 'Agent 4: Quality & Anti-Slop Auditor',
+              role: 'Sentinel-V3: Anti-Hallucination & Fluff Guard',
               icon: '🛡️',
-              badge: 'stop-slop Verification',
+              badge: 'stop-slop Verification Gate',
               color: 'border-l-emerald-500',
               tasks: [
-                'Purges generic AI fluff and conversational padding',
-                'Verifies mathematical & pseudocode correctness',
-                'Applies structured bullet-point formatting'
+                'Filters out institutional headers (NAAC A++, campus logos)',
+                'Enforces 100% syllabus and textbook source grounding',
+                'Purges generic AI conversational filler and code noise'
+              ]
+            },
+            {
+              role: 'Prof. Mukherjee: Qualitative Frameworks Lead',
+              icon: '✍️',
+              badge: 'Descriptive & ASCII Diagrams',
+              color: 'border-l-purple-500',
+              tasks: [
+                'Drafts 10-mark essay blueprints (Intro → Framework → Analysis)',
+                'Generates monospaced ASCII flowcharts and mind maps',
+                'Builds 30-minute last-day high-yield revision sheets'
+              ]
+            },
+            {
+              role: 'Prof. Kulkarni: Applied Case & Quantitative Analyst',
+              icon: '📊',
+              badge: 'Managerial & Numerical Solutions',
+              color: 'border-l-teal-500',
+              tasks: [
+                'Constructs Section C real-world managerial case studies',
+                'Solves mathematical/financial formulas step-by-step',
+                'Generates strategic matrices (SWOT, BCG Matrix, PESTEL)'
+              ]
+            },
+            {
+              role: 'Dr. Gupta: Pedagogy & Memory Specialist',
+              icon: '🧠',
+              badge: 'SuperMemo-2 (SM-2) Spaced Repetition',
+              color: 'border-l-rose-500',
+              tasks: [
+                'Calculates optimal 5-day memory recall review cadences',
+                'Generates common examiner traps & mistake analyses',
+                'Builds high-retention active recall flashcard decks'
+              ]
+            },
+            {
+              role: 'Agent Neuro: Orchestration & Multi-API Router',
+              icon: '⚡',
+              badge: '12-Engine Auto-Failover',
+              color: 'border-l-sky-500',
+              tasks: [
+                'Dispatches requests across SambaNova, Groq, Gemini & Claude',
+                'Maintains sub-second failover redundancy across 12 APIs',
+                'Manages persistent key storage and live telemetry streams'
               ]
             }
           ].map((agent, i) => (
-            <div key={i} className={`glass-card p-4 border-l-4 ${agent.color} flex flex-col justify-between gap-3`}>
+            <div key={i} className={`glass-card p-4 border-l-4 ${agent.color} flex flex-col justify-between gap-3 shadow-xs hover:shadow-md transition-shadow`}>
               <div>
-                <div className="flex items-center justify-between text-xs mb-1">
+                <div className="flex items-center justify-between text-xs mb-1.5">
                   <span className="text-xl">{agent.icon}</span>
-                  <span className="px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-800 text-[10px] font-bold text-gray-600 dark:text-gray-300">
+                  <span className="px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-800 text-[10px] font-bold text-gray-700 dark:text-gray-300">
                     {agent.badge}
                   </span>
                 </div>
