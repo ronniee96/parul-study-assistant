@@ -1,7 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-export default function TransparencyAuditTab({ appState = {}, setActiveTab }) {
+export default function TransparencyAuditTab({ 
+  appState = {}, 
+  setActiveTab, 
+  apiKeys = {}, 
+  primaryPriority = 'gemini', 
+  openApiKeyModal 
+}) {
   const [auditLogs, setAuditLogs] = useState([]);
   const [loading, setLoading] = useState(false);
   const [selectedLog, setSelectedLog] = useState(null);
@@ -9,6 +15,26 @@ export default function TransparencyAuditTab({ appState = {}, setActiveTab }) {
   const [showAwakeBanner, setShowAwakeBanner] = useState(false);
   const [lastRefreshedTime, setLastRefreshedTime] = useState('Active');
   const [awakePings, setAwakePings] = useState([]);
+
+  // 12 LLM Engines with Real-time Configuration Mapping
+  const ALL_SUPPORTED_ENGINES = [
+    { id: 'gemini', name: 'Google Gemini', model: 'Gemini 1.5 Flash / Pro', icon: '✨', endpoint: 'generativelanguage.googleapis.com', free: 'Free Tier', agent: 'Agent Ingestion & Flashcard Synthesizer' },
+    { id: 'groq', name: 'Groq Cloud', model: 'Llama 3.3 70B Versatile (Fastest)', icon: '⚡', endpoint: 'api.groq.com/openai/v1', free: 'Free Tier', agent: 'Agent Neuro (Ultra-Low Latency Telemetry)' },
+    { id: 'deepseek', name: 'DeepSeek', model: 'DeepSeek V3 / R1 (Reasoning)', icon: '🐋', endpoint: 'api.deepseek.com/v1', free: 'Free / Low Cost', agent: 'Prof. Kulkarni (Numerical & Mathematical Engine)' },
+    { id: 'mistral', name: 'Mistral AI', model: 'Mistral Large 2 / Pixtral 12B', icon: '🌪️', endpoint: 'api.mistral.ai/v1', free: 'Free Tier', agent: 'Sentinel-V3 (Structure & Deduplication)' },
+    { id: 'openrouter', name: 'OpenRouter', model: 'Unified Router (300+ Models)', icon: '🌐', endpoint: 'openrouter.ai/api/v1', free: 'Free Models Included', agent: 'Orchestration Multi-Model Hub' },
+    { id: 'sambanova', name: 'SambaNova', model: 'Llama 3.1 405B / 70B (High Speed)', icon: '🏎️', endpoint: 'api.sambanova.ai/v1', free: 'Free Tier', agent: 'Mega Question Formulator' },
+    { id: 'together', name: 'Together AI', model: 'Llama 3.1 70B / Mixtral 8x22B', icon: '🤝', endpoint: 'api.together.xyz/v1', free: 'Free Credits', agent: 'Academic RAG Evaluator' },
+    { id: 'huggingface', name: 'Hugging Face', model: 'Inference API & Open LLMs', icon: '🤗', endpoint: 'api-inference.huggingface.co', free: 'Free Community', agent: 'Open Domain Classifier' },
+    { id: 'cohere', name: 'Cohere', model: 'Command R+ (Academic RAG)', icon: '🔮', endpoint: 'api.cohere.ai/v1', free: 'Free Tier', agent: 'Textbook Context Ranker' },
+    { id: 'openai', name: 'OpenAI', model: 'GPT-4o Enterprise / Mini', icon: '🧠', endpoint: 'api.openai.com/v1', free: 'Standard Tier', agent: 'Model Answer Architect' },
+    { id: 'claude', name: 'Anthropic Claude', model: 'Claude 3.5 Sonnet / Haiku', icon: '🎭', endpoint: 'api.anthropic.com/v1', free: 'Standard Tier', agent: 'Prof. Mukherjee (10-Mark Blueprint Lead)' },
+    { id: 'perplexity', name: 'Perplexity AI', model: 'Sonar / Sonar Pro (Live Search)', icon: '🧭', endpoint: 'api.perplexity.ai', free: 'Standard Tier', agent: 'Academic DOI & Preprint Verifier' },
+  ];
+
+  const connectedEngines = ALL_SUPPORTED_ENGINES.filter(eng => apiKeys?.[eng.id] && apiKeys[eng.id].trim().length > 5);
+  const connectedCount = connectedEngines.length;
+  const primaryEngine = ALL_SUPPORTED_ENGINES.find(eng => eng.id === primaryPriority) || ALL_SUPPORTED_ENGINES[0];
 
   const AGENT_STATUS_QUOTES = [
     {
@@ -206,14 +232,31 @@ export default function TransparencyAuditTab({ appState = {}, setActiveTab }) {
                 ))}
               </div>
 
-              <div className="mt-3 pt-2 border-t border-emerald-500/20 flex items-center justify-between text-[11px] text-gray-600 dark:text-gray-400">
-                <span className="flex items-center gap-1.5">
-                  <span className="inline-block w-2 h-2 rounded-full bg-emerald-500"></span>
-                  <span><strong>AI Session Telemetry:</strong> All APIs (OpenRouter, SambaNova, Groq, Gemini, Claude, OpenAI) running on active standby.</span>
+              <div className="mt-3 pt-2 border-t border-emerald-500/20 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-[11px] text-gray-600 dark:text-gray-400">
+                <span className="flex items-center gap-1.5 flex-wrap">
+                  <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                  <span>
+                    <strong>Live AI Session Telemetry:</strong>{' '}
+                    {connectedCount > 0 ? (
+                      <>
+                        <span className="text-emerald-700 dark:text-emerald-300 font-bold">
+                          Primary: {primaryEngine.name} ⚡ ({connectedCount} Custom Keys Active)
+                        </span>
+                        <span className="text-gray-400 dark:text-gray-500 hidden md:inline">
+                          {' • '}Active: {connectedEngines.map(e => e.name).join(', ')}
+                        </span>
+                      </>
+                    ) : (
+                      <span>All 12 APIs (Groq, Gemini, OpenRouter, SambaNova, OpenAI, Claude) running on active standby.</span>
+                    )}
+                  </span>
                 </span>
-                <span className="font-semibold text-emerald-600 dark:text-emerald-400">
-                  Ready for user input 🎯
-                </span>
+                <button
+                  onClick={openApiKeyModal}
+                  className="font-bold text-emerald-700 dark:text-emerald-300 hover:underline cursor-pointer shrink-0"
+                >
+                  {connectedCount > 0 ? `Manage ${connectedCount} Keys 🔑` : '+ Connect Your API Keys 🔑'}
+                </button>
               </div>
             </motion.div>
           )}
@@ -235,8 +278,12 @@ export default function TransparencyAuditTab({ appState = {}, setActiveTab }) {
 
           <div className="glass-card p-3 border-sky-300 dark:border-sky-800 flex flex-col items-center text-center shadow-xs">
             <span className="text-[11px] text-gray-500 dark:text-gray-400 font-semibold uppercase">Connected APIs</span>
-            <span className="text-2xl font-extrabold text-sky-600 dark:text-sky-400 mt-0.5">12 Engines</span>
-            <span className="text-[10px] text-sky-500 font-medium">Free & Multi-API Failover</span>
+            <span className="text-2xl font-extrabold text-sky-600 dark:text-sky-400 mt-0.5">
+              {connectedCount > 0 ? `${connectedCount} / 12 Active` : '12 Engines'}
+            </span>
+            <span className="text-[10px] text-sky-500 font-medium">
+              {connectedCount > 0 ? `${connectedCount} Custom Keys (${primaryPriority.toUpperCase()})` : 'Free & Multi-API Failover'}
+            </span>
           </div>
 
           <div className="glass-card p-3 border-purple-300 dark:border-purple-800 flex flex-col items-center text-center shadow-xs">
@@ -361,7 +408,104 @@ export default function TransparencyAuditTab({ appState = {}, setActiveTab }) {
       </div>
 
       {/* ──────────────────────────────────────────────────────────────────────── */}
-      {/* SECTION 2: SKILLS & HEURISTIC GUARDRAILS INVENTORY                      */}
+      {/* SECTION 2: LIVE API ENGINE CONNECTIONS & TELEMETRY REGISTRY (12 ENGINES)  */}
+      {/* ──────────────────────────────────────────────────────────────────────── */}
+      <div className="glass-card p-6 flex flex-col gap-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-xl">🔌</span>
+              <h3 className="text-base font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+                <span>Live API Engine Registry & Active Fallover</span>
+                <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${
+                  connectedCount > 0
+                    ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-400/40'
+                    : 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border border-amber-400/40'
+                }`}>
+                  {connectedCount > 0 ? `${connectedCount}/12 User Keys Live` : '12 Free Fallbacks Active'}
+                </span>
+              </h3>
+            </div>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+              Live reflection of which LLM provider APIs you have authenticated, which engine is dispatched as primary, and automatic subagent assignments.
+            </p>
+          </div>
+
+          <button
+            onClick={openApiKeyModal}
+            className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-sky-600 to-indigo-600 hover:from-sky-700 hover:to-indigo-700 text-white font-bold text-xs shadow-md transition-all flex items-center gap-1.5 cursor-pointer shrink-0 active:scale-95"
+          >
+            <span>🔑</span>
+            <span>{connectedCount > 0 ? 'Manage API Keys' : '+ Connect Your Keys'}</span>
+          </button>
+        </div>
+
+        {/* 12 Live Engine Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+          {ALL_SUPPORTED_ENGINES.map((eng) => {
+            const isConnected = Boolean(apiKeys?.[eng.id] && apiKeys[eng.id].trim().length > 5);
+            const isPrimary = eng.id === primaryPriority;
+
+            return (
+              <div
+                key={eng.id}
+                className={`p-3.5 rounded-xl border transition-all flex flex-col justify-between gap-2.5 ${
+                  isConnected
+                    ? 'border-emerald-500/60 bg-emerald-50/40 dark:bg-emerald-950/20 shadow-xs'
+                    : 'border-gray-200 dark:border-gray-800 bg-white/50 dark:bg-gray-900/40'
+                }`}
+              >
+                <div>
+                  <div className="flex items-center justify-between gap-2 mb-1.5">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xl">{eng.icon}</span>
+                      <div>
+                        <h4 className="font-bold text-xs text-gray-900 dark:text-gray-100 flex items-center gap-1.5">
+                          <span>{eng.name}</span>
+                          {isPrimary && (
+                            <span className="px-1.5 py-0.2 rounded bg-amber-400 text-black text-[9px] font-extrabold uppercase shadow-2xs">
+                              PRIMARY ⚡
+                            </span>
+                          )}
+                        </h4>
+                        <span className="text-[10px] text-gray-500 dark:text-gray-400 block font-mono">
+                          {eng.model}
+                        </span>
+                      </div>
+                    </div>
+
+                    <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider shrink-0 ${
+                      isConnected
+                        ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-300 border border-emerald-400/50'
+                        : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400 border border-gray-200 dark:border-gray-700'
+                    }`}>
+                      {isConnected ? '✓ Active' : '○ Standby'}
+                    </span>
+                  </div>
+
+                  <div className="space-y-1 text-[10px] text-gray-500 dark:text-gray-400 pt-2 border-t border-gray-100 dark:border-gray-800">
+                    <div className="flex items-center justify-between">
+                      <span className="font-medium text-gray-400">Endpoint:</span>
+                      <span className="font-mono text-[9px] text-gray-600 dark:text-gray-300 truncate max-w-[170px]">
+                        {eng.endpoint}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="font-medium text-gray-400">Assigned Task:</span>
+                      <span className="font-semibold text-indigo-600 dark:text-indigo-400 truncate max-w-[170px]">
+                        {eng.agent}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ──────────────────────────────────────────────────────────────────────── */}
+      {/* SECTION 3: SKILLS & HEURISTIC GUARDRAILS INVENTORY                      */}
       {/* ──────────────────────────────────────────────────────────────────────── */}
       <div className="glass-card p-6 flex flex-col gap-4">
         <div>

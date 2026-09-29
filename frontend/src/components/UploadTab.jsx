@@ -5,10 +5,10 @@ import { extractMultipleDocuments } from '../utils/clientDocExtractor';
 
 const PIPELINE_STAGES = [
   {
-    agent: 'Divyanshu Ji',
-    avatar: '🏛️',
+    agent: 'Lead Document Ingestion Agent',
+    avatar: '📡',
     stage: 'Deep Slide-by-Slide & Page-by-Page Extraction',
-    detail: 'Overseeing PDF stream parsing, extracting paragraphs, formulas, and institutional academic definitions...'
+    detail: 'Extracting PDF text streams, formulas, syllabus outlines, and core academic definitions...'
   },
   {
     agent: 'Sentinel-V3 (Security & Grounding Auditor)',
@@ -261,7 +261,7 @@ export default function UploadTab({ appState, setAppState, setActiveTab, session
             </span>
           </div>
           <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-            Upload single or multiple course PDFs, PPTs, or lecture notes. Our <strong>6-Agent Squad</strong> overseen by <strong>Divyanshu Ji</strong> will parse every page, slide, and line thoroughly to formulate predicted exams.
+            Upload single or multiple course PDFs, PPTs, or lecture notes. Our <strong>6-Agent Squad</strong> will parse every page, slide, and line thoroughly to formulate predicted exams.
           </p>
         </div>
 

@@ -167,7 +167,7 @@ export default function App() {
       case 'adaptive': 
         return <AdaptiveTab {...tabProps} />;
       case 'transparency':
-        return <TransparencyAuditTab appState={appState} setActiveTab={setActiveTab} />;
+        return <TransparencyAuditTab {...tabProps} />;
       case 'plan': 
         return <StudyPlanTab {...tabProps} />;
       case 'settings':
