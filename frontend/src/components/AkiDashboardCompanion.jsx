@@ -59,6 +59,13 @@ export default function AkiDashboardCompanion({
     return () => clearInterval(blinkInterval);
   }, []);
 
+  // Auto-hide speech bubble after 3 seconds whenever quote changes or bubble opens
+  useEffect(() => {
+    if (!isExpanded) return;
+    const hideTimer = setTimeout(() => setIsExpanded(false), 3000);
+    return () => clearTimeout(hideTimer);
+  }, [currentQuoteIdx, isExpanded]);
+
   const activeQuote = ANIME_CHEER_QUOTES[currentQuoteIdx] || ANIME_CHEER_QUOTES[0];
 
   // Dynamic 100% Automatic Pose Matching based on active quote and anime lore (Default Auto)
@@ -203,8 +210,8 @@ export default function AkiDashboardCompanion({
   };
 
   return (
-    /* ── OUTER: flex-row — TEXT on LEFT, AKI on RIGHT — anchored bottom-right corner ── */
-    <div className="fixed bottom-3 right-3 z-40 select-none flex flex-row items-end gap-2 pointer-events-none">
+    /* ── OUTER: flex-col — BUBBLE on TOP of Aki's head, AKI on BOTTOM — anchored bottom-right ── */
+    <div className="fixed bottom-3 right-3 z-40 select-none flex flex-col items-end pointer-events-none">
 
       {/* ══════════════════════════════════════════════════════════════════ */}
       {/* LEFT COLUMN — BACKGROUNDLESS SPEECH TEXT (max 180px, never bleeds) */}
@@ -271,9 +278,9 @@ export default function AkiDashboardCompanion({
                 </form>
               </div>
             ) : (
-              /* ── PURE BACKGROUNDLESS SPEECH — click anywhere to cycle quote ── */
+              /* ── FROSTED GLASS SPEECH BUBBLE — clearly readable above Aki's head ── */
               <div
-                className="flex flex-col items-start text-left cursor-pointer"
+                className="flex flex-col items-start text-left cursor-pointer bg-white/92 dark:bg-gray-950/92 backdrop-blur-md border border-pink-300/60 dark:border-pink-700/60 rounded-2xl rounded-br-sm px-3 py-2 shadow-lg"
                 onClick={handleAkiClick}
                 title="Click to cycle quote & watch Aki jump! 🌸"
               >
@@ -283,12 +290,12 @@ export default function AkiDashboardCompanion({
                 </p>
 
                 {/* 2. English translation */}
-                <p className="font-sans font-semibold text-[11px] text-gray-900 dark:text-white leading-snug mt-0.5 break-words w-full">
+                <p className="font-sans font-semibold text-[11px] text-gray-900 dark:text-white leading-snug mt-1 break-words w-full">
                   "{activeQuote.english}"
                 </p>
 
                 {/* 3. Author */}
-                <span className="text-[9px] text-gray-500 dark:text-gray-400 font-semibold mt-0.5">
+                <span className="text-[9px] text-gray-500 dark:text-gray-400 font-semibold mt-1">
                   — {activeQuote.author}
                 </span>
 
