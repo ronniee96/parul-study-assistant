@@ -59,13 +59,19 @@ export default function AkiDashboardCompanion({
     return () => clearInterval(blinkInterval);
   }, []);
 
-  // Auto-hide speech bubble 3 seconds after each new quote is shown
-  // BUT: never auto-hide while the chat input is open (user is typing!)
+  // Ref tracks live showChatInput so the timer always reads the CURRENT value when it fires
+  const chatOpenRef = React.useRef(showChatInput);
+  useEffect(() => { chatOpenRef.current = showChatInput; }, [showChatInput]);
+
+  // Auto-hide speech bubble 3 seconds after a new quote is shown.
+  // The timer callback double-checks the ref — so the bubble NEVER closes while the user is chatting.
   useEffect(() => {
-    if (!isExpanded || showChatInput) return; // pause timer while typing
-    const hideTimer = setTimeout(() => setIsExpanded(false), 3000);
+    if (!isExpanded || showChatInput) return; // don't even start timer if chat is open
+    const hideTimer = setTimeout(() => {
+      if (!chatOpenRef.current) setIsExpanded(false); // final safety check at fire time
+    }, 3000);
     return () => clearTimeout(hideTimer);
-  }, [currentQuoteIdx, showChatInput]); // re-evaluate when chat opens/closes
+  }, [currentQuoteIdx, showChatInput]);
 
 
   const activeQuote = ANIME_CHEER_QUOTES[currentQuoteIdx] || ANIME_CHEER_QUOTES[0];
