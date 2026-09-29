@@ -203,63 +203,47 @@ export default function AkiDashboardCompanion({
   };
 
   return (
-    <div className="fixed bottom-3 right-3 z-40 select-none flex flex-col items-end pointer-events-none">
-      
-      {/* ──────────────────────────────────────────────────────────────────── */}
-      {/* BACKGROUNDLESS ANIME SPEECH DIALOGUE (SPEAKING DIRECTLY FROM MOUTH)   */}
-      {/* ──────────────────────────────────────────────────────────────────── */}
+    /* ── OUTER: flex-row — TEXT on LEFT, AKI on RIGHT — anchored bottom-right corner ── */
+    <div className="fixed bottom-3 right-3 z-40 select-none flex flex-row items-end gap-2 pointer-events-none">
+
+      {/* ══════════════════════════════════════════════════════════════════ */}
+      {/* LEFT COLUMN — BACKGROUNDLESS SPEECH TEXT (max 180px, never bleeds) */}
+      {/* ══════════════════════════════════════════════════════════════════ */}
       <AnimatePresence>
         {isExpanded && (
           <motion.div
-            initial={{ opacity: 0, y: 10, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 10, scale: 0.95 }}
-            transition={{ duration: 0.2 }}
-            className="pointer-events-auto mb-1 w-[260px] sm:w-[310px] text-right flex flex-col items-end relative drop-shadow-[0_2px_8px_rgba(0,0,0,0.5)] dark:drop-shadow-[0_2px_12px_rgba(0,0,0,0.9)] cursor-pointer select-none"
-            onClick={handleAkiClick}
-            title="Click to cycle quote & watch Aki jump! 🌸"
+            initial={{ opacity: 0, x: 16, scale: 0.95 }}
+            animate={{ opacity: 1, x: 0, scale: 1 }}
+            exit={{ opacity: 0, x: 16, scale: 0.95 }}
+            transition={{ duration: 0.22 }}
+            className="pointer-events-auto flex flex-col items-start text-left max-w-[180px] drop-shadow-[0_2px_8px_rgba(0,0,0,0.55)] dark:drop-shadow-[0_2px_12px_rgba(0,0,0,0.9)] select-none"
           >
-            {/* Minimalist Top Indicator & Controls (Transparent, Backgroundless) */}
-            <div className="flex items-center gap-1.5 mb-0.5">
-              <span className="text-[10px] font-extrabold tracking-wide text-pink-600 dark:text-pink-300 bg-white/70 dark:bg-black/70 px-2 py-0.5 rounded-full backdrop-blur-xs">
+            {/* ── Controls row (tiny, on top of the text column) ── */}
+            <div className="flex items-center gap-1 mb-1 flex-wrap">
+              <span className="text-[9px] font-extrabold tracking-wide text-pink-600 dark:text-pink-300 bg-white/75 dark:bg-black/70 px-1.5 py-0.5 rounded-full backdrop-blur-xs">
                 🌸 Aki
               </span>
               <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setShowChatInput(!showChatInput);
-                }}
-                className="text-[11px] p-0.5 text-gray-700 dark:text-gray-200 hover:text-pink-600 cursor-pointer bg-white/70 dark:bg-black/70 rounded-full px-1.5 backdrop-blur-xs"
+                onClick={(e) => { e.stopPropagation(); setShowChatInput(!showChatInput); }}
+                className="text-[10px] text-gray-700 dark:text-gray-200 hover:text-pink-600 cursor-pointer bg-white/75 dark:bg-black/70 rounded-full px-1.5 py-0.5 backdrop-blur-xs"
                 title="Ask Aki a quick study question"
-              >
-                💬
-              </button>
+              >💬</button>
               <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleRedirectToFeedback();
-                }}
-                className="text-[9px] font-bold text-rose-600 dark:text-rose-400 bg-white/70 dark:bg-black/70 px-1.5 py-0.5 rounded-full backdrop-blur-xs cursor-pointer hover:bg-rose-100"
-                title="Facing any issue? Report to Divyanshu Ji & Squad"
-              >
-                🚨 Issue?
-              </button>
+                onClick={(e) => { e.stopPropagation(); handleRedirectToFeedback(); }}
+                className="text-[9px] font-bold text-rose-600 dark:text-rose-400 bg-white/75 dark:bg-black/70 px-1.5 py-0.5 rounded-full backdrop-blur-xs cursor-pointer hover:bg-rose-100"
+                title="Report issue to Divyanshu Ji & Squad"
+              >🚨</button>
               <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setIsExpanded(false);
-                }}
-                className="text-gray-500 hover:text-gray-800 dark:hover:text-gray-100 text-xs px-1 cursor-pointer bg-white/70 dark:bg-black/70 rounded-full backdrop-blur-xs"
+                onClick={(e) => { e.stopPropagation(); setIsExpanded(false); }}
+                className="text-gray-500 hover:text-gray-800 dark:hover:text-gray-100 text-[10px] px-1.5 py-0.5 cursor-pointer bg-white/75 dark:bg-black/70 rounded-full backdrop-blur-xs"
                 title="Hide speech"
-              >
-                ✕
-              </button>
+              >✕</button>
             </div>
 
-            {/* CHAT INPUT MODE (OPTIONAL, DISCREET) */}
+            {/* ── Chat input mode ── */}
             {showChatInput ? (
-              <div 
-                className="w-full p-2 rounded-xl bg-white/90 dark:bg-gray-900/90 backdrop-blur-md border border-pink-400/40 text-left shadow-lg mt-1"
+              <div
+                className="w-full p-2 rounded-xl bg-white/90 dark:bg-gray-900/90 backdrop-blur-md border border-pink-400/40 shadow-lg"
                 onClick={(e) => e.stopPropagation()}
               >
                 {akiChatReply ? (
@@ -268,16 +252,10 @@ export default function AkiDashboardCompanion({
                   </p>
                 ) : (
                   <p className="text-[10px] text-gray-600 dark:text-gray-400 mb-1">
-                    Ask Aki anything about exam prep or Antigravity!
+                    Ask Aki anything!
                   </p>
                 )}
-                <form
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    handleSendAkiQuery();
-                  }}
-                  className="flex items-center gap-1"
-                >
+                <form onSubmit={(e) => { e.preventDefault(); handleSendAkiQuery(); }} className="flex items-center gap-1">
                   <input
                     type="text"
                     value={userQuery}
@@ -289,91 +267,70 @@ export default function AkiDashboardCompanion({
                     type="submit"
                     disabled={isAskingAki || !userQuery.trim()}
                     className="px-2 py-1 bg-pink-600 text-white font-bold text-[10px] rounded-lg cursor-pointer disabled:opacity-50"
-                  >
-                    Send
-                  </button>
+                  >Send</button>
                 </form>
               </div>
             ) : (
-              /* PURE BACKGROUNDLESS FLOATING MANGA DIALOGUE DIRECTLY FROM HER MOUTH */
-              <div className="flex flex-col items-end text-right px-1">
-                {/* 1. ROMAJI HEADING ON TOP (CLEAN, BALANCED FONT SIZE, NO BOX) */}
-                <p className="font-mono font-black text-xs sm:text-sm uppercase tracking-wider text-purple-700 dark:text-purple-300 text-shadow-sm">
+              /* ── PURE BACKGROUNDLESS SPEECH — click anywhere to cycle quote ── */
+              <div
+                className="flex flex-col items-start text-left cursor-pointer"
+                onClick={handleAkiClick}
+                title="Click to cycle quote & watch Aki jump! 🌸"
+              >
+                {/* 1. ROMAJI on top */}
+                <p className="font-mono font-black text-[11px] uppercase tracking-wide text-purple-700 dark:text-purple-300 leading-tight break-words w-full">
                   ⚡ {activeQuote.romaji}
                 </p>
 
-                {/* 2. ENGLISH TRANSLATION BELOW IN CLEAN READABLE FONT */}
-                <p className="font-sans font-bold text-xs sm:text-[13px] text-gray-900 dark:text-white leading-snug mt-0.5 text-shadow-sm">
+                {/* 2. English translation */}
+                <p className="font-sans font-semibold text-[11px] text-gray-900 dark:text-white leading-snug mt-0.5 break-words w-full">
                   "{activeQuote.english}"
                 </p>
 
-                {/* 3. SUBTLE AUTHOR / ANIME SOURCE */}
-                <span className="text-[10px] text-gray-600 dark:text-gray-300 font-semibold mt-0.5">
+                {/* 3. Author */}
+                <span className="text-[9px] text-gray-500 dark:text-gray-400 font-semibold mt-0.5">
                   — {activeQuote.author}
                 </span>
 
-                {/* 4. AKI'S CHEERING VOICE LINE */}
-                <p className="text-[11px] text-pink-600 dark:text-pink-300 font-medium leading-snug mt-1 text-shadow-xs max-w-[270px]">
+                {/* 4. Aki voice line */}
+                <p className="text-[10px] text-pink-600 dark:text-pink-300 font-medium leading-snug mt-1 break-words w-full">
                   🌸 "{activeQuote.voice}"
                 </p>
-
-                {/* Manga Dialogue Tail pointing directly towards Aki's mouth */}
-                <div className="w-6 h-3 relative mt-0.5 mr-12 opacity-85">
-                  <svg viewBox="0 0 24 12" className="w-6 h-3 text-pink-500 fill-current">
-                    <path d="M 0 0 C 14 1 18 8 22 12 C 16 6 8 2 0 0 Z" />
-                  </svg>
-                </div>
               </div>
             )}
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* ──────────────────────────────────────────────────────────────────── */}
-      {/* REALISTIC ANIMATED ANIME MASCOT (AKI) WITH POSES, EYE BLINK & BOB   */}
-      {/* ──────────────────────────────────────────────────────────────────── */}
+      {/* ══════════════════════════════════════════════════════════════════ */}
+      {/* RIGHT COLUMN — AKI FIGURE (fixed right-edge, no overlap with text)  */}
+      {/* ══════════════════════════════════════════════════════════════════ */}
       <div className="pointer-events-auto flex flex-col items-center relative cursor-pointer group">
-        
-        {/* Floating Emote Particles during Jump (ONLY English / Romaji emojis) */}
+
+        {/* Floating Emote Particles — scoped inside Aki's column, no page bleed */}
         <AnimatePresence>
           {emotes.map((em) => (
             <motion.div
               key={em.id}
               initial={{ opacity: 0, scale: 0.4, x: 0, y: 0 }}
-              animate={{ opacity: 1, scale: 1.25, x: em.x, y: em.y }}
+              animate={{ opacity: 1, scale: 1.2, x: em.x, y: em.y }}
               exit={{ opacity: 0, scale: 0.2 }}
               transition={{ duration: 0.9, ease: "easeOut" }}
-              className="absolute -top-4 pointer-events-none font-bold text-xs sm:text-sm select-none z-50 text-pink-500 whitespace-nowrap drop-shadow-xs"
+              className="absolute -top-4 pointer-events-none font-bold text-xs select-none z-50 text-pink-500 whitespace-nowrap drop-shadow-xs"
             >
               {em.icon}
             </motion.div>
           ))}
         </AnimatePresence>
 
-        {/* Mascot Wrapper with Organic Anime Movement, Eye Blink & Trampoline Jump */}
+        {/* Mascot: Organic Anime Movement + Eye Blink + Trampoline Jump */}
         <motion.div
           animate={
             actionState === 'jumping'
-              ? {
-                  y: [0, 8, -48, 6, -18, 0],
-                  scaleY: [1, 0.72, 1.26, 0.88, 1.05, 1],
-                  scaleX: [1, 1.26, 0.84, 1.10, 0.98, 1],
-                  rotate: [0, -8, 8, -4, 0]
-                }
+              ? { y: [0, 8, -48, 6, -18, 0], scaleY: [1, 0.72, 1.26, 0.88, 1.05, 1], scaleX: [1, 1.26, 0.84, 1.10, 0.98, 1], rotate: [0, -8, 8, -4, 0] }
               : isTalking
-              ? {
-                  // Lively rhythmic bob while speaking / cheering
-                  y: [0, -3, 1, -2, 0],
-                  rotate: [0, -2, 2, -1, 0],
-                  scaleY: [1, 1.03, 0.98, 1]
-                }
-              : {
-                  // Gentle organic anime breathing & hair sway
-                  y: [0, -4, 0],
-                  scaleY: isBlinking ? [1, 0.96, 1] : [1, 1.025, 1],
-                  scaleX: [1, 0.99, 1],
-                  rotate: [0, 1.2, -1.2, 0]
-                }
+              ? { y: [0, -3, 1, -2, 0], rotate: [0, -2, 2, -1, 0], scaleY: [1, 1.03, 0.98, 1] }
+              : { y: [0, -4, 0], scaleY: isBlinking ? [1, 0.96, 1] : [1, 1.025, 1], scaleX: [1, 0.99, 1], rotate: [0, 1.2, -1.2, 0] }
           }
           transition={
             actionState === 'jumping'
@@ -384,19 +341,13 @@ export default function AkiDashboardCompanion({
           }
           onClick={handleAkiClick}
           className="relative flex flex-col items-center"
-          title="Click Aki to make her jump & cheer with cool quotes! 🌸"
+          title="Click Aki to jump & cheer! 🌸"
         >
-          {/* Dynamic Anime Mascot Image with smooth pose transitions */}
           <div className="w-24 h-32 sm:w-28 sm:h-36 relative flex items-center justify-center">
             <motion.img
               key={currentPoseImg}
               initial={{ opacity: 0.85, scale: 0.97 }}
-              animate={{ 
-                opacity: 1, 
-                scale: 1,
-                // Eye blink micro-squash
-                scaleY: isBlinking ? 0.96 : 1
-              }}
+              animate={{ opacity: 1, scale: 1, scaleY: isBlinking ? 0.96 : 1 }}
               transition={{ duration: 0.18 }}
               src={currentPoseImg}
               alt="Aki - Anime Companion"
@@ -404,18 +355,12 @@ export default function AkiDashboardCompanion({
             />
           </div>
 
-          {/* Dynamic 3D Ground Shadow */}
+          {/* Ground shadow */}
           <motion.div
             animate={
               actionState === 'jumping'
-                ? {
-                    scale: [1, 1.3, 0.4, 1.1, 0.7, 1],
-                    opacity: [0.35, 0.45, 0.12, 0.4, 0.2, 0.35]
-                  }
-                : {
-                    scale: [1, 0.85, 1],
-                    opacity: [0.35, 0.25, 0.35]
-                  }
+                ? { scale: [1, 1.3, 0.4, 1.1, 0.7, 1], opacity: [0.35, 0.45, 0.12, 0.4, 0.2, 0.35] }
+                : { scale: [1, 0.85, 1], opacity: [0.35, 0.25, 0.35] }
             }
             transition={
               actionState === 'jumping'
@@ -426,11 +371,11 @@ export default function AkiDashboardCompanion({
           />
         </motion.div>
 
-        {/* Minimalist Floating Pill Toggle */}
+        {/* Pill toggle to show/hide speech */}
         <div
           onClick={() => setIsExpanded(!isExpanded)}
-          className="mt-1 px-2.5 py-0.8 rounded-full bg-pink-500/90 hover:bg-pink-600 text-white font-extrabold text-[9px] shadow-md backdrop-blur-md transition-all flex items-center gap-1 cursor-pointer hover:scale-105 active:scale-95"
-          title={isExpanded ? "Collapse chat bubble" : "Open chat bubble"}
+          className="mt-1 px-2.5 py-0.5 rounded-full bg-pink-500/90 hover:bg-pink-600 text-white font-extrabold text-[9px] shadow-md backdrop-blur-md transition-all flex items-center gap-1 cursor-pointer hover:scale-105 active:scale-95"
+          title={isExpanded ? 'Hide Aki speech' : 'Show Aki speech'}
         >
           <span>🌸</span>
           <span>Aki {isExpanded ? '▾' : '▴'}</span>

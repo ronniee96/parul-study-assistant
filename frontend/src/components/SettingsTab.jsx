@@ -337,7 +337,7 @@ export default function SettingsTab({
   }, [apiKeys]);
 
   const AGENT_PERSONAS = [
-    { id: 'dr_divyanshu', name: 'Divyanshu Ji', role: 'President & Chief Academic Patron', icon: '🏛️', desc: 'Presides over university academic excellence, Bloom\'s Taxonomy governance, and overall exam syllabus integrity.' },
+    { id: 'dr_divyanshu', name: 'Divyanshu Ji', role: 'Academic Patron', icon: '🏛️', desc: 'Presides over university academic excellence, Bloom\'s Taxonomy governance, and overall exam syllabus integrity.' },
     { id: 'prof_mukherjee', name: 'Prof. Mukherjee', role: 'Descriptive & Frameworks Lead', icon: '✍️', desc: 'Specializes in 10-mark blueprints, ASCII process flowcharts, and managerial essays.' },
     { id: 'prof_kulkarni', name: 'Prof. Kulkarni', role: 'Applied Case & Quantitative Analyst', icon: '📊', desc: 'Emphasizes numerical formulas, SWOT/BCG matrices, and real-world corporate case studies.' },
     { id: 'dr_gupta', name: 'Dr. Gupta', role: 'Pedagogy & Memory Retention', icon: '🧠', desc: 'Focuses on high-yield recall, examiner trap warnings, and simple mnemonics.' },
@@ -946,7 +946,7 @@ export default function SettingsTab({
               onChange={(e) => updateSetting('examinerPersona', e.target.value)}
               className="mt-1 w-full px-3 py-2 bg-white dark:bg-gray-950 border border-gray-300 dark:border-gray-700 rounded-lg text-xs font-medium focus:ring-2 focus:ring-primary-500 focus:outline-none"
             >
-              <option value="dr_divyanshu">Divyanshu Ji (President & Academic Patron)</option>
+              <option value="dr_divyanshu">Divyanshu Ji (Academic Patron)</option>
               <option value="prof_mukherjee">Prof. Mukherjee (Qualitative Frameworks & Diagrams)</option>
               <option value="prof_kulkarni">Prof. Kulkarni (Applied Case & Quantitative Analyst)</option>
               <option value="dr_gupta">Dr. Gupta (Pedagogy & High-Retention Memory)</option>

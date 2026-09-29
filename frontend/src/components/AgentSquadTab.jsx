@@ -5,7 +5,7 @@ const AGENTS = [
   {
     id: 'president',
     name: 'Divyanshu Ji',
-    role: 'University President & Chief Academic Patron',
+    role: 'Academic Patron',
     avatar: '🏛️',
     model: 'Gemini 1.5 Pro / GPT-4o Enterprise',
     gradient: 'from-blue-600 via-indigo-600 to-purple-700',

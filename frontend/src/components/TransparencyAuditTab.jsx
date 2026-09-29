@@ -271,7 +271,7 @@ export default function TransparencyAuditTab({ appState = {}, setActiveTab }) {
             {
               role: 'Divyanshu Ji',
               icon: '🏛️',
-              badge: 'President & Academic Patron',
+              badge: 'Academic Patron',
               color: 'border-l-amber-500',
               tasks: [
                 'Structures 2-mark, 5-mark, and 10-mark distribution',
