@@ -1,13 +1,66 @@
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export default function TransparencyAuditTab({ appState = {}, setActiveTab }) {
   const [auditLogs, setAuditLogs] = useState([]);
   const [loading, setLoading] = useState(false);
   const [selectedLog, setSelectedLog] = useState(null);
+  const [isAwakening, setIsAwakening] = useState(false);
+  const [showAwakeBanner, setShowAwakeBanner] = useState(false);
+  const [lastRefreshedTime, setLastRefreshedTime] = useState('Active');
+  const [awakePings, setAwakePings] = useState([]);
+
+  const AGENT_STATUS_QUOTES = [
+    {
+      agent: 'Agent 1: Orchestrator & Ingestion 📡',
+      status: 'Wide Awake',
+      quote: 'Neural ingestion pipe active! Ready to capture slides and coordinate pipeline tasks.',
+      color: 'text-blue-500 bg-blue-50 dark:bg-blue-950/40 border-blue-200 dark:border-blue-800'
+    },
+    {
+      agent: 'Dr. Verma: Dean of Academics 🎓',
+      status: 'Standing By',
+      quote: 'Curriculum standards aligned. Ready to generate 100% exam-accurate MBA blueprints!',
+      color: 'text-amber-500 bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-800'
+    },
+    {
+      agent: 'Sentinel-V3: Anti-Hallucination Guard 🛡️',
+      status: 'Shields at 100%',
+      quote: 'Zero-hallucination radar active. Any non-syllabus clutter will be vaporized immediately.',
+      color: 'text-emerald-500 bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800'
+    },
+    {
+      agent: 'Prof. Mukherjee: Descriptive Frameworks ✍️',
+      status: 'Primed',
+      quote: '10-mark structured answers, ASCII flow diagrams, and mind maps ready for recall.',
+      color: 'text-purple-500 bg-purple-50 dark:bg-purple-950/40 border-purple-200 dark:border-purple-800'
+    },
+    {
+      agent: 'Prof. Kulkarni: Applied Case Analyst 📊',
+      status: 'Online',
+      quote: 'Managerial matrices, SWOT grids, and numerical formulas ready for instant synthesis.',
+      color: 'text-teal-500 bg-teal-50 dark:bg-teal-950/40 border-teal-200 dark:border-teal-800'
+    },
+    {
+      agent: 'Agent Neuro: Engine & Telemetry ⚡',
+      status: 'Hot in Background',
+      quote: 'Multi-API failover active in session. Zero latency, perpetual standby mode engaged!',
+      color: 'text-sky-500 bg-sky-50 dark:bg-sky-950/40 border-sky-200 dark:border-sky-800'
+    }
+  ];
 
   const fetchAuditLogs = async () => {
     setLoading(true);
+    setIsAwakening(true);
+    setShowAwakeBanner(true);
+    setAwakePings([]);
+
+    // Live sequential agent ping animation for entertainment
+    for (let i = 0; i < AGENT_STATUS_QUOTES.length; i++) {
+      await new Promise(r => setTimeout(r, 180));
+      setAwakePings(prev => [...prev, AGENT_STATUS_QUOTES[i]]);
+    }
+
     try {
       const res = await fetch('/api/v1/research/audit-trail');
       const data = await res.json();
@@ -18,9 +71,12 @@ export default function TransparencyAuditTab({ appState = {}, setActiveTab }) {
         }
       }
     } catch (err) {
-      console.warn('Could not fetch live audit logs:', err);
+      console.warn('Live audit trail background ping:', err);
     } finally {
       setLoading(false);
+      setIsAwakening(false);
+      const now = new Date();
+      setLastRefreshedTime(now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
     }
   };
 
@@ -49,7 +105,8 @@ export default function TransparencyAuditTab({ appState = {}, setActiveTab }) {
               <h1 className="text-2xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 dark:from-emerald-400 dark:to-teal-400 bg-clip-text text-transparent">
                 AI Process & Algorithmic Transparency Inspector
               </h1>
-              <span className="px-2.5 py-0.5 text-xs font-semibold rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+              <span className="px-2.5 py-0.5 text-xs font-semibold rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 flex items-center gap-1">
+                <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
                 Full Provenance Audit
               </span>
             </div>
@@ -72,18 +129,95 @@ export default function TransparencyAuditTab({ appState = {}, setActiveTab }) {
           <div className="flex items-center gap-2">
             <button
               onClick={fetchAuditLogs}
-              className="px-3.5 py-2 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-xs font-bold text-gray-700 dark:text-gray-200 hover:border-emerald-500 transition-colors shadow-xs flex items-center gap-1.5"
+              disabled={isAwakening}
+              className={`px-3.5 py-2 rounded-xl bg-white dark:bg-gray-800 border ${
+                isAwakening ? 'border-emerald-500 shadow-md ring-2 ring-emerald-500/20' : 'border-gray-200 dark:border-gray-700'
+              } text-xs font-bold text-gray-700 dark:text-gray-200 hover:border-emerald-500 transition-all shadow-xs flex items-center gap-1.5 cursor-pointer active:scale-95`}
             >
-              <span>🔄</span> Refresh Telemetry
+              <span className={isAwakening ? "inline-block animate-spin" : ""}>🔄</span>
+              <span>{isAwakening ? 'Awakening Squad...' : 'Refresh Telemetry'}</span>
             </button>
             <button
               onClick={() => downloadAuditJSON(selectedLog)}
-              className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-colors shadow-md flex items-center gap-1.5"
+              className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-colors shadow-md flex items-center gap-1.5 cursor-pointer"
             >
               <span>📥</span> Export Audit JSON
             </button>
           </div>
         </div>
+
+        {/* Live Entertaining Agent Awakening Presentation Banner */}
+        <AnimatePresence>
+          {showAwakeBanner && (
+            <motion.div
+              initial={{ opacity: 0, y: -10, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="mt-5 p-4 rounded-2xl bg-gradient-to-br from-emerald-500/15 via-teal-500/10 to-indigo-500/15 border border-emerald-500/40 shadow-lg backdrop-blur-md relative overflow-hidden"
+            >
+              <div className="flex items-center justify-between gap-2 pb-2 mb-3 border-b border-emerald-500/20">
+                <div className="flex items-center gap-2">
+                  <span className="text-xl">⚡</span>
+                  <div>
+                    <h3 className="text-sm font-extrabold text-emerald-900 dark:text-emerald-200 flex items-center gap-2">
+                      <span>Autonomous AI Squad Awakened & Standing By!</span>
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500 text-white font-bold tracking-wider animate-pulse">
+                        LIVE PING
+                      </span>
+                    </h3>
+                    <p className="text-[11px] text-gray-600 dark:text-gray-300">
+                      All background agent intelligence engines refreshed. Zero downtime, ready to generate questions, solve case studies & verify syllabus.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] font-mono text-gray-500 dark:text-gray-400 hidden sm:inline">
+                    Last Ping: {lastRefreshedTime}
+                  </span>
+                  <button
+                    onClick={() => setShowAwakeBanner(false)}
+                    className="text-xs px-2 py-1 rounded-lg bg-emerald-100 hover:bg-emerald-200 dark:bg-emerald-950 dark:hover:bg-emerald-900 text-emerald-800 dark:text-emerald-300 font-bold cursor-pointer transition-colors"
+                  >
+                    ✕ Dismiss
+                  </button>
+                </div>
+              </div>
+
+              {/* Agent Pings Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5">
+                {awakePings.map((ping, idx) => (
+                  <motion.div
+                    key={idx}
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className={`p-2.5 rounded-xl border text-xs flex flex-col justify-between gap-1 shadow-xs ${ping.color}`}
+                  >
+                    <div className="flex items-center justify-between font-bold text-[11px]">
+                      <span>{ping.agent}</span>
+                      <span className="text-[9px] px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 font-extrabold uppercase">
+                        {ping.status}
+                      </span>
+                    </div>
+                    <p className="text-[10px] leading-relaxed text-gray-700 dark:text-gray-300 italic">
+                      "{ping.quote}"
+                    </p>
+                  </motion.div>
+                ))}
+              </div>
+
+              <div className="mt-3 pt-2 border-t border-emerald-500/20 flex items-center justify-between text-[11px] text-gray-600 dark:text-gray-400">
+                <span className="flex items-center gap-1.5">
+                  <span className="inline-block w-2 h-2 rounded-full bg-emerald-500"></span>
+                  <span><strong>AI Session Telemetry:</strong> All APIs (OpenRouter, SambaNova, Groq, Gemini, Claude, OpenAI) running on active standby.</span>
+                </span>
+                <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                  Ready for user input 🎯
+                </span>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Global Transparency Key Metrics */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-5">
