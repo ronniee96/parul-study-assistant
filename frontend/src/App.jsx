@@ -14,6 +14,7 @@ import TransparencyAuditTab from './components/TransparencyAuditTab';
 import AgentSquadTab from './components/AgentSquadTab';
 import SettingsTab from './components/SettingsTab';
 import APIKeyModal from './components/APIKeyModal';
+import AkiDashboardCompanion from './components/AkiDashboardCompanion';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export default function App() {
@@ -293,6 +294,13 @@ export default function App() {
         
         <QuickStats stats={appState.stats} />
       </div>
+
+      {/* Aki Anime Study Companion & Antigravity Assistant (Transparent Screen Dashboard) */}
+      <AkiDashboardCompanion 
+        appState={appState}
+        setActiveTab={setActiveTab}
+        apiKeys={apiKeys}
+      />
 
       <APIKeyModal 
         isOpen={apiKeyModalOpen}

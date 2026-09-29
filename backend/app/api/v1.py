@@ -19,6 +19,7 @@ from app.services.question_ranker import QuestionRanker
 from app.services.answer_generator import AnswerGenerator
 from app.services.pdf_service import PDFService
 from app.services.academic_service import AcademicResearchService
+from app.services.aki_agent import AkiStudyAgent
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -32,6 +33,7 @@ question_ranker = QuestionRanker()
 answer_generator = AnswerGenerator(ai_service)
 pdf_service = PDFService()
 academic_service = AcademicResearchService()
+aki_agent = AkiStudyAgent()
 
 @router.post("/upload")
 async def upload_file(file: UploadFile = File(...)):
@@ -683,13 +685,34 @@ async def get_audit_trail_endpoint(limit: int = 15):
         "logs": academic_service.get_audit_trail(limit=limit)
     }
 
+@router.post('/aki/chat')
+async def aki_chat_endpoint(request: Request):
+    """
+    Google Antigravity & Aki AI Study Agent Chat Endpoint
+    """
+    try:
+        data = await request.json()
+    except Exception:
+        data = {}
+    
+    prompt = data.get("prompt", "").strip()
+    if not prompt:
+        raise HTTPException(status_code=400, detail="Prompt is required")
+        
+    context = data.get("context", "")
+    api_key = data.get("api_key")
+    
+    result = aki_agent.query(prompt=prompt, context=context, user_key=api_key)
+    return result
+
 @router.get('/health')
 async def health_check():
     return {
         'status': 'healthy', 'service': 'study-assistant-api', 'version': '2.0.0',
         'ai_services': {
             'openai_available': ai_service.openai_client is not None,
-            'anthropic_available': ai_service.anthropic_client is not None
+            'anthropic_available': ai_service.anthropic_client is not None,
+            'aki_antigravity_agent': True
         },
-        'features': ['mega_questions', 'exam_prediction', 'answer_generation', 'pdf_creation']
+        'features': ['mega_questions', 'exam_prediction', 'answer_generation', 'pdf_creation', 'aki_antigravity_agent']
     }

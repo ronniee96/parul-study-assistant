@@ -56,6 +56,139 @@ const DEFAULT_FEEDBACK = [
   }
 ];
 
+const ANIME_CHEER_QUOTES = [
+  {
+    id: 'q-1',
+    kanji: "七転び八起き",
+    romaji: "Nana korobi ya oki",
+    english: "Fall seven times, stand up eight.",
+    author: "Japanese Classical Proverb (古事成語)",
+    badge: "🔥 Unyielding Spirit",
+    color: "from-rose-500/20 via-pink-500/20 to-purple-500/20",
+    border: "border-pink-500/50",
+    textGlow: "text-pink-600 dark:text-pink-300",
+    sfx: "Ganbare~! (がんばれー！)",
+    voice: "Even if past questions felt tough, your persistence today will conquer the semester exam! Aki and Rohan believe in your unstoppable power! 🌸💪"
+  },
+  {
+    id: 'q-2',
+    kanji: "限界を超えろ！更に向こうへ、Plus Ultra！",
+    romaji: "Genkai o koero! Sara ni mukō e, Plus Ultra!",
+    english: "Surpass your limits! Go beyond, Plus Ultra!",
+    author: "All Might — My Hero Academia (僕のヒーローアカデミア)",
+    badge: "⚡ Plus Ultra Power",
+    color: "from-amber-500/20 via-orange-500/20 to-red-500/20",
+    border: "border-amber-500/50",
+    textGlow: "text-amber-600 dark:text-amber-300",
+    sfx: "Plus Ultra~! (更に向こうへ！)",
+    voice: "Your mind has incredible power waiting to be unlocked! Review your high-yield points and step into the examination hall like a hero! ⚡💥"
+  },
+  {
+    id: 'q-3',
+    kanji: "継続は力なり",
+    romaji: "Keizoku wa chikara nari",
+    english: "Continuity is power — Consistency breeds miracles.",
+    author: "Japanese Wisdom (座右の銘)",
+    badge: "💎 Supreme Mastery",
+    color: "from-emerald-500/20 via-teal-500/20 to-cyan-500/20",
+    border: "border-emerald-500/50",
+    textGlow: "text-emerald-600 dark:text-emerald-300",
+    sfx: "Yatta~! (やったー！)",
+    voice: "Every formula solved and every late night spent studying builds an unshakable foundation. Nothing can stop you now! 📚✨"
+  },
+  {
+    id: 'q-4',
+    kanji: "諦めたらそこで試合終了ですよ",
+    romaji: "Akirametara soko de shiai shūryō desu yo",
+    english: "If you give up now, the game is already over.",
+    author: "Coach Anzai — Slam Dunk (スラムダンク)",
+    badge: "🏆 Champion Mentality",
+    color: "from-red-500/20 via-rose-500/20 to-pink-500/20",
+    border: "border-red-500/50",
+    textGlow: "text-rose-600 dark:text-rose-300",
+    sfx: "Katsu zo~! (勝つぞー！)",
+    voice: "Stay calm when reading Section C case studies. Break down the problem step-by-step, draw your ASCII blueprint, and capture every mark! 🏀🎯"
+  },
+  {
+    id: 'q-5',
+    kanji: "勝つまで諦めない、それが俺の忍道だ！",
+    romaji: "Katsu made akiramenai, sore ga ore no nindō da!",
+    english: "Never giving up until I win — that is my ninja way!",
+    author: "Naruto Uzumaki (NARUTO -ナルト-)",
+    badge: "🍥 Shinobi Determination",
+    color: "from-orange-500/20 via-amber-500/20 to-yellow-500/20",
+    border: "border-orange-500/50",
+    textGlow: "text-orange-600 dark:text-orange-300",
+    sfx: "Dattebayo~! (だってばよ！)",
+    voice: "Believe it! You've prepared thoroughly with the 6-agent squad. You have the exact knowledge needed to ace this test! 🍥⚔️"
+  },
+  {
+    id: 'q-6',
+    kanji: "一期一会",
+    romaji: "Ichigo Ichie",
+    english: "Treasure this moment — each encounter happens only once.",
+    author: "Classical Japanese Proverb (茶道 一期一会)",
+    badge: "🌸 Zen Focus",
+    color: "from-violet-500/20 via-purple-500/20 to-fuchsia-500/20",
+    border: "border-violet-500/50",
+    textGlow: "text-violet-600 dark:text-violet-300",
+    sfx: "Kizuna~! (絆！)",
+    voice: "Take a deep breath and center your focus. Your preparation is your masterpiece — let it shine gracefully in your answer booklet! 🍵🌸"
+  },
+  {
+    id: 'q-7',
+    kanji: "心臓を捧げよ！",
+    romaji: "Shinzō o sasageyo!",
+    english: "Dedicate your heart with absolute conviction!",
+    author: "Commander Erwin — Attack on Titan (進撃の巨人)",
+    badge: "⚔️ Titan Conqueror",
+    color: "from-blue-500/20 via-indigo-500/20 to-slate-500/20",
+    border: "border-indigo-500/50",
+    textGlow: "text-indigo-600 dark:text-indigo-300",
+    sfx: "Sasageyo~! (捧げよー！)",
+    voice: "Dedicate full focus to your 3-hour exam! Clear all doubts, cite core theories, and conquer the semester with total victory! 🛡️⚡"
+  },
+  {
+    id: 'q-8',
+    kanji: "未来は今、君の手の中にある",
+    romaji: "Mirai wa ima, kimi no te no naka ni aru",
+    english: "The future is right here in your hands.",
+    author: "Steins;Gate (シュタインズ・ゲート)",
+    badge: "🌌 World Line Divergence 1.048%",
+    color: "from-cyan-500/20 via-sky-500/20 to-teal-500/20",
+    border: "border-cyan-500/50",
+    textGlow: "text-cyan-600 dark:text-cyan-300",
+    sfx: "El Psy Kongroo! (運命石の扉)",
+    voice: "Every minute of study recalibrates your future towards success! El Psy Kongroo — top semester scores are in your destiny! ⏱️🌌"
+  }
+];
+
+// Adorable Web Audio chime synthesizer for anime cheer interaction
+function playAnimeSparkleChime() {
+  try {
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContext) return;
+    const ctx = new AudioContext();
+    const now = ctx.currentTime;
+    const notes = [880, 1108.73, 1318.51, 1760];
+    notes.forEach((freq, idx) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, now + idx * 0.08);
+      gain.gain.setValueAtTime(0, now + idx * 0.08);
+      gain.gain.linearRampToValueAtTime(0.08, now + idx * 0.08 + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + idx * 0.08 + 0.35);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now + idx * 0.08);
+      osc.stop(now + idx * 0.08 + 0.36);
+    });
+  } catch (e) {
+    // Audio context may require user gesture
+  }
+}
+
 export default function SettingsTab({ 
   appState = {}, 
   setAppState, 
@@ -167,11 +300,101 @@ export default function SettingsTab({
   // Admin Feedback Filter
   const [feedbackFilter, setFeedbackFilter] = useState('all'); // all | open | resolved | critical
 
-  // Anime Mascot & Maker Note State (Aki)
+  // Anime Mascot & Dynamic Japanese/English Quote State (Aki)
   const [animeCheered, setAnimeCheered] = useState(false);
-  const [animeMessageIdx, setAnimeMessageIdx] = useState(0);
+  const [currentQuoteIdx, setCurrentQuoteIdx] = useState(() => Math.floor(Math.random() * ANIME_CHEER_QUOTES.length));
+  const [cardDisplayMode, setCardDisplayMode] = useState('quote'); // 'quote' | 'maker_note'
+  const [akiClickCount, setAkiClickCount] = useState(0);
+  const [akiActionState, setAkiActionState] = useState('idle'); // 'idle' | 'jumping' | 'sparkle'
+  const [akiEmotes, setAkiEmotes] = useState([]);
   const [akiUserQuery, setAkiUserQuery] = useState('');
   const [akiKnowledgeResponse, setAkiKnowledgeResponse] = useState(null);
+  const [isAskingAki, setIsAskingAki] = useState(false);
+
+  // Trigger high-energy interactive click action on Aki
+  const handleAkiInteraction = () => {
+    playAnimeSparkleChime();
+    setAnimeCheered(true);
+    setAkiClickCount(c => c + 1);
+    setAkiActionState('jumping');
+    // Rotate to next cool quote
+    setCurrentQuoteIdx(prev => (prev + 1) % ANIME_CHEER_QUOTES.length);
+    setCardDisplayMode('quote');
+
+    // Burst cute floating emotes
+    const emoteIcons = ['✨', '💖', '⭐', '🌸', '🎉', '「がんばれー！」', '💫', '🔥'];
+    const newEmotes = Array.from({ length: 5 }, (_, i) => ({
+      id: Date.now() + i,
+      icon: emoteIcons[Math.floor(Math.random() * emoteIcons.length)],
+      x: (Math.random() - 0.5) * 80,
+      y: -20 - Math.random() * 50
+    }));
+    setAkiEmotes(newEmotes);
+
+    setTimeout(() => {
+      setAkiActionState('idle');
+      setAkiEmotes([]);
+    }, 1500);
+  };
+
+  const handleNextQuote = () => {
+    handleAkiInteraction();
+  };
+
+  // Ask Aki AI (Google Antigravity & Study Agent)
+  const handleAskAkiAgent = async (overridePrompt) => {
+    const query = overridePrompt || akiUserQuery;
+    if (!query || !query.trim()) return;
+
+    setIsAskingAki(true);
+    setAkiActionState('jumping');
+
+    try {
+      const res = await fetch('/api/v1/aki/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt: query.trim(),
+          context: appState?.extractedText || '',
+          api_key: localApiKeys?.gemini || ''
+        })
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setAkiKnowledgeResponse({
+          question: query.trim(),
+          answer: data.response || data.message || "Aki processed your request!",
+          targetTab: data.targetTab || 'squad'
+        });
+      } else {
+        throw new Error("Offline response fallback");
+      }
+    } catch (err) {
+      // Offline fallback knowledge
+      const lower = query.toLowerCase();
+      let fallbackAns = "I'm right here with you! Let's review the high-yield topics and conquer this exam together! 🌸✨";
+      let targetTab = 'predictor';
+
+      if (lower.includes('antigravity') || lower.includes('agent')) {
+        fallbackAns = "Google Antigravity is a next-generation agent-first environment! It orchestrates task-based agents across terminal, browser, and editor seamlessly, enabling multi-agent synchronization and automated artifact generation.";
+        targetTab = 'squad';
+      } else if (lower.includes('case study') || lower.includes('10')) {
+        fallbackAns = "Always follow the 4-part Parul University blueprint: (1) Executive Introduction, (2) Draw a conceptual framework or ASCII matrix, (3) In-depth analytical argument with syllabus terms, and (4) Managerial practical implications!";
+        targetTab = 'answers';
+      }
+
+      setAkiKnowledgeResponse({
+        question: query.trim(),
+        answer: fallbackAns,
+        targetTab: targetTab
+      });
+    } finally {
+      setIsAskingAki(false);
+      setAkiUserQuery('');
+      setAkiActionState('idle');
+    }
+  };
 
   useEffect(() => {
     setLocalApiKeys(apiKeys);
@@ -1132,20 +1355,46 @@ export default function SettingsTab({
       <div className="relative w-full my-4 py-2 bg-transparent border-0 shadow-none">
         <div className="flex flex-col lg:flex-row items-center lg:items-start gap-6 relative">
           
-          {/* CUTE ANIMATED ANIME FIGURINE / MASCOT (AKI) */}
-          <div className="flex flex-col items-center shrink-0 pt-2">
+          {/* CUTE ANIMATED ANIME FIGURINE / MASCOT (AKI) WITH JUMP & 3D SHADOW */}
+          <div className="flex flex-col items-center shrink-0 pt-2 relative">
+            {/* Floating Emote Particles during Jump */}
+            <AnimatePresence>
+              {akiEmotes.map((em) => (
+                <motion.div
+                  key={em.id}
+                  initial={{ opacity: 0, scale: 0.4, x: 0, y: 0 }}
+                  animate={{ opacity: 1, scale: 1.25, x: em.x, y: em.y }}
+                  exit={{ opacity: 0, scale: 0.2 }}
+                  transition={{ duration: 0.9, ease: "easeOut" }}
+                  className="absolute -top-4 pointer-events-none font-bold text-lg select-none z-50 text-pink-500"
+                >
+                  {em.icon}
+                </motion.div>
+              ))}
+            </AnimatePresence>
+
             <motion.div 
-              animate={{ 
-                y: animeCheered ? [0, -14, 0] : [0, -6, 0],
-                rotate: animeCheered ? [0, 3, -3, 0] : [0, 1, -1, 0]
-              }}
-              transition={{ repeat: Infinity, duration: animeCheered ? 1.4 : 3.2, ease: "easeInOut" }}
+              animate={
+                akiActionState === 'jumping'
+                  ? {
+                      y: [0, 8, -48, 6, -18, 0],
+                      scaleY: [1, 0.72, 1.26, 0.88, 1.05, 1],
+                      scaleX: [1, 1.26, 0.84, 1.10, 0.98, 1],
+                      rotate: [0, -8, 8, -4, 0]
+                    }
+                  : { 
+                      y: animeCheered ? [0, -14, 0] : [0, -6, 0],
+                      rotate: animeCheered ? [0, 3, -3, 0] : [0, 1, -1, 0]
+                    }
+              }
+              transition={
+                akiActionState === 'jumping'
+                  ? { duration: 0.9, ease: "easeInOut" }
+                  : { repeat: Infinity, duration: animeCheered ? 1.4 : 3.2, ease: "easeInOut" }
+              }
               className="relative cursor-pointer group flex flex-col items-center"
-              onClick={() => {
-                setAnimeCheered(true);
-                setTimeout(() => setAnimeCheered(false), 3500);
-              }}
-              title="Click Aki for an Exam Good Luck Cheer! 🌸"
+              onClick={handleAkiInteraction}
+              title="Click Aki to make her jump & cheer with cool quotes! 🌸"
             >
               {/* Cute Chibi Anime Girl Figurine "Aki" from Reference Image */}
               <div className="relative w-44 h-52 flex items-center justify-center">
@@ -1168,30 +1417,49 @@ export default function SettingsTab({
                 )}
               </div>
 
+              {/* Dynamic 3D Ground Shadow */}
+              <motion.div
+                animate={
+                  akiActionState === 'jumping'
+                    ? {
+                        scale: [1, 1.3, 0.4, 1.1, 0.7, 1],
+                        opacity: [0.35, 0.45, 0.12, 0.4, 0.2, 0.35]
+                      }
+                    : {
+                        scale: [1, 0.85, 1],
+                        opacity: [0.35, 0.25, 0.35]
+                      }
+                }
+                transition={
+                  akiActionState === 'jumping'
+                    ? { duration: 0.9, ease: "easeInOut" }
+                    : { repeat: Infinity, duration: 3.2, ease: "easeInOut" }
+                }
+                className="w-24 h-3 rounded-full bg-black/40 blur-xs mt-1"
+              />
+
               {/* Status Badge under Anime Figure */}
-              <div className="mt-1 px-3 py-1 rounded-full bg-pink-100/90 dark:bg-pink-950/90 border border-pink-300/80 dark:border-pink-800 text-[10px] font-bold text-pink-700 dark:text-pink-300 shadow-xs flex items-center gap-1">
+              <div className="mt-2 px-3 py-1 rounded-full bg-pink-100/90 dark:bg-pink-950/90 border border-pink-300/80 dark:border-pink-800 text-[10px] font-bold text-pink-700 dark:text-pink-300 shadow-xs flex items-center gap-1">
                 <span>🌸</span>
-                <span>Aki • Study Mascot</span>
+                <span>Aki • Study Mascot (Click to Jump!)</span>
               </div>
             </motion.div>
           </div>
 
-          {/* FLOATING SPEECH BUBBLE & HEARTFELT HUMBLE NOTE (TRANSPARENT GLASS) */}
+          {/* FLOATING SPEECH BUBBLE & INTERACTIVE DESK (TRANSPARENT GLASS) */}
           <div className="flex-1 w-full">
             <div className="relative p-5 md:p-6 rounded-3xl bg-white/75 dark:bg-gray-900/75 border border-pink-300/40 dark:border-pink-800/40 shadow-md backdrop-blur-md">
               
               {/* Speech Bubble Arrow Tail pointing left towards Anime Mascot */}
               <div className="hidden lg:block absolute -left-3 top-10 w-0 h-0 border-y-8 border-y-transparent border-r-12 border-r-white/75 dark:border-r-gray-900/75"></div>
 
-              {/* Speech Bubble Header */}
+              {/* Speech Bubble Header with Mode Toggles */}
               <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 mb-3 border-b border-pink-200/50 dark:border-pink-900/40">
                 <div className="flex items-center gap-2">
-                  <span className="text-xl">💌</span>
+                  <span className="text-xl">🌸</span>
                   <div>
                     <h3 className="text-sm md:text-base font-extrabold bg-gradient-to-r from-pink-600 via-purple-600 to-indigo-600 bg-clip-text text-transparent">
-                      {animeCheered 
-                        ? "🎉 Yay!! You're Going to Ace Your Exams! 🌟" 
-                        : "A Humble Note from the Maker (Rohan Mitra) 🌸"}
+                      Aki (秋) — Antigravity Study Companion
                     </h3>
                     <span className="text-[10px] text-gray-500 dark:text-gray-400 font-medium">
                       Parul University Study Assistant Framework
@@ -1201,39 +1469,84 @@ export default function SettingsTab({
 
                 <div className="flex items-center gap-1.5">
                   <button
-                    onClick={() => {
-                      setAnimeCheered(true);
-                      setTimeout(() => setAnimeCheered(false), 3500);
-                    }}
-                    className="px-3 py-1 bg-pink-500/10 hover:bg-pink-500/20 dark:bg-pink-950/60 dark:hover:bg-pink-900/60 border border-pink-400/40 dark:border-pink-800 rounded-lg text-xs font-bold text-pink-700 dark:text-pink-300 transition-all cursor-pointer flex items-center gap-1 shadow-2xs hover:scale-105 active:scale-95"
+                    onClick={() => setCardDisplayMode('quote')}
+                    className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${
+                      cardDisplayMode === 'quote'
+                        ? 'bg-pink-600 text-white shadow-xs'
+                        : 'bg-pink-50 dark:bg-pink-950/60 text-pink-700 dark:text-pink-300 hover:bg-pink-100'
+                    }`}
                   >
-                    <span>💖</span>
-                    <span>Exam Luck Cheer!</span>
+                    <span>💬</span>
+                    <span>Cheer Quote</span>
+                  </button>
+
+                  <button
+                    onClick={() => setCardDisplayMode('maker_note')}
+                    className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${
+                      cardDisplayMode === 'maker_note'
+                        ? 'bg-pink-600 text-white shadow-xs'
+                        : 'bg-pink-50 dark:bg-pink-950/60 text-pink-700 dark:text-pink-300 hover:bg-pink-100'
+                    }`}
+                  >
+                    <span>💌</span>
+                    <span>Maker Note</span>
+                  </button>
+
+                  <button
+                    onClick={handleAkiInteraction}
+                    className="px-3 py-1 bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1 shadow-2xs hover:scale-105 active:scale-95"
+                    title="Make Aki jump and cycle to the next cheer quote!"
+                  >
+                    <span>🎲</span>
+                    <span>Next Cheer!</span>
                   </button>
                 </div>
               </div>
 
-              {/* Heartfelt Letter Content & Knowledgeable Anime Assistant */}
+              {/* Dynamic Content: Anime Quote vs Maker Note */}
               <AnimatePresence mode="wait">
                 <motion.div
-                  key={animeCheered ? "cheered" : "humble"}
+                  key={cardDisplayMode}
                   initial={{ opacity: 0, y: 4 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -4 }}
                   transition={{ duration: 0.2 }}
                   className="space-y-3 text-xs text-gray-700 dark:text-gray-300 leading-relaxed font-sans"
                 >
-                  {animeCheered ? (
-                    <div className="p-3.5 rounded-xl bg-pink-500/10 border border-pink-400/40 text-xs text-pink-900 dark:text-pink-200">
-                      <p className="font-extrabold text-sm mb-1">
-                        🌟 "Ganbatte! You've got this!!"
-                      </p>
-                      <p className="leading-relaxed">
-                        Drink plenty of water, take restful breaths, and review your 30-minute last-day cheat sheet! All 6 AI Professors and Rohan Mitra are cheering for your 100% exam success. Step into that exam hall with full pride! 💖📚✨
+                  {cardDisplayMode === 'quote' ? (
+                    /* DYNAMIC JAPANESE & ENGLISH CHEER QUOTE CARD */
+                    <div className="flex flex-col gap-2.5">
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span className="px-2.5 py-0.5 rounded-full font-bold bg-pink-100/90 dark:bg-pink-950/90 text-pink-700 dark:text-pink-300 border border-pink-300/40">
+                          {ANIME_CHEER_QUOTES[currentQuoteIdx]?.badge || "🌸 Aki Cheer"}
+                        </span>
+                        <span className="font-mono text-purple-600 dark:text-purple-400 font-semibold italic">
+                          {ANIME_CHEER_QUOTES[currentQuoteIdx]?.sfx || "Ganbatte~! (がんばれー！)"}
+                        </span>
+                      </div>
+
+                      <div className="p-4 rounded-2xl bg-gradient-to-br from-pink-500/10 via-purple-500/10 to-indigo-500/10 border border-pink-300/40 dark:border-pink-700/40 text-center relative overflow-hidden shadow-2xs">
+                        <p className="font-extrabold text-lg md:text-xl tracking-wide bg-gradient-to-r from-pink-600 via-purple-600 to-indigo-600 dark:from-pink-300 dark:via-purple-300 dark:to-indigo-300 bg-clip-text text-transparent font-sans">
+                          「{ANIME_CHEER_QUOTES[currentQuoteIdx]?.kanji}」
+                        </p>
+                        <p className="text-[11px] text-gray-500 dark:text-gray-400 font-mono tracking-wider mt-1">
+                          {ANIME_CHEER_QUOTES[currentQuoteIdx]?.romaji}
+                        </p>
+                        <p className="text-xs md:text-sm text-gray-800 dark:text-gray-200 font-semibold mt-2 italic">
+                          "{ANIME_CHEER_QUOTES[currentQuoteIdx]?.english}"
+                        </p>
+                        <span className="text-[11px] text-gray-500 dark:text-gray-400 block mt-1 font-medium">
+                          — {ANIME_CHEER_QUOTES[currentQuoteIdx]?.author}
+                        </span>
+                      </div>
+
+                      <p className="text-xs text-gray-700 dark:text-gray-300 leading-snug">
+                        🌸 <strong>Aki:</strong> "{ANIME_CHEER_QUOTES[currentQuoteIdx]?.voice}"
                       </p>
                     </div>
                   ) : (
-                    <>
+                    /* HEARTFELT HUMBLE LETTER FROM ROHAN MITRA */
+                    <div className="space-y-2">
                       <p className="italic text-gray-800 dark:text-gray-200 font-medium">
                         "Hello dear student! Thank you so much with all my heart for choosing this website! 🌸"
                       </p>
@@ -1243,7 +1556,7 @@ export default function SettingsTab({
                       <p>
                         <strong>Your feedback matters a whole lot to me.</strong> If you face any issues, confusing explanations, or if you feel something could be better — please let me know right below! I read every single piece of feedback personally and promise to keep refining this assistant to serve you best.
                       </p>
-                    </>
+                    </div>
                   )}
 
                   {/* KNOWLEDGEABLE AI CONTEXT AWARENESS & SMART REDIRECTIONS */}
@@ -1340,71 +1653,84 @@ export default function SettingsTab({
                       </div>
                     )}
 
-                    {/* Quick Interactive Study Helper with Aki */}
-                    <div className="pt-2 border-t border-indigo-200/40 dark:border-indigo-800/40 flex flex-col gap-1.5">
-                      <span className="text-[10px] font-bold text-indigo-800 dark:text-indigo-300 uppercase tracking-wider">
-                        💡 Quick Advice from Aki:
-                      </span>
+                    {/* Quick Interactive Study Helper & Antigravity Ask Box */}
+                    <div className="pt-2 border-t border-indigo-200/40 dark:border-indigo-800/40 flex flex-col gap-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-bold text-indigo-800 dark:text-indigo-300 uppercase tracking-wider">
+                          ⚡ Ask Aki (Google Antigravity & Study Agent):
+                        </span>
+                      </div>
+
+                      {/* Display Aki's answer if available */}
+                      {akiKnowledgeResponse && (
+                        <div className="p-3 rounded-xl bg-white/95 dark:bg-gray-900/95 border border-pink-300/80 dark:border-pink-800 text-[11px] text-gray-800 dark:text-gray-200 flex flex-col gap-1.5 shadow-xs">
+                          <div className="flex items-center justify-between font-bold text-pink-700 dark:text-pink-300">
+                            <span>🌸 Aki's Intelligence Answer:</span>
+                            <button
+                              onClick={() => setAkiKnowledgeResponse(null)}
+                              className="text-gray-400 hover:text-gray-600 text-xs cursor-pointer"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                          <p className="leading-relaxed whitespace-pre-line">{akiKnowledgeResponse.answer}</p>
+                          {akiKnowledgeResponse.targetTab && (
+                            <button
+                              onClick={() => setActiveTab(akiKnowledgeResponse.targetTab)}
+                              className="self-start px-2.5 py-1 bg-pink-600 hover:bg-pink-700 text-white rounded text-[10px] font-bold cursor-pointer transition-colors"
+                            >
+                              Take me to {akiKnowledgeResponse.targetTab.toUpperCase()} →
+                            </button>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Quick Prompt Chips */}
                       <div className="flex flex-wrap gap-1.5">
                         <button
-                          onClick={() => {
-                            setAkiKnowledgeResponse({
-                              question: "How do I get full 10 marks in case studies?",
-                              answer: "Always follow the 4-part Parul University blueprint: (1) Executive Introduction, (2) Draw a conceptual framework or ASCII matrix, (3) In-depth analytical argument with syllabus terms, and (4) Managerial practical implications. You can inspect blueprints in the Answer Bank!",
-                              targetTab: 'answers'
-                            });
-                          }}
+                          onClick={() => handleAskAkiAgent("How do I score 10/10 in Case Studies?")}
                           className="px-2 py-0.5 rounded bg-white/80 dark:bg-gray-900/80 border border-indigo-200/80 dark:border-indigo-800/80 text-[10px] font-medium text-gray-700 dark:text-gray-300 hover:border-pink-500 cursor-pointer"
                         >
                           How to score 10/10 in Case Studies? ✍️
                         </button>
                         <button
-                          onClick={() => {
-                            setAkiKnowledgeResponse({
-                              question: "Where are my exam predictions?",
-                              answer: "Our Exam Predictor tab compiles questions weighted by Bloom's Taxonomy into Section A (2M), Section B (5M), and Section C (10M) with confidence ratings. Let's head there!",
-                              targetTab: 'predictor'
-                            });
-                          }}
+                          onClick={() => handleAskAkiAgent("Explain Google Antigravity Agent workflows")}
                           className="px-2 py-0.5 rounded bg-white/80 dark:bg-gray-900/80 border border-indigo-200/80 dark:border-indigo-800/80 text-[10px] font-medium text-gray-700 dark:text-gray-300 hover:border-pink-500 cursor-pointer"
                         >
-                          Where are Predicted Exam Papers? 🎯
+                          Google Antigravity Workflows 🚀
                         </button>
                         <button
-                          onClick={() => {
-                            setAkiKnowledgeResponse({
-                              question: "What are the 6 AI Agents doing?",
-                              answer: "Dr. Verma aligns syllabus rubrics, Sentinel-V3 purges fluff, Prof. Mukherjee crafts 10M blueprints, Prof. Kulkarni solves numerical formulas, Dr. Gupta manages memory cards, and Agent Neuro handles multi-API routing!",
-                              targetTab: 'squad'
-                            });
-                          }}
+                          onClick={() => handleAskAkiAgent("What is the 6-Agent AI Squad?")}
                           className="px-2 py-0.5 rounded bg-white/80 dark:bg-gray-900/80 border border-indigo-200/80 dark:border-indigo-800/80 text-[10px] font-medium text-gray-700 dark:text-gray-300 hover:border-pink-500 cursor-pointer"
                         >
                           What is the 6-Agent Squad? 🤖
                         </button>
                       </div>
 
-                      {/* Display Aki's answer if clicked */}
-                      {akiKnowledgeResponse && (
-                        <div className="mt-1 p-2.5 rounded-xl bg-white/90 dark:bg-gray-900/90 border border-pink-300/80 dark:border-pink-800 text-[11px] text-gray-800 dark:text-gray-200 flex flex-col gap-1.5 shadow-xs">
-                          <div className="flex items-center justify-between font-bold text-pink-700 dark:text-pink-300">
-                            <span>🌸 Aki's Answer:</span>
-                            <button
-                              onClick={() => setAkiKnowledgeResponse(null)}
-                              className="text-gray-400 hover:text-gray-600 text-xs"
-                            >
-                              ✕
-                            </button>
-                          </div>
-                          <p className="leading-relaxed">{akiKnowledgeResponse.answer}</p>
-                          <button
-                            onClick={() => setActiveTab(akiKnowledgeResponse.targetTab)}
-                            className="self-start px-2.5 py-1 bg-pink-600 hover:bg-pink-700 text-white rounded text-[10px] font-bold cursor-pointer transition-colors"
-                          >
-                            Take me to {akiKnowledgeResponse.targetTab.toUpperCase()} →
-                          </button>
-                        </div>
-                      )}
+                      {/* Ask Input Form */}
+                      <form
+                        onSubmit={(e) => {
+                          e.preventDefault();
+                          handleAskAkiAgent();
+                        }}
+                        className="flex items-center gap-1.5 pt-1"
+                      >
+                        <input
+                          type="text"
+                          value={akiUserQuery}
+                          onChange={(e) => setAkiUserQuery(e.target.value)}
+                          placeholder="Ask Aki anything (Antigravity architecture, blueprints, exam prep)..."
+                          className="flex-1 px-3 py-1.5 bg-white/90 dark:bg-gray-950/90 border border-indigo-200 dark:border-indigo-800 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-pink-500 font-sans"
+                        />
+                        <button
+                          type="submit"
+                          disabled={isAskingAki || !akiUserQuery.trim()}
+                          className="px-3.5 py-1.5 bg-pink-600 hover:bg-pink-700 disabled:opacity-50 text-white font-bold text-xs rounded-xl shadow-xs transition-all cursor-pointer flex items-center gap-1"
+                        >
+                          <span>{isAskingAki ? '⚡' : '🚀'}</span>
+                          <span>Ask</span>
+                        </button>
+                      </form>
                     </div>
                   </div>
                 </motion.div>
