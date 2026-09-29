@@ -151,8 +151,8 @@ export default function AkiDashboardCompanion({
     const newEmotes = Array.from({ length: 5 }, (_, i) => ({
       id: Date.now() + i,
       icon: emoteIcons[Math.floor(Math.random() * emoteIcons.length)],
-      x: (Math.random() - 0.5) * 80,
-      y: -20 - Math.random() * 50
+      x: (Math.random() - 0.5) * 30,
+      y: -10 - Math.random() * 25
     }));
     setEmotes(newEmotes);
 
@@ -312,7 +312,7 @@ export default function AkiDashboardCompanion({
       {/* ══════════════════════════════════════════════════════════════════ */}
       {/* RIGHT COLUMN — AKI FIGURE (fixed right-edge, no overlap with text)  */}
       {/* ══════════════════════════════════════════════════════════════════ */}
-      <div className="pointer-events-auto flex flex-col items-center relative cursor-pointer group">
+      <div className="pointer-events-auto flex flex-col items-center relative cursor-pointer group overflow-hidden" style={{paddingTop: '40px', marginTop: '-40px'}}>
 
         {/* Floating Emote Particles — scoped inside Aki's column, no page bleed */}
         <AnimatePresence>
