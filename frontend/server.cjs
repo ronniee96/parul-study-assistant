@@ -2,8 +2,16 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 
-const PORT = 5173;
+const PORT = process.env.PORT || 5173;
 const DIST_DIR = path.join(__dirname, 'dist');
+
+process.on('uncaughtException', (err) => {
+  console.error('Unhandled Exception:', err);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+});
 
 const MIME_TYPES = {
   '.html': 'text/html; charset=utf-8',
@@ -83,6 +91,18 @@ const server = http.createServer((req, res) => {
   });
 });
 
+server.on('error', (err) => {
+  if (err.code === 'EADDRINUSE') {
+    console.error(`Port ${PORT} in use, retrying in 1s...`);
+    setTimeout(() => {
+      server.close();
+      server.listen(PORT, '0.0.0.0');
+    }, 1000);
+  } else {
+    console.error('Server error:', err);
+  }
+});
+
 server.listen(PORT, '0.0.0.0', () => {
-  console.log(`🚀 Study Assistant Server active at http://localhost:${PORT}`);
+  console.log(`🚀 Study Assistant Server permanently active at http://localhost:${PORT}`);
 });
