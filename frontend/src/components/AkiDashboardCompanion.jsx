@@ -282,7 +282,7 @@ export default function AkiDashboardCompanion({
 
   return (
     /* ── OUTER: responsive width, smoothly expands when chat is open ── */
-    <div className={`fixed bottom-3 right-3 z-40 select-none flex flex-col items-end pointer-events-none transition-all duration-300 ${
+    <div className={`fixed bottom-20 right-4 sm:right-6 z-40 select-none flex flex-col items-end pointer-events-none transition-all duration-300 ${
       showChatInput ? 'w-[290px] sm:w-[340px]' : 'w-[190px]'
     } overflow-visible`}>
 
