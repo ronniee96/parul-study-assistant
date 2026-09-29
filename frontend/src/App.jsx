@@ -23,13 +23,13 @@ export default function App() {
   const [sessionKey, setSessionKey] = useState(1);
   const [toastMessage, setToastMessage] = useState(null);
   
-  // API Keys state with persistence
+  // API Keys state with permanent persistence across all sessions
   const [apiKeys, setApiKeys] = useState(() => {
     try {
-      const saved = localStorage.getItem('study_assistant_api_keys');
-      return saved ? JSON.parse(saved) : { gemini: '', openai: '', claude: '', perplexity: '' };
+      const saved = localStorage.getItem('study_assistant_permanent_api_keys') || localStorage.getItem('study_assistant_api_keys');
+      return saved ? JSON.parse(saved) : { gemini: '', groq: '', deepseek: '', mistral: '', openrouter: '', sambanova: '', together: '', huggingface: '', cohere: '', openai: '', claude: '', perplexity: '' };
     } catch {
-      return { gemini: '', openai: '', claude: '', perplexity: '' };
+      return { gemini: '', groq: '', deepseek: '', mistral: '', openrouter: '', sambanova: '', together: '', huggingface: '', cohere: '', openai: '', claude: '', perplexity: '' };
     }
   });
 
@@ -40,6 +40,7 @@ export default function App() {
   const handleSaveApiKeys = (keys, priority) => {
     setApiKeys(keys);
     if (priority) setPrimaryPriority(priority);
+    localStorage.setItem('study_assistant_permanent_api_keys', JSON.stringify(keys));
     localStorage.setItem('study_assistant_api_keys', JSON.stringify(keys));
     if (priority) localStorage.setItem('study_assistant_primary_priority', priority);
   };

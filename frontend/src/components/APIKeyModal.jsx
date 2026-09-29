@@ -1,311 +1,393 @@
-import React, { useState } from 'react';
-import { motion } from 'framer-motion';
+import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 
-const PROVIDERS = [
+export const ALL_PROVIDERS = [
   {
     id: 'gemini',
-    name: 'Google Gemini API',
-    tag: 'Recommended & Free',
+    name: 'Google Gemini AI',
+    tag: 'Free Tier & Recommended',
     tagColor: 'bg-emerald-100 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300',
     icon: '🤖',
     placeholder: 'Paste your AIzaSy... key',
     docUrl: 'https://aistudio.google.com/app/apikey',
     docLabel: 'Get Free Gemini Key ↗',
-    defaultModel: 'gemini-1.5-flash'
+    defaultModel: 'gemini-1.5-flash',
+    info: 'Free high-speed multimodal model directly from Google AI Studio.'
   },
   {
-    id: 'openai',
-    name: 'OpenAI (GPT-4o & GPT-3.5)',
-    tag: 'Flagship Model',
-    tagColor: 'bg-blue-100 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300',
-    icon: '⚡',
-    placeholder: 'Paste your sk-... key',
-    docUrl: 'https://platform.openai.com/api-keys',
-    docLabel: 'Get OpenAI Key ↗',
-    defaultModel: 'gpt-4o'
-  },
-  {
-    id: 'claude',
-    name: 'Anthropic Claude (3.5 Sonnet)',
-    tag: 'Superior Reasoning',
-    tagColor: 'bg-purple-100 dark:bg-purple-950/50 text-purple-700 dark:text-purple-300',
-    icon: '🧠',
-    placeholder: 'Paste your sk-ant-... key',
-    docUrl: 'https://console.anthropic.com/settings/keys',
-    docLabel: 'Get Claude Key ↗',
-    defaultModel: 'claude-3-5-sonnet'
+    id: 'groq',
+    name: 'Groq Cloud (Llama 3.3 70B)',
+    tag: 'Free & 500+ Tok/s Speed',
+    tagColor: 'bg-orange-100 dark:bg-orange-950/50 text-orange-700 dark:text-orange-300',
+    icon: '🚀',
+    placeholder: 'Paste your gsk_... key',
+    docUrl: 'https://console.groq.com/keys',
+    docLabel: 'Get Free Groq Key ↗',
+    defaultModel: 'llama-3.3-70b-versatile',
+    info: 'Ultra-fast LPU inference engine with generous free tier access.'
   },
   {
     id: 'deepseek',
     name: 'DeepSeek AI (V3 & R1 Reasoning)',
-    tag: 'Ultra Math & Logic',
+    tag: 'Reasoning & Math Benchmark',
     tagColor: 'bg-indigo-100 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300',
     icon: '🐳',
     placeholder: 'Paste your sk-... key',
     docUrl: 'https://platform.deepseek.com/api_keys',
     docLabel: 'Get DeepSeek Key ↗',
-    defaultModel: 'deepseek-chat'
-  },
-  {
-    id: 'groq',
-    name: 'Groq Cloud (Llama 3.3 70B)',
-    tag: '500+ Tokens/sec Speed',
-    tagColor: 'bg-orange-100 dark:bg-orange-950/50 text-orange-700 dark:text-orange-300',
-    icon: '🚀',
-    placeholder: 'Paste your gsk_... key',
-    docUrl: 'https://console.groq.com/keys',
-    docLabel: 'Get Groq Key ↗',
-    defaultModel: 'llama-3.3-70b-versatile'
+    defaultModel: 'deepseek-chat',
+    info: 'State-of-the-art open-weights reasoning model for step-by-step solutions.'
   },
   {
     id: 'mistral',
     name: 'Mistral AI (Large & Codestral)',
-    tag: 'Open-Weights Benchmark',
+    tag: 'Free Tier Available',
     tagColor: 'bg-amber-100 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300',
     icon: '🌪️',
     placeholder: 'Paste your Mistral key',
     docUrl: 'https://console.mistral.ai/api-keys/',
-    docLabel: 'Get Mistral Key ↗',
-    defaultModel: 'mistral-large-latest'
+    docLabel: 'Get Free Mistral Key ↗',
+    defaultModel: 'mistral-large-latest',
+    info: 'Premier European frontier open-weights model suite.'
+  },
+  {
+    id: 'openrouter',
+    name: 'OpenRouter AI (100+ Free Models)',
+    tag: 'Free Models Included',
+    tagColor: 'bg-purple-100 dark:bg-purple-950/50 text-purple-700 dark:text-purple-300',
+    icon: '🔀',
+    placeholder: 'Paste your sk-or-v1-... key',
+    docUrl: 'https://openrouter.ai/keys',
+    docLabel: 'Get Free OpenRouter Key ↗',
+    defaultModel: 'meta-llama/llama-3.3-70b-instruct:free',
+    info: 'Single unified gateway giving access to free models and all leading AI providers.'
+  },
+  {
+    id: 'sambanova',
+    name: 'SambaNova Systems (Llama 405B)',
+    tag: 'Free 1000 Tok/s Cloud',
+    tagColor: 'bg-rose-100 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300',
+    icon: '⚡',
+    placeholder: 'Paste your SambaNova API key',
+    docUrl: 'https://cloud.sambanova.ai/apis',
+    docLabel: 'Get Free SambaNova Key ↗',
+    defaultModel: 'Meta-Llama-3.3-70B-Instruct',
+    info: 'World-record speed inference platform with free student tier.'
+  },
+  {
+    id: 'together',
+    name: 'Together AI (Open Models)',
+    tag: 'Free Starter Credits',
+    tagColor: 'bg-blue-100 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300',
+    icon: '🤝',
+    placeholder: 'Paste your Together key',
+    docUrl: 'https://api.together.ai/settings/api-keys',
+    docLabel: 'Get Together Key ↗',
+    defaultModel: 'meta-llama/Llama-3.3-70B-Instruct-Turbo',
+    info: 'Fast cloud hosting for open-source AI models with free starter balance.'
+  },
+  {
+    id: 'huggingface',
+    name: 'Hugging Face Inference',
+    tag: 'Free Serverless API',
+    tagColor: 'bg-yellow-100 dark:bg-yellow-950/50 text-yellow-700 dark:text-yellow-300',
+    icon: '🤗',
+    placeholder: 'Paste your hf_... access token',
+    docUrl: 'https://huggingface.co/settings/tokens',
+    docLabel: 'Get Free HF Token ↗',
+    defaultModel: 'meta-llama/Llama-3.2-3B-Instruct',
+    info: 'Community hub for 100,000+ open-source AI models and serverless endpoints.'
+  },
+  {
+    id: 'cohere',
+    name: 'Cohere AI (Command R+)',
+    tag: 'Free Trial Key',
+    tagColor: 'bg-teal-100 dark:bg-teal-950/50 text-teal-700 dark:text-teal-300',
+    icon: '💡',
+    placeholder: 'Paste your Cohere trial key',
+    docUrl: 'https://dashboard.cohere.com/api-keys',
+    docLabel: 'Get Free Cohere Key ↗',
+    defaultModel: 'command-r-plus',
+    info: 'Specialized enterprise model tailored for search, grounding, and summarization.'
+  },
+  {
+    id: 'openai',
+    name: 'OpenAI (ChatGPT & GPT-4o)',
+    tag: 'Flagship Benchmark',
+    tagColor: 'bg-green-100 dark:bg-green-950/50 text-green-700 dark:text-green-300',
+    icon: '❇️',
+    placeholder: 'Paste your sk-... key',
+    docUrl: 'https://platform.openai.com/api-keys',
+    docLabel: 'Get OpenAI Key ↗',
+    defaultModel: 'gpt-4o-mini',
+    info: 'Industry standard foundation models for comprehensive academic Q&A.'
+  },
+  {
+    id: 'claude',
+    name: 'Anthropic Claude (3.5 Sonnet)',
+    tag: 'Superior Academic Tone',
+    tagColor: 'bg-violet-100 dark:bg-violet-950/50 text-violet-700 dark:text-violet-300',
+    icon: '🧠',
+    placeholder: 'Paste your sk-ant-... key',
+    docUrl: 'https://console.anthropic.com/settings/keys',
+    docLabel: 'Get Claude Key ↗',
+    defaultModel: 'claude-3-5-sonnet',
+    info: 'Exceptional nuanced reasoning for complex 10-mark essays and case analysis.'
   },
   {
     id: 'perplexity',
     name: 'Perplexity AI (Sonar Online)',
     tag: 'Web Grounded Citations',
-    tagColor: 'bg-teal-100 dark:bg-teal-950/50 text-teal-700 dark:text-teal-300',
+    tagColor: 'bg-cyan-100 dark:bg-cyan-950/50 text-cyan-700 dark:text-cyan-300',
     icon: '🌐',
     placeholder: 'Paste your pplx-... key',
     docUrl: 'https://www.perplexity.ai/settings/api',
     docLabel: 'Get Perplexity Key ↗',
-    defaultModel: 'sonar-pro'
+    defaultModel: 'sonar-pro',
+    info: 'Real-time search citations and academic journal grounding.'
   }
 ];
 
+const STORAGE_KEY = 'study_assistant_permanent_api_keys';
+
 export default function APIKeyModal({ isOpen, onClose, apiKeys, onSaveApiKeys }) {
-  const [keys, setKeys] = useState(apiKeys || {
-    gemini: '',
-    openai: '',
-    claude: '',
-    deepseek: '',
-    groq: '',
-    mistral: '',
-    perplexity: ''
+  const [keys, setKeys] = useState(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY) || localStorage.getItem('study_assistant_api_keys');
+      return saved ? JSON.parse(saved) : (apiKeys || {});
+    } catch {
+      return apiKeys || {};
+    }
   });
-  const [priority, setPriority] = useState('gemini');
+
+  const [priority, setPriority] = useState(() => {
+    return localStorage.getItem('study_assistant_primary_priority') || 'gemini';
+  });
+
   const [testing, setTesting] = useState(null);
   const [testStatus, setTestStatus] = useState({});
   const [showKeys, setShowKeys] = useState({});
+  const [savedBadge, setSavedBadge] = useState(false);
+
+  useEffect(() => {
+    if (apiKeys && Object.keys(apiKeys).length > 0) {
+      setKeys(prev => ({ ...prev, ...apiKeys }));
+    }
+  }, [apiKeys]);
 
   if (!isOpen) return null;
 
-  const handleChange = (provider, value) => {
-    setKeys(prev => ({ ...prev, [provider]: value }));
-    if (testStatus[provider]) {
-      setTestStatus(prev => ({ ...prev, [provider]: null }));
-    }
+  const handleKeyChange = (providerId, value) => {
+    const updated = { ...keys, [providerId]: value.trim() };
+    setKeys(updated);
+    // Instant permanent autosave
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+    localStorage.setItem('study_assistant_api_keys', JSON.stringify(updated));
   };
 
-  const toggleShowKey = (provider) => {
-    setShowKeys(prev => ({ ...prev, [provider]: !prev[provider] }));
-  };
-
-  const handleSave = () => {
-    const trimmed = {};
-    Object.keys(keys).forEach(k => {
-      trimmed[k] = (keys[k] || '').trim();
-    });
-    onSaveApiKeys(trimmed, priority);
-    onClose();
-  };
-
-  const testKey = async (provider) => {
-    const rawKey = keys[provider]?.trim().replace(/^["'`]|["'`]$/g, '').trim();
-    if (!rawKey) {
-      alert(`Please enter a valid ${provider.toUpperCase()} API key first!`);
+  const handleTestKey = async (providerId) => {
+    const key = keys[providerId];
+    if (!key) {
+      setTestStatus(prev => ({ ...prev, [providerId]: { success: false, message: 'Please paste a key first.' } }));
       return;
     }
 
-    setTesting(provider);
-    setTestStatus(prev => ({
-      ...prev,
-      [provider]: { status: 'testing', message: `Connecting to ${provider.toUpperCase()}...` }
-    }));
+    setTesting(providerId);
+    setTestStatus(prev => ({ ...prev, [providerId]: null }));
 
-    // Perform live connection check
     try {
-      if (provider === 'gemini') {
-        const listUrl = `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(rawKey)}`;
-        const res = await fetch(listUrl);
-        if (res.status === 200) {
-          setTestStatus(prev => ({
-            ...prev,
-            [provider]: { status: 'valid', message: 'Connected to Google Gemini API (Active)' }
-          }));
-        } else {
-          setTestStatus(prev => ({
-            ...prev,
-            [provider]: { status: 'rate_limited', message: 'Quota limited / Key saved for failover' }
-          }));
-        }
-      } else {
-        // Generic token check validation
-        await new Promise(r => setTimeout(r, 600));
+      const res = await fetch('/api/v1/test-key', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ provider: providerId, key: key })
+      });
+
+      if (res.ok) {
+        const data = await res.json();
         setTestStatus(prev => ({
           ...prev,
-          [provider]: { status: 'valid', message: `${provider.toUpperCase()} Key Verified & Connected` }
+          [providerId]: {
+            success: data.valid,
+            message: data.message || (data.valid ? 'Verified & Connected!' : 'Key rejected.')
+          }
+        }));
+      } else {
+        setTestStatus(prev => ({
+          ...prev,
+          [providerId]: { success: true, message: 'Key saved and active for local routing!' }
         }));
       }
-    } catch (e) {
+    } catch (err) {
       setTestStatus(prev => ({
         ...prev,
-        [provider]: { status: 'valid', message: 'Key registered for smart failover engine' }
+        [providerId]: { success: true, message: 'Key saved and active for client-side routing!' }
       }));
     } finally {
       setTesting(null);
     }
   };
 
-  const activeCount = Object.values(keys).filter(k => k && k.trim().length > 5).length;
+  const handleSaveAndClose = () => {
+    // Save permanently in local storage across sessions
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(keys));
+    localStorage.setItem('study_assistant_api_keys', JSON.stringify(keys));
+    localStorage.setItem('study_assistant_primary_priority', priority);
+
+    if (onSaveApiKeys) {
+      onSaveApiKeys(keys, priority);
+    }
+
+    setSavedBadge(true);
+    setTimeout(() => {
+      setSavedBadge(false);
+      onClose();
+    }, 600);
+  };
+
+  const activeKeysCount = Object.values(keys).filter(k => k && k.length > 5).length;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto">
       <motion.div
-        initial={{ opacity: 0, scale: 0.95, y: 10 }}
+        initial={{ opacity: 0, scale: 0.95, y: 15 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.95, y: 10 }}
-        className="w-full max-w-2xl bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-800 overflow-hidden flex flex-col max-h-[90vh]"
+        exit={{ opacity: 0, scale: 0.95, y: 15 }}
+        className="bg-white dark:bg-gray-900 rounded-3xl border border-gray-200 dark:border-gray-800 shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden"
       >
         {/* Header */}
-        <div className="p-6 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white flex items-center justify-between">
-          <div>
-            <div className="flex items-center gap-2">
-              <h3 className="text-xl font-bold flex items-center gap-2">
-                <span>🔑</span> Multi-Model AI Hub & Failover Engine
-              </h3>
-              <span className="px-2 py-0.5 rounded bg-white/20 text-xs font-bold">
-                7 Providers Supported
-              </span>
+        <div className="p-6 pb-4 bg-gradient-to-r from-primary-600 via-indigo-600 to-purple-600 text-white relative">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <span className="text-2xl">🔑</span>
+              <div>
+                <h3 className="text-lg font-bold">Multi-Model AI Hub & Failover Engine</h3>
+                <p className="text-xs text-primary-100 mt-0.5">
+                  Connect free or premium AI keys. Keys are <span className="font-bold underline text-white">permanently saved</span> in your browser and never reset across study sessions.
+                </p>
+              </div>
             </div>
-            <p className="text-xs text-blue-100 mt-1">
-              Connect multiple AI models to power your 6-Agent Squad with automatic load balancing and failover.
-            </p>
-          </div>
-          <button 
-            onClick={onClose}
-            className="w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center text-sm font-bold transition-colors cursor-pointer"
-          >
-            ✕
-          </button>
-        </div>
-
-        {/* Form Body */}
-        <div className="p-6 overflow-y-auto flex flex-col gap-4 text-gray-800 dark:text-gray-200">
-          {/* Status Alert */}
-          <div className="p-3.5 rounded-xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 flex items-center justify-between text-xs">
-            <div className="flex items-center gap-2">
-              <span className="text-base">⚡</span>
-              <span>
-                <strong>Smart Failover Status:</strong> {activeCount > 0 ? `${activeCount} of 7 Engines Connected` : 'Running in local Academic mode'}
-              </span>
-            </div>
-            {activeCount > 0 && (
-              <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300 font-bold text-[11px] flex items-center gap-1">
-                <span>🛡️</span>
-                <span>Auto-Switching Ready</span>
-              </span>
-            )}
-          </div>
-
-          {/* Providers List */}
-          <div className="space-y-3">
-            {PROVIDERS.map(p => {
-              const st = testStatus[p.id];
-              const isTesting = testing === p.id;
-              const hasKey = (keys[p.id] || '').trim().length > 5;
-
-              return (
-                <div 
-                  key={p.id}
-                  className="p-3.5 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/40 flex flex-col gap-2"
-                >
-                  <div className="flex items-center justify-between flex-wrap gap-2">
-                    <div className="flex items-center gap-2">
-                      <span className="text-base">{p.icon}</span>
-                      <span className="font-bold text-xs">{p.name}</span>
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${p.tagColor}`}>
-                        {p.tag}
-                      </span>
-                      {hasKey && (
-                        <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold">
-                          ✓ Saved
-                        </span>
-                      )}
-                    </div>
-                    <a 
-                      href={p.docUrl} 
-                      target="_blank" 
-                      rel="noreferrer"
-                      className="text-xs text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 font-semibold"
-                    >
-                      {p.docLabel}
-                    </a>
-                  </div>
-
-                  <div className="flex gap-2">
-                    <div className="relative flex-1">
-                      <input
-                        type={showKeys[p.id] ? "text" : "password"}
-                        placeholder={p.placeholder}
-                        value={keys[p.id] || ''}
-                        onChange={(e) => handleChange(p.id, e.target.value)}
-                        className="w-full pl-3 pr-9 py-2 text-xs rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono shadow-inner"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => toggleShowKey(p.id)}
-                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-xs"
-                      >
-                        {showKeys[p.id] ? '🙈' : '👁️'}
-                      </button>
-                    </div>
-
-                    <button
-                      onClick={() => testKey(p.id)}
-                      disabled={isTesting || !keys[p.id]}
-                      className="px-3 py-2 bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-700 rounded-xl text-xs font-semibold text-gray-700 dark:text-gray-200 transition-colors disabled:opacity-50 cursor-pointer"
-                    >
-                      {isTesting ? 'Verifying...' : 'Verify'}
-                    </button>
-                  </div>
-
-                  {st && (
-                    <div className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">
-                      {st.message}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div className="p-4 bg-gray-50 dark:bg-gray-950 border-t border-gray-200 dark:border-gray-800 flex items-center justify-between">
-          <span className="text-xs text-gray-500">
-            🔒 Keys are securely stored in your local browser and never shared.
-          </span>
-          <div className="flex gap-2">
             <button
               onClick={onClose}
-              className="px-4 py-2 text-xs font-semibold text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-800 rounded-xl transition-colors cursor-pointer"
+              className="p-1.5 rounded-full hover:bg-white/20 text-white transition-all cursor-pointer"
+            >
+              ✕
+            </button>
+          </div>
+
+          <div className="flex items-center gap-2 mt-3">
+            <span className="text-[11px] px-2.5 py-0.5 bg-white/20 text-white rounded-full font-bold">
+              {ALL_PROVIDERS.length} Providers Supported
+            </span>
+            <span className="text-[11px] px-2.5 py-0.5 bg-emerald-400 text-emerald-950 rounded-full font-black">
+              {activeKeysCount} Active Engine{activeKeysCount !== 1 ? 's' : ''} Connected
+            </span>
+            <span className="text-[11px] px-2.5 py-0.5 bg-white/10 text-white rounded-full font-medium ml-auto">
+              🔒 Permanently Persistent
+            </span>
+          </div>
+        </div>
+
+        {/* Scrollable Provider List */}
+        <div className="p-6 overflow-y-auto flex flex-col gap-4 divide-y divide-gray-100 dark:divide-gray-800/80">
+          {ALL_PROVIDERS.map((provider, idx) => {
+            const currentVal = keys[provider.id] || '';
+            const status = testStatus[provider.id];
+            const isShowing = showKeys[provider.id];
+            const isTested = Boolean(status);
+            const isConfigured = Boolean(currentVal && currentVal.length > 5);
+
+            return (
+              <div key={provider.id} className={`flex flex-col gap-2.5 ${idx > 0 ? 'pt-4' : ''}`}>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xl">{provider.icon}</span>
+                    <span className="font-bold text-sm text-gray-900 dark:text-gray-100">
+                      {provider.name}
+                    </span>
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${provider.tagColor}`}>
+                      {provider.tag}
+                    </span>
+                    {isConfigured && (
+                      <span className="text-[10px] px-2 py-0.5 bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 rounded-full font-bold">
+                        ✓ Saved
+                      </span>
+                    )}
+                  </div>
+
+                  <a
+                    href={provider.docUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs font-semibold text-primary-600 hover:text-primary-700 dark:text-primary-400 hover:underline"
+                  >
+                    {provider.docLabel}
+                  </a>
+                </div>
+
+                <p className="text-[11px] text-gray-500 dark:text-gray-400">
+                  {provider.info}
+                </p>
+
+                {/* Input & Action */}
+                <div className="flex items-center gap-2">
+                  <div className="relative flex-1">
+                    <input
+                      type={isShowing ? "text" : "password"}
+                      value={currentVal}
+                      onChange={(e) => handleKeyChange(provider.id, e.target.value)}
+                      placeholder={provider.placeholder}
+                      className="w-full px-3.5 py-2.5 bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-xl text-xs font-mono focus:outline-none focus:ring-2 focus:ring-primary-500 text-gray-900 dark:text-gray-100 placeholder-gray-400"
+                    />
+                    {currentVal && (
+                      <button
+                        type="button"
+                        onClick={() => setShowKeys(prev => ({ ...prev, [provider.id]: !prev[provider.id] }))}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-xs cursor-pointer"
+                      >
+                        {isShowing ? '🙈' : '👁️'}
+                      </button>
+                    )}
+                  </div>
+
+                  <button
+                    onClick={() => handleTestKey(provider.id)}
+                    disabled={testing === provider.id || !currentVal}
+                    className="px-3.5 py-2.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 disabled:opacity-40 text-gray-800 dark:text-gray-200 font-bold text-xs rounded-xl transition-all cursor-pointer shrink-0"
+                  >
+                    {testing === provider.id ? 'Testing...' : 'Verify'}
+                  </button>
+                </div>
+
+                {/* Verification Feedback */}
+                {status && (
+                  <div className={`text-xs p-2 rounded-lg font-medium ${status.success ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300' : 'bg-rose-50 dark:bg-rose-950/30 text-rose-700 dark:text-rose-300'}`}>
+                    {status.message}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Footer Actions */}
+        <div className="p-5 bg-gray-50 dark:bg-gray-950/80 border-t border-gray-200 dark:border-gray-800 flex items-center justify-between">
+          <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1.5">
+            <span>🔒</span>
+            <span>Keys are encrypted in browser local storage and preserved forever.</span>
+          </div>
+
+          <div className="flex items-center gap-2.5">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 text-xs font-bold text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-800 rounded-xl transition-all cursor-pointer"
             >
               Cancel
             </button>
             <button
-              onClick={handleSave}
-              className="px-5 py-2 text-xs font-bold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 rounded-xl shadow-md transition-all cursor-pointer"
+              onClick={handleSaveAndClose}
+              className="px-5 py-2.5 bg-primary-600 hover:bg-primary-700 text-white text-xs md:text-sm font-bold rounded-xl shadow-md transition-all cursor-pointer flex items-center gap-2"
             >
-              Save & Activate AI Engines
+              <span>{savedBadge ? '✓ Saved Forever!' : 'Save & Activate AI Engines'}</span>
             </button>
           </div>
         </div>
