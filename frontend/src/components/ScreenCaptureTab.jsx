@@ -2,6 +2,7 @@ import React, { useRef, useState, useEffect } from 'react';
 import { startScreenCapture, captureFrame, stopCapture, setupAutoCapture, isFrameDifferent } from '../utils/screenCapture';
 import { createPDFFromImages } from '../utils/pdfGenerator';
 import MarkdownViewer from './MarkdownViewer';
+import { apiFetch } from '../utils/apiClient';
 
 export default function ScreenCaptureTab({ appState, setAppState, setActiveTab, apiKeys, openApiKeyModal }) {
   const videoRef = useRef(null);
@@ -111,40 +112,29 @@ export default function ScreenCaptureTab({ appState, setAppState, setActiveTab, 
     }
 
     setAnalyzing(true);
+    setAnalysisResult(null);
     setAnalysisStatus(`Analyzing ${captures.length} captured slides with Multimodal AI...`);
 
     try {
-      // Gather active browser keys
-      const storedKeys = {};
-      const gem = localStorage.getItem('parul_gemini_key') || apiKeys?.gemini;
-      const oai = localStorage.getItem('parul_openai_key') || apiKeys?.openai;
-      const cla = localStorage.getItem('parul_claude_key') || apiKeys?.claude;
-      if (gem) storedKeys.gemini = gem;
-      if (oai) storedKeys.openai = oai;
-      if (cla) storedKeys.claude = cla;
+      const configuredKeys = Object.fromEntries(Object.entries(apiKeys || {}).filter(([, key]) => typeof key === 'string' && key.trim().length > 5));
 
-      const res = await fetch('/api/v1/process-captured-slides', {
+      const data = await apiFetch('/api/v1/process-captured-slides', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           frames: captures,
-          api_keys: storedKeys,
-          preferred_order: ['gemini', 'openai', 'claude']
+          api_keys: configuredKeys,
+          preferred_order: ['gemini']
         })
       });
 
-      if (!res.ok) {
-        throw new Error(`Server returned HTTP ${res.status}`);
-      }
-
-      const data = await res.json();
-      if (data.success) {
+      if (data.success && data.notes?.trim()) {
         setAnalysisResult(data);
         
         // Update appState with generated notes and questions
         setAppState(prev => ({
           ...prev,
-          extractedText: data.notes || prev.extractedText || "Extracted from lecture slides",
+          extractedText: data.notes || prev.extractedText || '',
           summary: data.notes,
           questions: data.questions || [],
           rankedQuestions: data.questions || [],
@@ -152,50 +142,17 @@ export default function ScreenCaptureTab({ appState, setAppState, setActiveTab, 
             ...prev.stats,
             pdfCount: (prev.stats?.pdfCount || 0) + 1,
             questionCount: (data.questions || []).length,
-            confidence: Math.round(((data.questions || []).reduce((acc, q) => acc + (q.confidence || 0.8), 0) / Math.max(1, (data.questions || []).length)) * 100)
+            confidence: 0
           }
         }));
 
-        setAnalysisStatus(`✓ Successfully extracted lecture notes & ${data.questions?.length || 15} exam questions!`);
+        setAnalysisStatus(`✓ Extracted source notes and ${data.questions?.length || 0} questions.`);
       } else {
         throw new Error(data.error || "Analysis failed");
       }
     } catch (err) {
       console.error("Slide analysis failed:", err);
-      // Fallback local synthesis
-      const fallbackQuestions = captures.map((_, i) => ({
-        id: i + 1,
-        type: i % 2 === 0 ? 'multiple_choice' : 'short_answer',
-        question: `Based on Captured Slide #${i + 1}, explain the key concept and formula shown.`,
-        options: i % 2 === 0 ? ["A) Core definition", "B) Practical application (Correct)", "C) Historical context", "D) Exception rule"] : null,
-        correct_answer: `Key operational principle and exam definition from Slide #${i + 1}.`,
-        explanation: `Generated from visual frame #${i + 1}.`,
-        topic: `Slide ${i + 1} Content`,
-        difficulty: i % 3 === 0 ? 'hard' : 'medium',
-        marks: i % 2 === 0 ? 2 : 5,
-        confidence: 0.90
-      }));
-
-      const mockData = {
-        success: true,
-        notes: `# Lecture Slide Breakdown (${captures.length} Slides)\n\n## Core Concepts\nContent extracted from ${captures.length} captured frames. Review all key definitions, comparative tables, and diagram workflows.\n\n## Examination Focus\n- Master all 2-mark definitions\n- Prepare for 5-mark descriptive diagram questions\n- Review essay case studies`,
-        questions: fallbackQuestions
-      };
-
-      setAnalysisResult(mockData);
-      setAppState(prev => ({
-        ...prev,
-        extractedText: mockData.notes,
-        summary: mockData.notes,
-        questions: fallbackQuestions,
-        rankedQuestions: fallbackQuestions,
-        stats: {
-          ...prev.stats,
-          questionCount: fallbackQuestions.length,
-          confidence: 88
-        }
-      }));
-      setAnalysisStatus(`✓ Generated ${fallbackQuestions.length} practice questions from slides!`);
+      setAnalysisStatus(`Slide analysis failed: ${err.message || 'No source text was extracted.'}`);
     } finally {
       setAnalyzing(false);
     }
@@ -210,7 +167,7 @@ export default function ScreenCaptureTab({ appState, setAppState, setActiveTab, 
             <span>📸</span> Screen & PDF Slide Capture
           </h2>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
-            Clip PDF pages or presentation slides automatically as you scroll • Analyzes images into university exam questions
+            Capture PDF pages or presentation slides while scrolling • Text and questions are returned only after provider analysis succeeds
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -427,7 +384,7 @@ export default function ScreenCaptureTab({ appState, setAppState, setActiveTab, 
             <div className={`p-3 rounded-xl text-xs font-semibold ${
               analysisStatus.startsWith('✓') 
                 ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800' 
-                : 'bg-blue-50 dark:bg-blue-950/40 text-blue-800 dark:text-blue-300 border border-blue-200 dark:border-blue-800'
+                : 'bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800'
             }`}>
               {analysisStatus}
             </div>
@@ -444,7 +401,7 @@ export default function ScreenCaptureTab({ appState, setAppState, setActiveTab, 
                 <span className="text-emerald-500">✓</span> Slides Successfully Processed & Analyzed!
               </h3>
               <p className="text-xs text-gray-600 dark:text-gray-300 mt-1">
-                Generated <b>{analysisResult.questions?.length || 15} Examination Questions</b> and comprehensive lecture notes.
+                Generated <b>{analysisResult.questions?.length || 0} practice questions</b> from the captured slides.
               </p>
             </div>
             

@@ -18,8 +18,10 @@ export function createPDFFromImages(images, title = 'Captured Slides') {
 export function createParulExamPDF(paperData = {}) {
   const pdf = new jsPDF('p', 'mm', 'a4');
   const subject = paperData.metadata?.subject || 'Course Syllabus';
+  const university = paperData.metadata?.university || 'PARUL UNIVERSITY';
   const faculty = paperData.metadata?.faculty || 'FACULTY OF MANAGEMENT STUDIES, PARUL UNIVERSITY';
   const program = paperData.metadata?.program || 'University Examination';
+  const examType = paperData.metadata?.examType || 'Mid-Term Examination';
   const subjectCode = paperData.metadata?.subjectCode || 'PU302';
   const semester = paperData.metadata?.semester || 'Semester: III';
   const time = paperData.metadata?.time || '1 hr 30 min';
@@ -37,47 +39,150 @@ export function createParulExamPDF(paperData = {}) {
     // University Header
     pdf.setFont('helvetica', 'bold');
     pdf.setFontSize(14);
-    pdf.text('Mid-Term Examination', 105, 20, { align: 'center' });
-    pdf.setFontSize(10);
-    pdf.text(faculty, 105, 26, { align: 'center' });
+    pdf.text(university, 105, 18, { align: 'center' });
     pdf.setFontSize(11);
-    pdf.text(program, 105, 32, { align: 'center' });
+    pdf.text(examType, 105, 24, { align: 'center' });
+    pdf.setFontSize(9.5);
+    pdf.text(faculty, 105, 30, { align: 'center' });
 
     // Metadata Table Box
     pdf.setLineWidth(0.2);
-    pdf.rect(15, 36, 180, 16);
-    pdf.line(15, 44, 195, 44);
-    pdf.line(95, 36, 95, 52);
-    pdf.line(145, 36, 145, 52);
+    pdf.rect(15, 34, 180, 16);
+    pdf.line(15, 42, 195, 42);
+    pdf.line(95, 34, 95, 50);
+    pdf.line(145, 34, 145, 50);
 
     pdf.setFontSize(8.5);
     pdf.setFont('helvetica', 'normal');
-    pdf.text(`${semester}`, 18, 41);
-    pdf.text('Date:     --/--/2026', 98, 41);
-    pdf.text(`Time:     ${time}`, 148, 41);
+    pdf.text(`${semester}`, 18, 39);
+    pdf.text('Date:     --/--/2026', 98, 39);
+    pdf.text(`Time:     ${time}`, 148, 39);
 
-    pdf.text(`Subject Code:   ${subjectCode}`, 18, 49);
-    pdf.text(`Subject Name:   ${subject.slice(0, 24)}`, 98, 49);
-    pdf.text(`Total Marks:   ${totalMarks}`, 148, 49);
+    pdf.text(`Subject Code:   ${subjectCode}`, 18, 47);
+    pdf.text(`Subject Name:   ${subject.slice(0, 24)}`, 98, 47);
+    pdf.text(`Total Marks:   ${totalMarks}`, 148, 47);
 
     // Instructions
     pdf.setFontSize(8);
     pdf.setFont('helvetica', 'bold');
-    pdf.text('Instructions:', 15, 56);
+    pdf.text('Instructions:', 15, 54);
     pdf.setFont('helvetica', 'normal');
-    pdf.text('1. All questions are compulsory.', 20, 60);
-    pdf.text('2. Make suitable assumptions whenever necessary.', 20, 64);
-    pdf.line(15, 66, 195, 66);
+    pdf.text('1. All questions are compulsory / as per rubric instructions.', 20, 58);
+    pdf.text('2. Make suitable assumptions whenever necessary.', 20, 62);
+    pdf.line(15, 64, 195, 64);
 
     // Page footer
     pdf.setFontSize(8);
-    pdf.text(`Page ${pageNumber} of 2`, 175, 285);
+    pdf.text(`Page ${pageNumber}`, 185, 285);
   };
 
-  // PAGE 1: SECTION A (Module 1)
+  // Dynamic Multi-Section Renderer for 60M, 70M, 100M, Unit Test or Custom Blueprints
+  if (paperData.renderedSections && (paperData.metadata?.totalMarks !== 40 || paperData.renderedSections.length !== 2)) {
+    let currentPage = 1;
+    drawPageBorderAndHeader(currentPage);
+    let y = 71;
+
+    paperData.renderedSections.forEach((sec, sIdx) => {
+      if (y > 235) {
+        pdf.addPage();
+        currentPage++;
+        drawPageBorderAndHeader(currentPage);
+        y = 71;
+      }
+
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(11);
+      pdf.text(sec.title || sec.name || `SECTION – ${sIdx + 1}`, 105, y, { align: 'center' });
+      y += 6;
+
+      if (sec.qGroups && Array.isArray(sec.qGroups)) {
+        sec.qGroups.forEach((grp) => {
+          if (y > 240) {
+            pdf.addPage();
+            currentPage++;
+            drawPageBorderAndHeader(currentPage);
+            y = 71;
+          }
+
+          pdf.setFont('helvetica', 'bold');
+          pdf.setFontSize(9);
+          pdf.text(grp.heading || 'Questions', 15, y);
+          pdf.text(grp.marksTotal || '', 195, y, { align: 'right' });
+          y += 3;
+
+          // Table header
+          pdf.rect(15, y, 180, 6);
+          pdf.line(25, y, 25, y + 6);
+          pdf.line(150, y, 150, y + 6);
+          pdf.line(165, y, 165, y + 6);
+          pdf.line(180, y, 180, y + 6);
+
+          pdf.setFontSize(8);
+          pdf.setFont('helvetica', 'bold');
+          pdf.text('No.', 17, y + 4.2);
+          pdf.text('Question', 28, y + 4.2);
+          pdf.text('Marks', 152, y + 4.2);
+          pdf.text('CO', 169, y + 4.2);
+          pdf.text('BT', 184, y + 4.2);
+          y += 6;
+
+          (grp.items || []).forEach(item => {
+            const qText = item.question || '';
+            const lines = pdf.splitTextToSize(qText, 120);
+            const rowH = Math.max(lines.length * 4.5 + 3, 8);
+
+            if (y + rowH > 272) {
+              pdf.addPage();
+              currentPage++;
+              drawPageBorderAndHeader(currentPage);
+              y = 71;
+
+              // Redraw Table header on new page
+              pdf.rect(15, y, 180, 6);
+              pdf.line(25, y, 25, y + 6);
+              pdf.line(150, y, 150, y + 6);
+              pdf.line(165, y, 165, y + 6);
+              pdf.line(180, y, 180, y + 6);
+              pdf.text('No.', 17, y + 4.2);
+              pdf.text('Question', 28, y + 4.2);
+              pdf.text('Marks', 152, y + 4.2);
+              pdf.text('CO', 169, y + 4.2);
+              pdf.text('BT', 184, y + 4.2);
+              y += 6;
+            }
+
+            pdf.rect(15, y, 180, rowH);
+            pdf.line(25, y, 25, y + rowH);
+            pdf.line(150, y, 150, y + rowH);
+            pdf.line(165, y, 165, y + rowH);
+            pdf.line(180, y, 180, y + rowH);
+
+            pdf.setFont('helvetica', 'normal');
+            pdf.setFontSize(8);
+            pdf.text(item.no || 'i.', 17, y + 5);
+            pdf.text(lines, 28, y + 4.5);
+            pdf.text(String(item.marks || 2), 155, y + 5);
+            pdf.text(item.co || 'CO1', 169, y + 5);
+            pdf.text(item.bt || 'BT-1', 184, y + 5);
+            y += rowH;
+          });
+
+          y += 5;
+        });
+      }
+
+      y += 4;
+    });
+
+    const cleanUni = (paperData.metadata?.university || 'University').replace(/[^a-zA-Z0-9]/g, '_');
+    pdf.save(`${cleanUni}_${subject.replace(/[^a-zA-Z0-9]/g, '_')}_Paper.pdf`);
+    return;
+  }
+
+  // PAGE 1: SECTION A (Module 1 - Standard Parul 40M Mid-Term)
   drawPageBorderAndHeader(1);
 
-  let y = 73;
+  let y = 71;
 
   // Section A Header
   pdf.setFont('helvetica', 'bold');
@@ -329,13 +434,13 @@ export function createParulExamPDF(paperData = {}) {
 export function createQuestionPaperPDF(questions, metadata = {}) {
   const pdf = new jsPDF('p', 'mm', 'a4');
   const subject = metadata?.subject || metadata?.subjectName || 'Course Syllabus';
-  const totalMarks = metadata?.totalMarks || 60;
-  const time = metadata?.time || '3 Hours';
+  const totalMarks = metadata?.totalMarks;
+  const time = metadata?.time;
 
   pdf.setFont('helvetica', 'bold');
   pdf.setFontSize(16);
   pdf.setTextColor(49, 46, 129);
-  pdf.text('PARUL UNIVERSITY', 105, 18, { align: 'center' });
+  pdf.text('STUDY ASSISTANT — PRACTICE QUESTIONS', 105, 18, { align: 'center' });
   
   pdf.setFontSize(12);
   pdf.setTextColor(30, 41, 59);
@@ -343,7 +448,8 @@ export function createQuestionPaperPDF(questions, metadata = {}) {
   
   pdf.setFontSize(10);
   pdf.setTextColor(100, 100, 100);
-  pdf.text(`Total Marks: ${totalMarks} | Time: ${time}`, 105, 33, { align: 'center' });
+  const paperMetadata = [totalMarks != null ? `Marks shown in uploaded profile: ${totalMarks}` : '', time ? `Duration shown in uploaded profile: ${time}` : ''].filter(Boolean).join(' | ');
+  if (paperMetadata) pdf.text(paperMetadata, 105, 33, { align: 'center' });
 
   pdf.setDrawColor(200, 200, 200);
   pdf.line(15, 38, 195, 38);
@@ -358,7 +464,7 @@ export function createQuestionPaperPDF(questions, metadata = {}) {
     pdf.setFont('helvetica', 'bold');
     pdf.setFontSize(10);
     pdf.setTextColor(15, 23, 42);
-    const qHeader = `Q${i + 1}. [${q.marks || 2} Marks] [Confidence: ${q.confidence || 90}%]`;
+    const qHeader = `Q${i + 1}. [Suggested ${q.marks ?? 2} Marks]`;
     pdf.text(qHeader, 15, y);
     y += 5;
 
@@ -401,7 +507,7 @@ export function createAnswerGuidePDF(qnaList, metadata = {}) {
   pdf.setFont('helvetica', 'bold');
   pdf.setFontSize(16);
   pdf.setTextColor(49, 46, 129);
-  pdf.text('PARUL UNIVERSITY — MODEL ANSWER GUIDE', 105, 18, { align: 'center' });
+  pdf.text('STUDY ASSISTANT — ANSWER GUIDE', 105, 18, { align: 'center' });
 
   pdf.setFontSize(11);
   pdf.setTextColor(100, 100, 100);

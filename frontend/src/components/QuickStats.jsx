@@ -15,8 +15,10 @@ export default function QuickStats({ stats }) {
       </div>
       <div className="flex items-center gap-2">
         <span className="text-xl">🎯</span>
-        <span className="font-semibold text-gray-700 dark:text-gray-300">{stats.confidence}%</span>
-        <span className="hidden md:inline text-gray-500 dark:text-gray-400">Confidence</span>
+        <span className="font-semibold text-gray-700 dark:text-gray-300">
+          {Number.isFinite(stats.evidenceScore) ? `${stats.evidenceScore}%` : '—'}
+        </span>
+        <span className="hidden md:inline text-gray-500 dark:text-gray-400">Evidence score</span>
       </div>
       <div className="flex items-center gap-2">
         <span className="text-xl">✅</span>

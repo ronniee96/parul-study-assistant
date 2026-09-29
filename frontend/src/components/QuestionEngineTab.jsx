@@ -1,7 +1,7 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { createQuestionPaperPDF, createAnswerGuidePDF } from '../utils/pdfGenerator';
-import { generateDynamicQuestions } from '../utils/questionGenerator';
+import { apiFetch } from '../utils/apiClient';
 
 export default function QuestionEngineTab({ appState = {}, setAppState, setActiveTab, apiKeys, primaryPriority, openApiKeyModal }) {
   const [generating, setGenerating] = useState(false);
@@ -15,48 +15,7 @@ export default function QuestionEngineTab({ appState = {}, setAppState, setActiv
 
   const hasDocuments = Boolean(appState.extractedText || appState.uploadedFile || (appState.uploadedFiles && appState.uploadedFiles.length > 0));
 
-  // Initialize or re-derive questions dynamically whenever uploaded materials change
-  useEffect(() => {
-    if (appState.extractedText && appState.extractedText.trim()) {
-      const dynamicQs = generateDynamicQuestions(
-        appState.extractedText,
-        appState.uploadedFiles?.map(f => f.name).join(' ') || appState.uploadedFile?.name || ''
-      );
-      const top25 = dynamicQs.slice(0, 25);
-      
-      // Update questions if empty or if document content changed
-      if (!appState.questions || appState.questions.length === 0 || appState.questions[0]?.topic !== dynamicQs[0]?.topic) {
-        setAppState(prev => ({
-          ...prev,
-          questions: dynamicQs,
-          rankedQuestions: top25,
-          answers: top25,
-          stats: {
-            ...prev.stats,
-            questionCount: dynamicQs.length,
-            answerCount: top25.length,
-            confidence: top25.length > 0 ? Math.round(top25.reduce((sum, q) => sum + (q.confidence || 90), 0) / top25.length) : 0
-          }
-        }));
-        setFunnelStage(4);
-        setActiveTier(25);
-      }
-    } else if (!hasDocuments) {
-      // Empty session - ensure clean state
-      if (appState.questions && appState.questions.length > 0) {
-        setAppState(prev => ({
-          ...prev,
-          questions: [],
-          rankedQuestions: [],
-          answers: [],
-          stats: { ...prev.stats, questionCount: 0, answerCount: 0, confidence: 0 }
-        }));
-      }
-      setFunnelStage(0);
-    }
-  }, [appState.extractedText, appState.uploadedFiles, appState.uploadedFile, hasDocuments]);
-
-  // Generate 300 questions with multi-model auto-failover
+  // Generate as many source-supported candidates as providers can support.
   const generateMegaQuestions = async () => {
     if (!appState.extractedText) {
       alert("Please upload study materials in the Upload tab first!");
@@ -72,7 +31,7 @@ export default function QuestionEngineTab({ appState = {}, setAppState, setActiv
     const sourceText = appState.extractedText;
 
     try {
-      const res = await fetch('/api/v1/generate-mega-questions', {
+      const data = await apiFetch('/api/v1/generate-mega-questions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -84,20 +43,17 @@ export default function QuestionEngineTab({ appState = {}, setAppState, setActiv
         })
       });
 
-      if (res.ok) {
-        const data = await res.json();
-        if (data.questions && data.questions.length > 0) {
+      if (data.questions && data.questions.length > 0) {
           const formatted = data.questions.map((q, idx) => ({
             id: idx + 1,
             question: q.question,
             topic: q.topic || 'Core Concept',
             type: q.type === 'multiple_choice' ? 'MCQ' : (q.type === 'essay' ? 'Essay' : 'Short Answer'),
-            confidence: Math.round((q.confidence || 0.85) * 100),
             difficulty: q.difficulty === 'hard' ? 5 : (q.difficulty === 'easy' ? 2 : 4),
             marks: q.marks || (q.type === 'multiple_choice' ? 2 : (q.type === 'essay' ? 12 : 5)),
             options: q.options || null,
             answer: q.correct_answer || q.explanation || 'Refer to study material for detailed solution.',
-            key_points: q.key_points && q.key_points.length > 0 ? q.key_points : [q.explanation || 'Key concept from syllabus', 'Essential definition for exam preparation']
+            key_points: q.key_points || []
           }));
 
           setEngineUsed(data.engine_used || 'Multi-Model AI Engine');
@@ -105,17 +61,17 @@ export default function QuestionEngineTab({ appState = {}, setAppState, setActiv
             setFailoverAlert(data.failover_log[0]);
           }
 
-          const top25 = formatted.slice(0, 25);
           setAppState(prev => ({
             ...prev,
             questions: formatted,
-            rankedQuestions: top25,
-            answers: top25,
+            questionStages: null,
+            rankedQuestions: [],
+            answers: [],
             stats: {
               ...prev.stats,
               questionCount: formatted.length,
-              answerCount: top25.length,
-              confidence: Math.round(top25.reduce((sum, q) => sum + (q.confidence || 90), 0) / top25.length)
+              answerCount: 0,
+              evidenceScore: null
             }
           }));
 
@@ -124,62 +80,41 @@ export default function QuestionEngineTab({ appState = {}, setAppState, setActiv
           setGenerating(false);
           return;
         }
-      }
     } catch (err) {
-      console.warn("Backend API not reachable, synthesizing locally:", err);
+      alert(`Question generation failed: ${err.message || String(err)}`);
+    } finally {
+      setGenerating(false);
     }
-
-    // Dynamic local fallback using uploaded syllabus
-    const dynamicQs = generateDynamicQuestions(
-      appState.extractedText,
-      appState.uploadedFiles?.map(f => f.name).join(' ') || appState.uploadedFile?.name || ''
-    );
-    const top25 = dynamicQs.slice(0, 25);
-
-    setAppState(prev => ({
-      ...prev,
-      questions: dynamicQs,
-      rankedQuestions: top25,
-      answers: top25,
-      stats: {
-        ...prev.stats,
-        questionCount: dynamicQs.length,
-        answerCount: top25.length,
-        confidence: 96
-      }
-    }));
-    setEngineUsed('Dynamic Academic NLP Engine');
-    setFunnelStage(1);
-    setActiveTier(300);
-    setGenerating(false);
   };
 
   // Rank and filter down to top 25
   const rankQuestions = async () => {
+    if (!appState.questions?.length) return;
     setRanking(true);
-
-    setTimeout(() => {
-      setRanking(false);
+    try {
+      const result = await apiFetch('/api/v1/rank-questions', {
+        method: 'POST',
+        body: JSON.stringify({
+          questions: appState.questions,
+          material_text: appState.extractedText || '',
+          past_papers: appState.pastPapers || []
+        })
+      });
+      const top25 = result.top_25 || [];
+      setAppState(prev => ({
+        ...prev,
+        questionStages: { top_200: result.top_200 || [], top_100: result.top_100 || [], top_25: top25 },
+        rankedQuestions: top25,
+        answers: top25,
+        stats: { ...prev.stats, answerCount: top25.length, evidenceScore: result.stats?.avg_evidence_top25 ?? null }
+      }));
       setFunnelStage(4);
       setActiveTier(25);
-
-      if (appState.questions && appState.questions.length > 0) {
-        const allQs = [...appState.questions].sort((a, b) => (b.confidence || 90) - (a.confidence || 90));
-        const top25 = allQs.slice(0, 25);
-
-        setAppState(prev => ({
-          ...prev,
-          questions: allQs,
-          rankedQuestions: top25,
-          answers: top25,
-          stats: {
-            ...prev.stats,
-            confidence: Math.round(top25.reduce((sum, q) => sum + q.confidence, 0) / top25.length),
-            answerCount: 25
-          }
-        }));
-      }
-    }, 500);
+    } catch (err) {
+      alert(`Evidence ranking failed: ${err.message || String(err)}`);
+    } finally {
+      setRanking(false);
+    }
   };
 
   // Smart question filter matcher that properly categorizes all master question types
@@ -215,20 +150,22 @@ export default function QuestionEngineTab({ appState = {}, setAppState, setActiv
   };
 
   const currentQuestions = useMemo(() => {
-    const all = appState.questions?.length 
-      ? appState.questions 
-      : (hasDocuments ? generateDynamicQuestions(appState.extractedText, appState.uploadedFiles?.map(f => f.name).join(' ') || appState.uploadedFile?.name || '') : []);
+    const all = activeTier === 25 && appState.rankedQuestions?.length ? appState.rankedQuestions
+      : activeTier === 100 && appState.questionStages?.top_100?.length ? appState.questionStages.top_100
+      : activeTier === 200 && appState.questionStages?.top_200?.length ? appState.questionStages.top_200
+      : appState.questions || [];
     let filtered = all.slice(0, activeTier);
     if (selectedType !== 'All') {
       filtered = filtered.filter(q => matchesFilterType(q, selectedType));
     }
     return filtered;
-  }, [appState.questions, activeTier, selectedType, appState.extractedText, hasDocuments, appState.uploadedFiles, appState.uploadedFile]);
+  }, [appState.questions, appState.questionStages, appState.rankedQuestions, activeTier, selectedType]);
 
   const typeCounts = useMemo(() => {
-    const all = appState.questions?.length 
-      ? appState.questions 
-      : (hasDocuments ? generateDynamicQuestions(appState.extractedText, appState.uploadedFiles?.map(f => f.name).join(' ') || appState.uploadedFile?.name || '') : []);
+    const all = activeTier === 25 && appState.rankedQuestions?.length ? appState.rankedQuestions
+      : activeTier === 100 && appState.questionStages?.top_100?.length ? appState.questionStages.top_100
+      : activeTier === 200 && appState.questionStages?.top_200?.length ? appState.questionStages.top_200
+      : appState.questions || [];
     const tierQuestions = all.slice(0, activeTier);
     return {
       All: tierQuestions.length,
@@ -236,7 +173,7 @@ export default function QuestionEngineTab({ appState = {}, setAppState, setActiv
       'Short Answer': tierQuestions.filter(q => matchesFilterType(q, 'Short Answer')).length,
       MCQ: tierQuestions.filter(q => matchesFilterType(q, 'MCQ')).length,
     };
-  }, [appState.questions, activeTier, appState.extractedText, hasDocuments, appState.uploadedFiles, appState.uploadedFile]);
+  }, [appState.questions, appState.questionStages, appState.rankedQuestions, activeTier]);
 
   const handleExportPDF = (count, withAnswers = false) => {
     const qs = currentQuestions.slice(0, count);
@@ -245,9 +182,13 @@ export default function QuestionEngineTab({ appState = {}, setAppState, setActiv
       : (appState.uploadedFile?.name?.replace(/\.[^/.]+$/, "") || "Course Syllabus");
 
     if (withAnswers) {
-      createAnswerGuidePDF(qs, { subjectName: subject, totalMarks: 60 });
+      createAnswerGuidePDF(qs, { subjectName: subject, totalMarks: appState.examProfile?.total_marks });
     } else {
-      createQuestionPaperPDF(qs, { subject: subject, totalMarks: 60, time: "3 Hours" });
+      createQuestionPaperPDF(qs, {
+        subject,
+        totalMarks: appState.examProfile?.total_marks,
+        time: appState.examProfile?.duration_hours != null ? `${appState.examProfile.duration_hours} Hours` : undefined,
+      });
     }
   };
 
@@ -259,7 +200,7 @@ export default function QuestionEngineTab({ appState = {}, setAppState, setActiv
         </div>
         <h3 className="text-xl font-bold text-gray-800 dark:text-gray-100 mb-2">No Active Session Documents</h3>
         <p className="text-sm text-gray-600 dark:text-gray-400 max-w-md mb-6">
-          Upload your course syllabus or lecture notes in the <strong>Upload</strong> tab to automatically synthesize 300 practice questions and AI-filtered exam predictions.
+          Upload course material in the <strong>Upload</strong> tab, then generate questions from its readable source text.
         </p>
         <button
           onClick={() => setActiveTab && setActiveTab('upload')}
@@ -281,7 +222,7 @@ export default function QuestionEngineTab({ appState = {}, setAppState, setActiv
             <span>❓</span> AI Question Engine & Exam Funnel
           </h2>
           <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-            Generate 300 questions from your uploaded documents and filter down to the 25 most critical predictions with full solutions.
+            Generate source-grounded practice candidates, then rank the available questions by evidence from your material and uploaded papers.
           </p>
         </div>
 
@@ -328,12 +269,12 @@ export default function QuestionEngineTab({ appState = {}, setAppState, setActiv
           {generating ? (
             <>
               <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1 }} className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full" />
-              <span>Generating 300 Questions...</span>
+              <span>Generating Questions...</span>
             </>
           ) : (
             <>
               <span>🔄</span>
-              <span>Regenerate 300 Questions</span>
+              <span>Regenerate Questions</span>
             </>
           )}
         </button>
@@ -351,7 +292,7 @@ export default function QuestionEngineTab({ appState = {}, setAppState, setActiv
           ) : (
             <>
               <span>✓</span>
-              <span>AI Ranked to Top 25</span>
+              <span>Rank by source evidence</span>
             </>
           )}
         </button>
@@ -359,7 +300,7 @@ export default function QuestionEngineTab({ appState = {}, setAppState, setActiv
 
       {/* Visual Funnel Hierarchy */}
       <div className="glass-card p-6 rounded-3xl flex flex-col gap-3">
-        {/* Tier 300 */}
+        {/* Candidate tier */}
         <div 
           onClick={() => setActiveTier(300)}
           className={`p-3.5 rounded-2xl font-bold text-xs md:text-sm text-white flex items-center justify-between cursor-pointer transition-all duration-300 shadow-md ${
@@ -371,7 +312,7 @@ export default function QuestionEngineTab({ appState = {}, setAppState, setActiv
         >
           <div className="flex items-center gap-2">
             <span>📚</span>
-            <span>300 Total Course Questions</span>
+            <span>{appState.questions?.length || 0} Generated Candidates</span>
           </div>
           <span className="text-[11px] bg-white/20 px-2 py-0.5 rounded-full">
             {activeTier === 300 ? 'Active Tier' : 'Click to View All'}
@@ -390,10 +331,10 @@ export default function QuestionEngineTab({ appState = {}, setAppState, setActiv
         >
           <div className="flex items-center gap-2">
             <span>⚖️</span>
-            <span>200 Core Syllabus Questions</span>
+            <span>Top {appState.questionStages?.top_200?.length || 0} Evidence-Ranked</span>
           </div>
           <span className="text-[11px] bg-white/20 px-2 py-0.5 rounded-full">
-            {activeTier === 200 ? 'Active Tier' : 'Click to View 200'}
+            {activeTier === 200 ? 'Active Tier' : 'Click to View'}
           </span>
         </div>
 
@@ -409,10 +350,10 @@ export default function QuestionEngineTab({ appState = {}, setAppState, setActiv
         >
           <div className="flex items-center gap-2">
             <span>🔥</span>
-            <span>100 High-Probability Questions</span>
+            <span>Top {appState.questionStages?.top_100?.length || 0} Evidence-Ranked</span>
           </div>
           <span className="text-[11px] bg-white/20 px-2 py-0.5 rounded-full">
-            {activeTier === 100 ? 'Active Tier' : 'Click to View 100'}
+            {activeTier === 100 ? 'Active Tier' : 'Click to View'}
           </span>
         </div>
 
@@ -428,7 +369,7 @@ export default function QuestionEngineTab({ appState = {}, setAppState, setActiv
         >
           <div className="flex items-center gap-2">
             <span>🎯</span>
-            <span>25 Must-Solve (90%+ Exam Likelihood)</span>
+            <span>Top {appState.questionStages?.top_25?.length || 0} source-evidence scores</span>
           </div>
           <span className="text-[11px] bg-white/20 px-2 py-0.5 rounded-full">
             {activeTier === 25 ? 'Active Tier' : 'Click to View Top 25'}
@@ -487,10 +428,11 @@ export default function QuestionEngineTab({ appState = {}, setAppState, setActiv
                     Q{idx + 1}
                   </span>
                   
-                  <span className="px-2 py-0.5 rounded-md bg-rose-100 dark:bg-rose-900/40 text-rose-700 dark:text-rose-300 text-xs font-bold flex items-center gap-1 border border-rose-200 dark:border-rose-800">
-                    <span>🎯</span>
-                    <span>{q.confidence}% Likelihood</span>
-                  </span>
+                  {Number.isFinite(q.evidence_score) && (
+                    <span className="px-2 py-0.5 rounded-md bg-rose-100 dark:bg-rose-900/40 text-rose-700 dark:text-rose-300 text-xs font-bold flex items-center gap-1 border border-rose-200 dark:border-rose-800">
+                      <span>Evidence score {Math.round(q.evidence_score * 100)}/100</span>
+                    </span>
+                  )}
 
                   <span className="px-2 py-0.5 rounded-md bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 text-xs font-semibold">
                     [{q.marks} Marks]

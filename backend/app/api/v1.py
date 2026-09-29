@@ -13,13 +13,18 @@ import logging
 
 from app.services.document_processor import DocumentProcessor
 from app.services.ai_service import AIService
-from app.services.adaptive_learning import AdaptiveLearningService
+from app.services.adaptive_learning import AdaptiveLearningService, get_adaptive_service
 from app.services.exam_predictor import ExamPredictor
 from app.services.question_ranker import QuestionRanker
 from app.services.answer_generator import AnswerGenerator
 from app.services.pdf_service import PDFService
 from app.services.academic_service import AcademicResearchService
 from app.services.aki_agent import AkiStudyAgent
+from app.services.document_intelligence import DocumentIntelligence
+from app.services.paper_structure_analyzer import PaperStructureAnalyzer
+from app.services.parul_repository import ParulRepositoryHarvester
+from app.services.question_possibility_engine import QuestionPossibilityEngine
+from app.services.exam_prediction_pipeline import ExamPredictionPipeline
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -27,13 +32,15 @@ router = APIRouter()
 # Initialize services
 document_processor = DocumentProcessor()
 ai_service = AIService()
-adaptive_service = AdaptiveLearningService()
 exam_predictor = ExamPredictor(ai_service)
 question_ranker = QuestionRanker()
 answer_generator = AnswerGenerator(ai_service)
 pdf_service = PDFService()
 academic_service = AcademicResearchService()
 aki_agent = AkiStudyAgent()
+question_possibility_engine = QuestionPossibilityEngine()
+exam_prediction_pipeline = ExamPredictionPipeline(ai_service)
+parul_harvester = ParulRepositoryHarvester()
 
 @router.post("/upload")
 async def upload_file(file: UploadFile = File(...)):
@@ -141,7 +148,7 @@ async def process_document(
 @router.post("/process-multiple")
 async def process_multiple_documents(
     files: List[UploadFile] = File(...),
-    generate_summary: bool = True,
+    generate_summary: bool = False,
     generate_questions: bool = False,
     num_questions: int = 10
 ):
@@ -172,10 +179,18 @@ async def process_multiple_documents(
                 combined_texts.append(header + text)
 
                 file_summaries.append({
+                    "document_id": res.get("document_id"),
                     "filename": file.filename,
                     "file_type": res.get("file_type", "Document"),
                     "word_count": w_count,
                     "character_count": c_count,
+                    "text": text,
+                    "headings": res.get("headings", []),
+                    "topics": res.get("topics", []),
+                    "definitions": res.get("definitions", []),
+                    "formulas": res.get("formulas", []),
+                    "elements": res.get("elements", []),
+                    "pages": res.get("pages", []),
                     "success": True
                 })
             else:
@@ -195,7 +210,8 @@ async def process_multiple_documents(
     full_extracted_text = "\n\n".join(combined_texts)
 
     response_data = {
-        "message": f"Successfully processed {len(files)} documents",
+        "success": any(file.get("success") for file in file_summaries),
+        "message": f"Extracted {sum(bool(file.get('success')) for file in file_summaries)} of {len(files)} documents",
         "total_files": len(files),
         "files": file_summaries,
         "total_word_count": total_words,
@@ -234,6 +250,8 @@ async def generate_summary_endpoint(request: Request):
     style = "comprehensive"
     provider = None
     api_key = None
+    api_keys = None
+    preferred_order = None
 
     try:
         data = await request.json()
@@ -242,6 +260,10 @@ async def generate_summary_endpoint(request: Request):
         style = data.get("style", "comprehensive")
         provider = data.get("provider")
         api_key = data.get("api_key")
+        api_keys = data.get("api_keys")
+        preferred_order = data.get("preferred_order")
+    except HTTPException:
+        raise
     except Exception:
         # Fallback to query params
         params = request.query_params
@@ -255,7 +277,10 @@ async def generate_summary_endpoint(request: Request):
         )
 
     try:
-        result = ai_service.summarize_text(text, max_length=max_length, style=style, provider=provider, api_key=api_key)
+        result = ai_service.summarize_text(
+            text, max_length=max_length, style=style, provider=provider, api_key=api_key,
+            api_keys=api_keys, preferred_order=preferred_order
+        )
         if not result["success"]:
             raise HTTPException(
                 status_code=422,
@@ -301,14 +326,16 @@ async def generate_questions_endpoint(
             detail=f"Internal server error: {str(e)}"
         )
 
-# Adaptive Learning Endpoints
+# Adaptive Learning Endpoints (Scoped per user via X-User-ID)
 @router.post("/adaptive-learning/consent")
-async def give_adaptive_consent(consent_types: list = None):
+async def give_adaptive_consent(request: Request, consent_types: list = None):
     """
     Record user consent for adaptive learning features
     """
     try:
-        result = adaptive_service.give_consent(consent_types)
+        user_id = request.headers.get("X-User-ID", "default_user")
+        srv = get_adaptive_service(user_id)
+        result = srv.give_consent(consent_types)
         return {
             "success": result,
             "message": "Consent recorded for adaptive learning features",
@@ -322,12 +349,14 @@ async def give_adaptive_consent(consent_types: list = None):
         )
 
 @router.post("/adaptive-learning/withdraw-consent")
-async def withdraw_adaptive_consent():
+async def withdraw_adaptive_consent(request: Request):
     """
     Withdraw consent for adaptive learning features
     """
     try:
-        result = adaptive_service.withdraw_consent()
+        user_id = request.headers.get("X-User-ID", "default_user")
+        srv = get_adaptive_service(user_id)
+        result = srv.withdraw_consent()
         return {
             "success": result,
             "message": "Consent withdrawn for adaptive learning features",
@@ -342,6 +371,7 @@ async def withdraw_adaptive_consent():
 
 @router.post("/adaptive-learning/record-performance")
 async def record_question_performance(
+    request: Request,
     question_id: str,
     question_type: str,
     is_correct: bool,
@@ -353,7 +383,9 @@ async def record_question_performance(
     Record user's performance on a practice question for ethical adaptation
     """
     try:
-        result = adaptive_service.record_question_performance(
+        user_id = request.headers.get("X-User-ID", "default_user")
+        srv = get_adaptive_service(user_id)
+        result = srv.record_question_performance(
             question_id, question_type, is_correct, time_taken_seconds, topic, difficulty
         )
         if "error" in result:
@@ -372,12 +404,14 @@ async def record_question_performance(
         )
 
 @router.get("/adaptive-learning/recommendations")
-async def get_personalized_recommendations():
+async def get_personalized_recommendations(request: Request):
     """
     Get personalized study recommendations based on user performance
     """
     try:
-        result = adaptive_service.get_personalized_recommendations()
+        user_id = request.headers.get("X-User-ID", "default_user")
+        srv = get_adaptive_service(user_id)
+        result = srv.get_personalized_recommendations()
         if "error" in result:
             raise HTTPException(
                 status_code=403,
@@ -394,12 +428,14 @@ async def get_personalized_recommendations():
         )
 
 @router.get("/adaptive-learning/insights")
-async def get_learning_insights():
+async def get_learning_insights(request: Request):
     """
     Get insights about learning patterns and habits
     """
     try:
-        result = adaptive_service.get_learning_insights()
+        user_id = request.headers.get("X-User-ID", "default_user")
+        srv = get_adaptive_service(user_id)
+        result = srv.get_learning_insights()
         if "error" in result:
             raise HTTPException(
                 status_code=403,
@@ -416,15 +452,17 @@ async def get_learning_insights():
         )
 
 @router.get("/adaptive-learning/suggest-difficulty")
-async def suggest_question_difficulty():
+async def suggest_question_difficulty(request: Request):
     """
     Get suggested difficulty level for next questions based on recent performance
     """
     try:
-        difficulty = adaptive_service.suggest_question_difficulty()
+        user_id = request.headers.get("X-User-ID", "default_user")
+        srv = get_adaptive_service(user_id)
+        difficulty = srv.suggest_question_difficulty()
         return {
             "suggested_difficulty": difficulty,
-            "consent_status": "given" if adaptive_service.consent_given else "required"
+            "consent_status": "given" if srv.consent_given else "required"
         }
     except Exception as e:
         logger.error(f"Error suggesting difficulty: {str(e)}")
@@ -433,22 +471,128 @@ async def suggest_question_difficulty():
             detail=f"Internal server error: {str(e)}"
         )
 
+# ── Deep Academic Document Intelligence & University PYQ Endpoints ──
+
+@router.post('/document-intelligence/extract')
+async def extract_document_intelligence_endpoint(file: UploadFile = File(...)):
+    """
+    Deep Academic Content Extraction:
+    Extracts text, headings, definitions, formulas, processes, comparisons,
+    and page/slide provenance from any academic document (PDF, PPTX, DOCX, Image/OCR, TXT).
+    """
+    try:
+        contents = await file.read()
+        intel = DocumentIntelligence.extract_rich_document(contents, file.filename)
+        return intel
+    except Exception as e:
+        logger.error(f"Error in document intelligence extraction: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to extract document intelligence: {str(e)}")
+
+@router.post('/exam-pattern/analyze')
+async def analyze_exam_pattern_endpoint(request: Request):
+    """
+    Analyzes uploaded past examination paper(s) to learn authentic university blueprint:
+    duration, total marks, section breakdowns, compulsory vs optional OR-choices,
+    Bloom's Taxonomy distribution, theory vs numerical balance, and command verbs.
+    """
+    try:
+        data = await request.json()
+        paper_text = data.get("text", "")
+        filename = data.get("filename", "Past Paper")
+        if not paper_text or len(paper_text.strip()) < 30:
+            raise HTTPException(status_code=400, detail="Paper text is required for pattern analysis")
+        profile = PaperStructureAnalyzer.analyze_paper_structure(paper_text, filename=filename)
+        return {
+            "success": True,
+            "profile": profile.model_dump()
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error analyzing exam pattern: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get('/parul-pyq/search')
+async def search_parul_pyq_endpoint(query: str = "", subject_code: str = ""):
+    """
+    Searches Parul University Digital Repository (ir.paruluniversity.ac.in)
+    for historical examination papers, recurring questions, and topic frequencies.
+    """
+    try:
+        results = await parul_harvester.search_repository(query, subject_code=subject_code)
+        hist_analysis = parul_harvester.get_historical_topics_and_questions(query, subject_code=subject_code)
+        return {
+            "success": True,
+            "query": query,
+            "subject_code": subject_code,
+            "results_count": len(results),
+            "papers": results,
+            "historical_intelligence": hist_analysis
+        }
+    except Exception as e:
+        logger.error(f"Error searching Parul PYQ repository: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post('/multi-doc-questions')
+async def multi_doc_questions_endpoint(request: Request):
+    """
+    Multiple Document Intelligence:
+    Generates ~300 unique questions PER document independently (e.g. 2 docs -> ~600 candidate questions),
+    clusters duplicates, and builds a cross-document concept reinforcement map.
+    """
+    try:
+        data = await request.json()
+        documents = data.get("documents", [])
+        num_per_doc = int(data.get("num_per_document", 300))
+
+        if not documents:
+            raise HTTPException(status_code=400, detail="Documents list cannot be empty")
+
+        # Process each document
+        processed_docs = []
+        for i, doc in enumerate(documents):
+            d_text = doc.get("text") or doc.get("full_text") or ""
+            d_name = doc.get("filename", f"Document_{i+1}")
+            d_id = doc.get("id") or f"doc_{i+1}"
+            if not d_text.strip():
+                raise HTTPException(status_code=400, detail=f"Document {d_name} has no readable text")
+            rich_doc = DocumentIntelligence.extract_rich_document(
+                d_text.encode('utf-8', errors='ignore'),
+                f"{os.path.splitext(d_name)[0]}.txt",
+                document_id=d_id,
+            )
+            rich_doc["filename"] = d_name
+            processed_docs.append(rich_doc)
+
+        result = question_possibility_engine.process_multiple_documents(processed_docs, target_per_doc=num_per_doc)
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error generating multi-doc questions: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @router.post('/generate-mega-questions')
 async def generate_mega_questions(request: Request):
     """
-    Generate questions (up to 300) with multi-model auto-failover engine
-    Accepts JSON body or Form data
+    Generate comprehensive question universe (up to 300 questions per document)
+    with full cognitive taxonomy (MCQ, Short, Long, Numerical, Derivations, Comparisons)
+    and exact source page provenance.
     """
     text = ""
     num_questions = 300
-    question_types = ['multiple_choice', 'short_answer', 'essay']
+    question_types = ['multiple_choice', 'short_answer', 'essay', 'numerical', 'differentiate']
     api_keys = None
     preferred_order = None
+    doc_id = "doc_1"
+    filename = "Study Material"
 
     try:
         data = await request.json()
         text = data.get("text", "")
         num_questions = int(data.get("num_questions", 300))
+        if not 1 <= num_questions <= 1000:
+            raise HTTPException(status_code=400, detail="num_questions must be between 1 and 1000")
         raw_types = data.get("question_types")
         if isinstance(raw_types, list):
             question_types = raw_types
@@ -456,33 +600,158 @@ async def generate_mega_questions(request: Request):
             question_types = [t.strip() for t in raw_types.split(",")]
         api_keys = data.get("api_keys")
         preferred_order = data.get("preferred_order")
+        doc_id = data.get("document_id", "doc_1")
+        filename = data.get("filename", "Study Material")
+    except HTTPException:
+        raise
     except Exception:
         form = await request.form()
         text = form.get("text", "")
         num_questions = int(form.get("num_questions", 300))
-        raw_types = form.get("question_types", "multiple_choice,short_answer,essay")
+        raw_types = form.get("question_types", "multiple_choice,short_answer,essay,numerical,differentiate")
         question_types = [t.strip() for t in raw_types.split(",")]
-        raw_keys = form.get("api_keys")
-        if raw_keys:
-            try:
-                api_keys = json.loads(raw_keys)
-            except Exception:
-                pass
-        raw_order = form.get("preferred_order")
-        if raw_order:
-            try:
-                preferred_order = json.loads(raw_order)
-            except Exception:
-                pass
+        doc_id = form.get("document_id", "doc_1")
+        filename = form.get("filename", "Study Material")
+
+    if not 1 <= num_questions <= 1000:
+        raise HTTPException(status_code=400, detail="num_questions must be between 1 and 1000")
 
     if not text or len(text.strip()) < 20:
         raise HTTPException(status_code=400, detail="Text too short to generate questions")
 
-    result = ai_service.generate_mega_questions(
-        text, num_questions, question_types,
-        api_keys=api_keys, preferred_order=preferred_order
+    # Extract deep document intelligence elements
+    doc_data = DocumentIntelligence.extract_rich_document(
+        text.encode('utf-8', errors='ignore'),
+        filename=filename,
+        document_id=doc_id
     )
-    return result
+    if not doc_data.get("success"):
+        raise HTTPException(status_code=422, detail=doc_data.get("error", "Could not extract readable source text"))
+
+    questions = []
+    method = "Source-supported local generator"
+    failover_log = []
+    supplied_keys = api_keys if isinstance(api_keys, dict) else {}
+    valid_api_keys = {
+        key.lower(): value for key, value in supplied_keys.items()
+        if key.lower() in {"gemini", "openai", "anthropic", "claude", "perplexity", "pplx"}
+        and isinstance(value, str) and len(value.strip()) > 5
+    }
+    has_server_provider = bool(ai_service.gemini_key or ai_service.openai_client or ai_service.anthropic_client)
+
+    if valid_api_keys or has_server_provider:
+        generated = ai_service.generate_mega_questions(
+            text, num_questions=num_questions, question_types=question_types,
+            api_keys=api_keys, preferred_order=preferred_order
+        )
+        failover_log = generated.get("failover_log", [])
+        if generated.get("success"):
+            method = generated.get("engine_used", "Configured AI provider")
+            questions = [dict(question) for question in generated.get("questions", []) if question.get("question")]
+            for question in questions:
+                question["confidence"] = 0.0
+                question["source_document_id"] = doc_id
+                question["source_filename"] = filename
+                question["source_evidence"] = "Generated from the uploaded document text; page-level matching was not verified."
+
+    if not questions:
+        questions = [q.model_dump() for q in question_possibility_engine.generate_document_universe(doc_data, target_count=num_questions)]
+        if valid_api_keys or has_server_provider:
+            method = "Source-supported local generator (AI provider did not return questions)"
+
+    # Filter by user preferred types if specified and not default
+    if question_types and len(question_types) < 4:
+        filtered = [q for q in questions if q.type in question_types]
+        if len(filtered) >= 10:
+            questions = filtered
+
+    return {
+        "success": bool(questions),
+        "questions": [q.model_dump() for q in questions],
+        "total_generated": len(questions),
+        "document_id": doc_id,
+        "filename": filename,
+        "method": method,
+        "requested_count": num_questions,
+        "target_met": len(questions) >= num_questions,
+        "failover_log": failover_log,
+        "note": None if len(questions) >= num_questions else f"Generated {len(questions)} distinct candidates from the available source; the requested {num_questions} was not reached without repeating candidates.",
+        "taxonomy_distribution": dict(Counter(q.type for q in questions)),
+        "bloom_distribution": dict(Counter(q.bloom_level for q in questions))
+    }
+
+@router.post('/predict-exam-pipeline')
+async def predict_exam_pipeline_endpoint(request: Request):
+    """
+    Forensic Multi-Stage Exam Intelligence Pipeline:
+    Candidate Universe (~300/600) -> Top 200 (Diverse) -> Adversarial AI Review -> Top 100 -> Final Top 25
+    Outputs transparent evidence scores, pro/con arguments, and an authentic mock paper.
+    """
+    try:
+        data = await request.json()
+        documents = data.get("documents", [])
+        material_text = data.get("material_text", "")
+        past_papers = data.get("past_papers", [])
+        subject_name = data.get("subject_name", "Subject")
+        subject_code = data.get("subject_code")
+        api_keys = data.get("api_keys")
+        preferred_order = data.get("preferred_order")
+        raw_profile = data.get("exam_profile")
+
+        exam_profile = None
+        if raw_profile:
+            exam_profile = UniversityExamProfile(**raw_profile)
+
+        # Build candidate pool
+        candidate_pool = []
+        cross_doc_concepts = []
+        per_document_counts = {}
+
+        if documents and len(documents) > 1:
+            multi_res = question_possibility_engine.process_multiple_documents(documents, target_per_doc=300)
+            candidate_pool = multi_res["combined_questions"]
+            cross_doc_concepts = multi_res["cross_document_concepts"]
+            per_document_counts = multi_res["per_document_counts"]
+            if not material_text:
+                material_text = "\n\n".join(d.get("text", "") for d in documents)
+        else:
+            document = dict(documents[0]) if documents else {}
+            txt = document.get("text") or document.get("full_text") or material_text
+            if not txt:
+                raise HTTPException(status_code=400, detail="Course material text is required")
+            fname = document.get("filename", "Course Material")
+            if not document.get("elements") and not document.get("definitions") and not document.get("formulas"):
+                doc_data = DocumentIntelligence.extract_rich_document(txt.encode('utf-8', errors='ignore'), "course-material.txt")
+                doc_data["filename"] = fname
+            else:
+                doc_data = document
+                doc_data["full_text"] = txt
+            doc_data.setdefault("document_id", document.get("id", "doc_1"))
+            doc_data["filename"] = fname
+            candidate_pool = question_possibility_engine.generate_document_universe(doc_data, target_count=300)
+            per_document_counts = {doc_data["document_id"]: len(candidate_pool)}
+            material_text = txt
+
+        pipeline_result = exam_prediction_pipeline.run_pipeline(
+            candidate_pool=candidate_pool,
+            material_text=material_text,
+            past_papers=past_papers,
+            exam_profile=exam_profile,
+            subject_name=subject_name,
+            subject_code=subject_code,
+            cross_doc_concepts=cross_doc_concepts,
+            api_keys=api_keys,
+            preferred_order=preferred_order,
+            per_document_candidate_counts=per_document_counts,
+        )
+
+        return pipeline_result
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error running prediction pipeline: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.post('/rank-questions')
 async def rank_questions_endpoint(request: Request):
@@ -504,8 +773,8 @@ async def rank_questions_endpoint(request: Request):
 @router.post('/predict-exam')
 async def predict_exam_endpoint(request: Request):
     """
-    Predict university exam paper with multi-model failover
-    Accepts JSON body or Form data
+    Predict university exam paper with multi-stage forensic evidence pipeline
+    Maintains full backward compatibility with existing UI contracts.
     """
     material_text = ""
     subject_name = "Subject"
@@ -533,27 +802,59 @@ async def predict_exam_endpoint(request: Request):
                 past_papers = json.loads(pp)
             except Exception:
                 pass
-        raw_keys = form.get("api_keys")
-        if raw_keys:
-            try:
-                api_keys = json.loads(raw_keys)
-            except Exception:
-                pass
-        raw_order = form.get("preferred_order")
-        if raw_order:
-            try:
-                preferred_order = json.loads(raw_order)
-            except Exception:
-                pass
 
     if not material_text or len(material_text.strip()) < 20:
         raise HTTPException(status_code=400, detail="Material text too short for exam prediction")
 
-    result = exam_predictor.predict_exam(
-        material_text, past_papers, subject_name, total_marks,
-        api_keys=api_keys, preferred_order=preferred_order
+    # Run the comprehensive forensic pipeline
+    doc_data = DocumentIntelligence.extract_rich_document(
+        material_text.encode('utf-8', errors='ignore'),
+        filename="Syllabus Material"
     )
-    return result
+    candidates = question_possibility_engine.generate_document_universe(doc_data, target_count=300)
+
+    pipeline_result = exam_prediction_pipeline.run_pipeline(
+        candidate_pool=candidates,
+        material_text=material_text,
+        past_papers=past_papers,
+        subject_name=subject_name
+    )
+
+    # Format into backward-compatible response for existing frontend UI
+    mock_paper = pipeline_result["predicted_mock_paper"]
+    sections = []
+    for s in mock_paper.get("sections", []):
+        sections.append({
+            "name": s.get("name"),
+            "marks_per_question": s.get("marks_per_question", 2.0),
+            "num_questions": len(s.get("questions", [])),
+            "total_marks": s.get("total_marks", 0.0),
+            "choice_rule": s.get("choice_rule", "Compulsory"),
+            "questions": s.get("questions", [])
+        })
+
+    avg_conf = 88.0
+    if pipeline_result.get("top_25"):
+        scores = [q.evidence_score or 0.85 for q in pipeline_result["top_25"]]
+        avg_conf = round((sum(scores) / len(scores)) * 100, 1)
+
+    return {
+        "success": True,
+        "subject_name": subject_name,
+        "total_marks": mock_paper.get("total_marks", total_marks),
+        "time_hours": mock_paper.get("duration_hours", 2.5),
+        "overall_confidence": avg_conf,
+        "topic_heatmap": pipeline_result["topic_heatmap"],
+        "sections": sections,
+        "candidate_universe_count": pipeline_result["candidate_universe_count"],
+        "top_200_count": pipeline_result["top_200_count"],
+        "top_100_count": pipeline_result["top_100_count"],
+        "final_top_25": [q.model_dump() for q in pipeline_result["top_25"]],
+        "top_100": [q.model_dump() for q in pipeline_result["top_100"][:30]],
+        "top_200": [q.model_dump() for q in pipeline_result["top_200"][:30]],
+        "learned_exam_profile": pipeline_result["learned_exam_profile"],
+        "methodology_notes": pipeline_result["methodology_notes"]
+    }
 
 @router.post('/generate-answers')
 async def generate_answers_endpoint(request: Request):
@@ -656,8 +957,9 @@ async def research_search_endpoint(request: Request):
     elif source == "universities":
         return await academic_service.search_universities(name=query)
     else:
-        # Unified parallel search across all sources
-        return await academic_service.unified_deep_search(query, sources=sources, perplexity_key=perplexity_key)
+        # Unified parallel search across all sources with session-scoped audit trail
+        session_id = request.headers.get("X-Session-ID", "default_session")
+        return await academic_service.unified_deep_search(query, sources=sources, perplexity_key=perplexity_key, session_id=session_id)
 
 @router.post('/research/ask-perplexity')
 async def ask_perplexity_endpoint(request: Request):
@@ -675,14 +977,16 @@ async def ask_perplexity_endpoint(request: Request):
     return await academic_service.ask_perplexity(prompt, api_key=api_key, model=model)
 
 @router.get('/research/audit-trail')
-async def get_audit_trail_endpoint(limit: int = 15):
+async def get_audit_trail_endpoint(request: Request, limit: int = 15):
     """
     Get system audit trail and transparency logs:
-    Shows how data was processed, agents invoked, skills used, and APIs queried
+    Shows how data was processed, agents invoked, skills used, and APIs queried for this session
     """
+    session_id = request.headers.get("X-Session-ID", "default_session")
     return {
         "success": True,
-        "logs": academic_service.get_audit_trail(limit=limit)
+        "session_id": session_id,
+        "logs": academic_service.get_audit_trail(session_id=session_id, limit=limit)
     }
 
 @router.post('/aki/chat')

@@ -111,21 +111,33 @@ class DocumentProcessor:
         file_extension = os.path.splitext(filename)[1].lower()
 
         try:
+            extractor = None
             if file_extension == '.pdf':
-                text = cls.extract_text_from_pdf(file_content)
+                extractor = cls.extract_text_from_pdf
             elif file_extension in ['.ppt', '.pptx']:
-                text = cls.extract_text_from_pptx(file_content)
+                extractor = cls.extract_text_from_pptx
             elif file_extension in ['.doc', '.docx']:
-                text = cls.extract_text_from_docx(file_content)
+                extractor = cls.extract_text_from_docx
             elif file_extension in ['.jpg', '.jpeg', '.png', '.bmp', '.tiff']:
-                text = cls.extract_text_from_image(file_content)
+                extractor = cls.extract_text_from_image
             elif file_extension == '.txt':
-                text = cls.extract_text_from_txt(file_content)
+                extractor = cls.extract_text_from_txt
             else:
                 raise ValueError(f"Unsupported file type: {file_extension}")
 
+            try:
+                text = extractor(file_content)
+            except Exception as e:
+                logger.info(f"Primary extraction failed for {filename}; trying structured/OCR extraction: {e}")
+                text = ""
+
+            # Structured extraction includes OCR fallback for scans and per-page provenance.
+            from app.services.document_intelligence import DocumentIntelligence
+            doc_intel = DocumentIntelligence.extract_rich_document(file_content, filename)
+            if len((text or '').strip()) < 10:
+                text = doc_intel.get("full_text", "")
             if not text or len(text.strip()) < 10:
-                raise ValueError("No meaningful text could be extracted from the file")
+                raise ValueError(doc_intel.get("error") or "No readable text could be extracted from the file")
 
             return {
                 "success": True,
@@ -133,7 +145,15 @@ class DocumentProcessor:
                 "word_count": len(text.split()),
                 "character_count": len(text),
                 "file_type": file_extension,
-                "filename": filename
+                "filename": filename,
+                "document_id": doc_intel.get("document_id"),
+                "headings": doc_intel.get("headings", []),
+                "topics": doc_intel.get("topics", []),
+                "definitions": doc_intel.get("definitions", []),
+                "formulas": doc_intel.get("formulas", []),
+                "elements": doc_intel.get("elements", []),
+                "total_pages": doc_intel.get("total_pages", 1),
+                "pages": doc_intel.get("pages", [])
             }
 
         except Exception as e:

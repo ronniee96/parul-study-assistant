@@ -154,69 +154,12 @@ export async function extractTextFromPDF(file) {
       }
     }
 
-    // 3. Fallback: If document is an image-scan or non-text PDF, build clean academic syllabus from filename
-    const cleanDocTitle = file.name
-      .replace(/\.[^/.]+$/, "")
-      .replace(/[_-]/g, " ")
-      .trim();
-
-    return generateCleanCurriculumText(cleanDocTitle, file.name);
+    throw new Error('No readable text was extracted from this PDF. It may be scanned; use the server OCR extractor or upload a text-based copy.');
 
   } catch (err) {
     console.error("Failed to extract PDF in browser:", err);
-    const cleanDocTitle = file.name.replace(/\.[^/.]+$/, "").replace(/[_-]/g, " ");
-    return generateCleanCurriculumText(cleanDocTitle, file.name);
+    throw err;
   }
-}
-
-export function generateCleanCurriculumText(docTitle, filename) {
-  const isAccounting = /mac|cma|cost|account|finan|audit|decision|modul/i.test(docTitle);
-  const isTech = /cs|it|data|algo|prog|soft|code|web|ai|ml/i.test(docTitle);
-  const isManagement = /mgt|manage|market|strat|org|hr/i.test(docTitle);
-
-  let subjects = [];
-  if (isAccounting) {
-    subjects = [
-      "Introduction to Management Accounting & Decision Framework",
-      "Cost Classification, Material Costing and Labor Mechanics",
-      "Overhead Allocation, Apportionment and Activity-Based Costing (ABC)",
-      "Marginal Costing, Cost-Volume-Profit (CVP) Analysis and Break-Even Calculations",
-      "Budgetary Control, Cash Budgets and Flexible Budgeting Systems",
-      "Standard Costing and Material/Labor Variance Analysis",
-      "Managerial Decision Making: Make-or-Buy, Product Mix and Plant Shutdown Decisions",
-      "Responsibility Accounting, Transfer Pricing and Performance Measurement"
-    ];
-  } else if (isTech) {
-    subjects = [
-      "Fundamental Architectures, System Principles and Design Patterns",
-      "Data Structures, Algorithm Efficiency and Optimization Techniques",
-      "Core Implementation Models, State Management and Process Flow",
-      "Testing Methodologies, Error Diagnostics and Reliability Frameworks",
-      "Security Protocols, System Scaling and Operational Best Practices"
-    ];
-  } else if (isManagement) {
-    subjects = [
-      "Strategic Management Principles and Organizational Dynamics",
-      "Operations Planning, Quality Control and Supply Chain Models",
-      "Marketing Strategy, Consumer Behavior and Product Positioning",
-      "Financial Decision-Making, Capital Budgeting and Risk Assessment",
-      "Leadership Frameworks, Human Resource Policies and Performance Metrics"
-    ];
-  } else {
-    subjects = [
-      `Core Theoretical Foundations of ${docTitle}`,
-      `Key Principles, Classification and Methodologies in ${docTitle}`,
-      `Practical Applications, Analytical Problem-Solving and Case Studies`,
-      `Advanced Frameworks, Standard Evaluation Criteria and Optimization`,
-      `Review of Important University Exam Topics and Numerical Problems`
-    ];
-  }
-
-  return `=== [DOCUMENT: ${filename}] ===\nTitle: ${docTitle}\n\n` +
-    `Syllabus Overview & Key Units for ${docTitle}:\n` +
-    subjects.map((s, idx) => `Unit ${idx + 1}: ${s}`).join('\n') +
-    `\n\nDetailed Topics and Learning Outcomes:\n` +
-    subjects.map(s => `${s} encompasses core conceptual frameworks, mathematical formulations, analytical interpretations, and practical exam applications designed for university examination.`).join('\n\n');
 }
 
 export async function extractTextFromSingleDocument(file) {
@@ -227,25 +170,19 @@ export async function extractTextFromSingleDocument(file) {
   }
   
   if (['txt', 'text', 'csv', 'json', 'md'].includes(ext)) {
-    try {
-      const text = await file.text();
-      return cleanExtractedText(text);
-    } catch {
-      return generateCleanCurriculumText(file.name.replace(/\.[^/.]+$/, ""), file.name);
-    }
+    const text = cleanExtractedText(await file.text());
+    if (!text) throw new Error(`No readable text found in ${file.name}.`);
+    return text;
   }
 
-  return await extractTextFromPDF(file);
+  throw new Error(`Unsupported browser extraction type: .${ext}. Server extraction is required for this file.`);
 }
 
 export async function extractMultipleDocuments(files) {
   const results = await Promise.all(
     files.map(async (file) => {
       try {
-        const text = await Promise.race([
-          extractTextFromSingleDocument(file),
-          new Promise(r => setTimeout(() => r(generateCleanCurriculumText(file.name.replace(/\.[^/.]+$/, ""), file.name)), 3000))
-        ]);
+        const text = await extractTextFromSingleDocument(file);
         const wordCount = text.split(/\s+/).filter(Boolean).length;
         return {
           filename: file.name,
@@ -254,20 +191,14 @@ export async function extractMultipleDocuments(files) {
           charCount: text.length
         };
       } catch (e) {
-        const fallbackText = generateCleanCurriculumText(file.name.replace(/\.[^/.]+$/, ""), file.name);
-        return {
-          filename: file.name,
-          text: fallbackText,
-          wordCount: fallbackText.split(/\s+/).filter(Boolean).length,
-          charCount: fallbackText.length
-        };
+        return { filename: file.name, text: '', wordCount: 0, charCount: 0, error: e.message || 'Text extraction failed.' };
       }
     })
   );
 
-  const combinedText = results.map((r, idx) => 
-    `=== [DOCUMENT ${idx + 1}: ${r.filename}] ===\n${r.text}`
-  ).join('\n\n');
+  const combinedText = results.map((r, idx) =>
+    r.text ? `=== [DOCUMENT ${idx + 1}: ${r.filename}] ===\n${r.text}` : ''
+  ).filter(Boolean).join('\n\n');
 
   const totalWords = results.reduce((sum, r) => sum + r.wordCount, 0);
   const totalChars = results.reduce((sum, r) => sum + r.charCount, 0);
@@ -293,7 +224,7 @@ export function cleanExtractedText(text) {
     .replace(/\/Contents\s+\d+\s+\d+\s+R/gi, '')
     .replace(/Quartz PDFContext/gi, '')
     .replace(/\n{3,}/g, '\n\n')
-    .replace(/[^\x20-\x7E\n\t]/g, ' ')
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, ' ')
     .replace(/\s{2,}/g, ' ')
     .trim();
 }

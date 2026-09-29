@@ -24,8 +24,8 @@ import httpx
 
 logger = logging.getLogger(__name__)
 
-# Global in-memory audit log for execution transparency (retains last 50 queries)
-AUDIT_LOGS: List[Dict[str, Any]] = []
+# Session-scoped in-memory audit log for execution transparency (retains last 50 queries per session)
+SESSION_AUDIT_LOGS: Dict[str, List[Dict[str, Any]]] = {}
 
 class AcademicResearchService:
     """Multi-API academic research aggregator with full algorithmic transparency"""
@@ -33,16 +33,21 @@ class AcademicResearchService:
     def __init__(self):
         self.timeout = httpx.Timeout(15.0, connect=5.0)
 
-    def log_audit_trail(self, entry: Dict[str, Any]):
-        """Append to system audit trail"""
+    def log_audit_trail(self, entry: Dict[str, Any], session_id: str = "default"):
+        """Append to session-scoped audit trail"""
         entry['timestamp'] = time.strftime('%Y-%m-%d %H:%M:%S UTC', time.gmtime())
-        AUDIT_LOGS.insert(0, entry)
-        if len(AUDIT_LOGS) > 50:
-            AUDIT_LOGS.pop()
+        entry['session_id'] = session_id
+        if session_id not in SESSION_AUDIT_LOGS:
+            SESSION_AUDIT_LOGS[session_id] = []
+        logs = SESSION_AUDIT_LOGS[session_id]
+        logs.insert(0, entry)
+        if len(logs) > 50:
+            logs.pop()
 
-    def get_audit_trail(self, limit: int = 15) -> List[Dict[str, Any]]:
-        """Return recent audit logs"""
-        if not AUDIT_LOGS:
+    def get_audit_trail(self, session_id: str = "default", limit: int = 15) -> List[Dict[str, Any]]:
+        """Return recent audit logs for the requesting session"""
+        logs = SESSION_AUDIT_LOGS.get(session_id, [])
+        if not logs:
             # Provide sample baseline audit trail so user sees immediate insights
             return [
                 {
@@ -72,7 +77,7 @@ class AcademicResearchService:
                     ]
                 }
             ]
-        return AUDIT_LOGS[:limit]
+        return logs[:limit]
 
     # ─── 1. arXiv Query API ───────────────────────────────────────────
     async def search_arxiv(self, query: str, max_results: int = 8) -> Dict[str, Any]:
@@ -466,7 +471,7 @@ class AcademicResearchService:
             }
 
     # ─── Unified Multi-API Deep Research Aggregator ───────────────────
-    async def unified_deep_search(self, query: str, sources: Optional[List[str]] = None, perplexity_key: Optional[str] = None) -> Dict[str, Any]:
+    async def unified_deep_search(self, query: str, sources: Optional[List[str]] = None, perplexity_key: Optional[str] = None, session_id: str = "default") -> Dict[str, Any]:
         """Perform concurrent asynchronous search across all academic APIs with audit tracking"""
         start_overall = time.time()
         
@@ -546,7 +551,7 @@ class AcademicResearchService:
                 "4. Synthesized unified response with full provenance and DOI links"
             ]
         }
-        self.log_audit_trail(audit_entry)
+        self.log_audit_trail(audit_entry, session_id=session_id)
 
         return {
             "success": True,

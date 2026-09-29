@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { apiFetch } from '../utils/apiClient';
 
 export const ALL_PROVIDERS = [
   {
@@ -196,27 +197,19 @@ export default function APIKeyModal({ isOpen, onClose, apiKeys, onSaveApiKeys })
     setTestStatus(prev => ({ ...prev, [providerId]: null }));
 
     try {
-      const res = await fetch('/api/v1/test-key', {
+      const data = await apiFetch('/api/v1/test-key', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ provider: providerId, key: key })
       });
 
-      if (res.ok) {
-        const data = await res.json();
-        setTestStatus(prev => ({
-          ...prev,
-          [providerId]: {
-            success: data.valid,
-            message: data.message || (data.valid ? 'Verified & Connected!' : 'Key rejected.')
-          }
-        }));
-      } else {
-        setTestStatus(prev => ({
-          ...prev,
-          [providerId]: { success: true, message: 'Key saved and active for local routing!' }
-        }));
-      }
+      setTestStatus(prev => ({
+        ...prev,
+        [providerId]: {
+          success: data.valid,
+          message: data.message || (data.valid ? 'Verified & Connected!' : 'Key rejected.')
+        }
+      }));
     } catch (err) {
       setTestStatus(prev => ({
         ...prev,

@@ -27,9 +27,14 @@ app = FastAPI(
 )
 
 # Configure CORS
+cors_origins = [
+    origin.strip().rstrip("/")
+    for origin in os.getenv("CORS_ORIGINS", "http://localhost:3000,http://localhost:5173").split(",")
+    if origin.strip()
+]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:5173"],  # Frontend URLs
+    allow_origins=cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -38,6 +43,17 @@ app.add_middleware(
 # Custom error handlers from v1
 @app.exception_handler(404)
 async def custom_404_handler(request: Request, exc: HTTPException):
+    if request.url.path.startswith("/api/"):
+        return JSONResponse(
+            status_code=404,
+            content={
+                "success": False,
+                "error": {
+                    "code": "NOT_FOUND",
+                    "message": f"API endpoint not found: {request.method} {request.url.path}"
+                }
+            }
+        )
     return HTMLResponse(
         status_code=404,
         content="""
@@ -157,6 +173,17 @@ Timestamp: """ + str(logging.Formatter().formatTime(logging.LogRecord('', 0, '',
 
 @app.exception_handler(500)
 async def custom_500_handler(request: Request, exc: HTTPException):
+    if request.url.path.startswith("/api/"):
+        return JSONResponse(
+            status_code=500,
+            content={
+                "success": False,
+                "error": {
+                    "code": "INTERNAL_SERVER_ERROR",
+                    "message": getattr(exc, 'detail', str(exc)) or "An internal error occurred."
+                }
+            }
+        )
     return HTMLResponse(
         status_code=500,
         content="""

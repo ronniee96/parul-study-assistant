@@ -1,6 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ANIME_CHEER_QUOTES } from '../utils/animeQuotes';
+import {
+  PAPER_PATTERN_TEMPLATES,
+  calculatePatternTotalMarks,
+  getSavedPaperPattern
+} from '../utils/paperPatterns';
+import { apiFetch } from '../utils/apiClient';
 
 const DEFAULT_FEEDBACK = [
   {
@@ -117,6 +123,16 @@ export default function SettingsTab({
   const [testingKeyId, setTestingKeyId] = useState(null);
   const [keyStatuses, setKeyStatuses] = useState({});
   const [showKeyId, setShowKeyId] = useState({});
+
+  // Paper Pattern / Exam Blueprint Configurator State
+  const [paperPattern, setPaperPattern] = useState(() => {
+    return appState.paperPattern || getSavedPaperPattern();
+  });
+  const [patternSavedBadge, setPatternSavedBadge] = useState(false);
+  const [selectedTemplateId, setSelectedTemplateId] = useState(() => {
+    const p = appState.paperPattern || getSavedPaperPattern();
+    return p?.id || 'parul_midterm_40';
+  });
 
   // Agent Issue Resolver State
   const [issueCategory, setIssueCategory] = useState('clarity');
@@ -286,7 +302,7 @@ export default function SettingsTab({
     setAkiActionState('jumping');
 
     try {
-      const res = await fetch('/api/v1/aki/chat', {
+      const data = await apiFetch('/api/v1/aki/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -296,16 +312,11 @@ export default function SettingsTab({
         })
       });
 
-      if (res.ok) {
-        const data = await res.json();
-        setAkiKnowledgeResponse({
-          question: query.trim(),
-          answer: data.response || data.message || "Aki processed your request!",
-          targetTab: data.targetTab || 'squad'
-        });
-      } else {
-        throw new Error("Offline response fallback");
-      }
+      setAkiKnowledgeResponse({
+        question: query.trim(),
+        answer: data.response || data.message || "Aki processed your request!",
+        targetTab: data.targetTab || 'squad'
+      });
     } catch (err) {
       // Offline fallback knowledge
       const lower = query.toLowerCase();
@@ -365,6 +376,150 @@ export default function SettingsTab({
       setTimeout(() => setSavedBadge(false), 2500);
     } catch (e) {
       console.warn("Error saving settings:", e);
+    }
+  };
+
+  // ─── Paper Pattern Blueprint Handlers ───────────────────────
+  const handleSelectTemplate = (templateKey) => {
+    setSelectedTemplateId(templateKey);
+    if (templateKey === 'custom') {
+      setPaperPattern(prev => ({
+        ...prev,
+        id: 'custom',
+        name: 'Custom University Examination Blueprint'
+      }));
+    } else if (PAPER_PATTERN_TEMPLATES[templateKey]) {
+      const tmpl = JSON.parse(JSON.stringify(PAPER_PATTERN_TEMPLATES[templateKey]));
+      setPaperPattern(tmpl);
+    }
+  };
+
+  const handleUpdatePatternField = (field, value) => {
+    setPaperPattern(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  const handleUpdateSectionName = (secIdx, newName) => {
+    setPaperPattern(prev => {
+      const updatedSecs = [...prev.sections];
+      updatedSecs[secIdx] = { ...updatedSecs[secIdx], name: newName };
+      return { ...prev, sections: updatedSecs };
+    });
+  };
+
+  const handleUpdateSubSection = (secIdx, subIdx, field, value) => {
+    setPaperPattern(prev => {
+      const updatedSecs = [...prev.sections];
+      const updatedSubs = [...updatedSecs[secIdx].subSections];
+      updatedSubs[subIdx] = { ...updatedSubs[subIdx], [field]: value };
+      const subTotal = updatedSubs.reduce((acc, s) => acc + (Number(s.count) || 0) * (Number(s.marksEach) || 0), 0);
+      updatedSecs[secIdx] = { ...updatedSecs[secIdx], subSections: updatedSubs, marksTotal: subTotal };
+      return { ...prev, sections: updatedSecs };
+    });
+  };
+
+  const handleAddSubSection = (secIdx) => {
+    setPaperPattern(prev => {
+      const updatedSecs = [...prev.sections];
+      const subs = updatedSecs[secIdx].subSections ? [...updatedSecs[secIdx].subSections] : [];
+      subs.push({
+        id: `q${subs.length + 1}`,
+        heading: `Q${subs.length + 1}. Descriptive Question (${secIdx === 0 ? '02' : '05'} Marks Each)`,
+        count: 1,
+        choices: 1,
+        marksEach: secIdx === 0 ? 2 : 5,
+        type: secIdx === 0 ? 'Short Answer' : 'Descriptive'
+      });
+      const subTotal = subs.reduce((acc, s) => acc + (Number(s.count) || 0) * (Number(s.marksEach) || 0), 0);
+      updatedSecs[secIdx] = { ...updatedSecs[secIdx], subSections: subs, marksTotal: subTotal };
+      return { ...prev, sections: updatedSecs };
+    });
+  };
+
+  const handleRemoveSubSection = (secIdx, subIdx) => {
+    setPaperPattern(prev => {
+      const updatedSecs = [...prev.sections];
+      const subs = [...updatedSecs[secIdx].subSections];
+      subs.splice(subIdx, 1);
+      const subTotal = subs.reduce((acc, s) => acc + (Number(s.count) || 0) * (Number(s.marksEach) || 0), 0);
+      updatedSecs[secIdx] = { ...updatedSecs[secIdx], subSections: subs, marksTotal: subTotal };
+      return { ...prev, sections: updatedSecs };
+    });
+  };
+
+  const handleAddSection = () => {
+    setPaperPattern(prev => {
+      const newLetter = String.fromCharCode(65 + prev.sections.length);
+      const newSection = {
+        id: `sec-${newLetter.toLowerCase()}`,
+        name: `SECTION – ${newLetter}: Applied / Problem Solving`,
+        marksTotal: 20,
+        subSections: [
+          {
+            id: 'q1',
+            heading: `Q1. Core Analytical / Problem Solving (05 Marks Each)`,
+            count: 4,
+            choices: 5,
+            marksEach: 5,
+            type: 'Descriptive'
+          }
+        ]
+      };
+      return {
+        ...prev,
+        sections: [...prev.sections, newSection]
+      };
+    });
+  };
+
+  const handleRemoveSection = (secIdx) => {
+    if (paperPattern.sections.length <= 1) {
+      alert("Question paper blueprint must contain at least one section!");
+      return;
+    }
+    setPaperPattern(prev => {
+      const updatedSecs = [...prev.sections];
+      updatedSecs.splice(secIdx, 1);
+      return { ...prev, sections: updatedSecs };
+    });
+  };
+
+  const handleSavePaperPattern = () => {
+    try {
+      localStorage.setItem('study_assistant_paper_pattern', JSON.stringify(paperPattern));
+      if (setAppState) {
+        setAppState(prev => ({
+          ...prev,
+          paperPattern: paperPattern
+        }));
+      }
+      setPatternSavedBadge(true);
+      setTimeout(() => setPatternSavedBadge(false), 3000);
+    } catch (e) {
+      console.error("Failed to save paper pattern:", e);
+    }
+  };
+
+  const handleResetPaperPattern = () => {
+    if (window.confirm("Reset question paper pattern to Parul University 40M Mid-Term standard?")) {
+      const def = JSON.parse(JSON.stringify(PAPER_PATTERN_TEMPLATES.parul_midterm_40));
+      setPaperPattern(def);
+      setSelectedTemplateId('parul_midterm_40');
+      try {
+        localStorage.setItem('study_assistant_paper_pattern', JSON.stringify(def));
+        if (setAppState) {
+          setAppState(prev => ({
+            ...prev,
+            paperPattern: def
+          }));
+        }
+        setPatternSavedBadge(true);
+        setTimeout(() => setPatternSavedBadge(false), 3000);
+      } catch (e) {
+        console.error("Failed to reset paper pattern:", e);
+      }
     }
   };
 
@@ -819,6 +974,10 @@ export default function SettingsTab({
     return true;
   });
 
+  const totalAllocatedMarks = calculatePatternTotalMarks(paperPattern);
+  const targetMarks = Number(paperPattern?.totalMarks) || 0;
+  const isMarksBalanced = totalAllocatedMarks === targetMarks;
+
   return (
     <div className="flex flex-col gap-6 h-full p-4 max-w-6xl mx-auto overflow-y-auto w-full">
       {/* Header Banner */}
@@ -1016,7 +1175,394 @@ export default function SettingsTab({
       </div>
 
       {/* ──────────────────────────────────────────────────────────────────────── */}
-      {/* SECTION 2: ASK AN AGENT TO RESOLVE ANY ISSUE                            */}
+      {/* SECTION 2: EXAMINATION BLUEPRINT & PAPER PATTERN CONFIGURATOR            */}
+      {/* ──────────────────────────────────────────────────────────────────────── */}
+      <div className="glass-card p-6 flex flex-col gap-5 border-indigo-500/30 bg-gradient-to-br from-indigo-500/5 via-primary-500/5 to-purple-500/5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-gray-200 dark:border-gray-800 pb-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-xl">📋</span>
+              <h2 className="text-base font-bold text-gray-900 dark:text-gray-100">
+                Examination Blueprint & Paper Pattern Configurator
+              </h2>
+              {patternSavedBadge && (
+                <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 text-[11px] font-bold animate-pulse">
+                  ✓ Pattern Saved & Synced
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+              Customize question paper structure, sections, question counts, and marks weightage so that predicted papers, model answers, and exported PDFs match your exact university syllabus.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={() => setActiveTab('predictor')}
+              className="px-3 py-1.5 bg-primary-50 hover:bg-primary-100 dark:bg-primary-950/60 dark:hover:bg-primary-900 text-primary-700 dark:text-primary-300 text-xs font-bold rounded-xl border border-primary-200 dark:border-primary-800 transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+              title="Jump to Exam Predictor to view predicted papers using this pattern"
+            >
+              <span>🎯</span>
+              <span>Open Predictor</span>
+            </button>
+            <button
+              onClick={handleSavePaperPattern}
+              className="px-4 py-1.5 bg-gradient-to-r from-primary-600 to-indigo-600 hover:from-primary-700 hover:to-indigo-700 text-white text-xs font-bold rounded-xl shadow-md transition-all flex items-center gap-1.5 cursor-pointer"
+            >
+              <span>💾</span>
+              <span>Save Blueprint</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Preset Blueprint Selectors */}
+        <div className="flex flex-col gap-2">
+          <label className="text-xs font-bold text-gray-800 dark:text-gray-200 flex items-center gap-1.5">
+            <span>⚡</span> Quick Load Preset Pattern:
+          </label>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+            {[
+              { id: 'parul_midterm_40', label: 'Parul Mid-Term', marks: '40M', icon: '🎓' },
+              { id: 'parul_endterm_60', label: 'Parul End-Term', marks: '60M', icon: '🏛️' },
+              { id: 'gtu_endterm_70', label: 'GTU / Tech Univ', marks: '70M', icon: '⚙️' },
+              { id: 'unit_test_30', label: 'Unit / Class Test', marks: '30M', icon: '📝' },
+              { id: 'comprehensive_100', label: '100M Final', marks: '100M', icon: '📚' },
+              { id: 'custom', label: 'Custom Blueprint', marks: 'Custom', icon: '✏️' }
+            ].map(p => (
+              <button
+                key={p.id}
+                onClick={() => handleSelectTemplate(p.id)}
+                className={`p-2.5 rounded-xl border text-left text-xs font-semibold flex flex-col justify-between transition-all cursor-pointer ${
+                  selectedTemplateId === p.id
+                    ? 'bg-primary-50 dark:bg-primary-950/70 border-primary-500 text-primary-900 dark:text-primary-100 ring-2 ring-primary-500/20 shadow-xs'
+                    : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 text-gray-700 dark:text-gray-300 hover:border-gray-300'
+                }`}
+              >
+                <div className="flex items-center justify-between mb-1">
+                  <span>{p.icon}</span>
+                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300">
+                    {p.marks}
+                  </span>
+                </div>
+                <span className="text-[11px] font-bold leading-tight line-clamp-1">{p.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Basic Exam Metadata Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 p-4 rounded-2xl bg-gray-50/70 dark:bg-gray-900/60 border border-gray-200 dark:border-gray-800">
+          <div>
+            <label className="text-[11px] font-bold text-gray-600 dark:text-gray-400 block mb-1">
+              University / Institute Name
+            </label>
+            <input
+              type="text"
+              value={paperPattern.university || ''}
+              onChange={(e) => handleUpdatePatternField('university', e.target.value)}
+              placeholder="e.g. PARUL UNIVERSITY"
+              className="w-full px-3 py-1.5 bg-white dark:bg-gray-950 border border-gray-300 dark:border-gray-700 rounded-lg text-xs font-semibold text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary-500 focus:outline-none"
+            />
+          </div>
+
+          <div>
+            <label className="text-[11px] font-bold text-gray-600 dark:text-gray-400 block mb-1">
+              Faculty / Department
+            </label>
+            <input
+              type="text"
+              value={paperPattern.faculty || ''}
+              onChange={(e) => handleUpdatePatternField('faculty', e.target.value)}
+              placeholder="e.g. FACULTY OF MANAGEMENT STUDIES"
+              className="w-full px-3 py-1.5 bg-white dark:bg-gray-950 border border-gray-300 dark:border-gray-700 rounded-lg text-xs font-semibold text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary-500 focus:outline-none"
+            />
+          </div>
+
+          <div>
+            <label className="text-[11px] font-bold text-gray-600 dark:text-gray-400 block mb-1">
+              Exam Title / Type
+            </label>
+            <input
+              type="text"
+              value={paperPattern.examType || ''}
+              onChange={(e) => handleUpdatePatternField('examType', e.target.value)}
+              placeholder="e.g. Mid-Term Examination"
+              className="w-full px-3 py-1.5 bg-white dark:bg-gray-950 border border-gray-300 dark:border-gray-700 rounded-lg text-xs font-semibold text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary-500 focus:outline-none"
+            />
+          </div>
+
+          <div>
+            <label className="text-[11px] font-bold text-gray-600 dark:text-gray-400 block mb-1">
+              Duration / Time Allowed
+            </label>
+            <input
+              type="text"
+              value={paperPattern.time || ''}
+              onChange={(e) => handleUpdatePatternField('time', e.target.value)}
+              placeholder="e.g. 1 hr 30 min or 3 Hours"
+              className="w-full px-3 py-1.5 bg-white dark:bg-gray-950 border border-gray-300 dark:border-gray-700 rounded-lg text-xs font-semibold text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary-500 focus:outline-none"
+            />
+          </div>
+
+          <div>
+            <label className="text-[11px] font-bold text-gray-600 dark:text-gray-400 block mb-1">
+              Semester / Term
+            </label>
+            <input
+              type="text"
+              value={paperPattern.semester || ''}
+              onChange={(e) => handleUpdatePatternField('semester', e.target.value)}
+              placeholder="e.g. Semester: III"
+              className="w-full px-3 py-1.5 bg-white dark:bg-gray-950 border border-gray-300 dark:border-gray-700 rounded-lg text-xs font-semibold text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary-500 focus:outline-none"
+            />
+          </div>
+
+          <div>
+            <label className="text-[11px] font-bold text-gray-600 dark:text-gray-400 block mb-1">
+              Subject Code
+            </label>
+            <input
+              type="text"
+              value={paperPattern.subjectCode || ''}
+              onChange={(e) => handleUpdatePatternField('subjectCode', e.target.value)}
+              placeholder="e.g. PU302"
+              className="w-full px-3 py-1.5 bg-white dark:bg-gray-950 border border-gray-300 dark:border-gray-700 rounded-lg text-xs font-semibold text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary-500 focus:outline-none"
+            />
+          </div>
+
+          <div>
+            <label className="text-[11px] font-bold text-gray-600 dark:text-gray-400 block mb-1">
+              Target Total Marks
+            </label>
+            <input
+              type="number"
+              min="10"
+              max="200"
+              value={paperPattern.totalMarks || 40}
+              onChange={(e) => handleUpdatePatternField('totalMarks', Number(e.target.value) || 0)}
+              className="w-full px-3 py-1.5 bg-white dark:bg-gray-950 border border-gray-300 dark:border-gray-700 rounded-lg text-xs font-bold text-primary-600 dark:text-primary-400 focus:ring-2 focus:ring-primary-500 focus:outline-none"
+            />
+          </div>
+
+          <div>
+            <label className="text-[11px] font-bold text-gray-600 dark:text-gray-400 block mb-1">
+              Pattern Status
+            </label>
+            <div className={`px-3 py-1.5 rounded-lg border text-xs font-bold flex items-center justify-between ${
+              isMarksBalanced
+                ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-300 text-emerald-700 dark:text-emerald-300'
+                : 'bg-amber-50 dark:bg-amber-950/40 border-amber-300 text-amber-700 dark:text-amber-300'
+            }`}>
+              <span>{isMarksBalanced ? '✓ Balanced' : '⚠️ Mark Discrepancy'}</span>
+              <span>{totalAllocatedMarks}M / {targetMarks}M</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Section & Question Builder */}
+        <div className="flex flex-col gap-4">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-gray-800 dark:text-gray-200 flex items-center gap-1.5">
+              <span>📑</span> Section Breakdown & Question Allocation ({paperPattern.sections?.length || 0} Sections)
+            </span>
+            <button
+              onClick={handleAddSection}
+              className="px-3 py-1 bg-white dark:bg-gray-900 hover:bg-gray-50 border border-gray-300 dark:border-gray-700 text-xs font-bold rounded-lg shadow-2xs text-primary-600 dark:text-primary-400 cursor-pointer flex items-center gap-1"
+            >
+              <span>+</span>
+              <span>Add New Section</span>
+            </button>
+          </div>
+
+          {paperPattern.sections?.map((sec, secIdx) => {
+            const secCalculatedMarks = sec.subSections?.reduce((acc, sub) => acc + (Number(sub.count) || 0) * (Number(sub.marksEach) || 0), 0) || 0;
+            return (
+              <div
+                key={sec.id || secIdx}
+                className="p-4 rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 shadow-xs flex flex-col gap-3.5"
+              >
+                {/* Section Header */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-gray-100 dark:border-gray-800 pb-2.5">
+                  <div className="flex-1 flex items-center gap-2">
+                    <span className="text-xs font-bold text-gray-400">#{secIdx + 1}</span>
+                    <input
+                      type="text"
+                      value={sec.name || ''}
+                      onChange={(e) => handleUpdateSectionName(secIdx, e.target.value)}
+                      placeholder="e.g. SECTION – A: Concept Definitions"
+                      className="flex-1 px-2.5 py-1 bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-lg text-xs font-bold text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                    <span className="px-2.5 py-1 rounded-full bg-primary-50 dark:bg-primary-950 text-primary-700 dark:text-primary-300 text-xs font-bold font-mono">
+                      {secCalculatedMarks} Marks
+                    </span>
+                    {paperPattern.sections.length > 1 && (
+                      <button
+                        onClick={() => handleRemoveSection(secIdx)}
+                        className="p-1 hover:bg-rose-50 text-rose-500 rounded-lg transition-colors text-xs font-bold cursor-pointer"
+                        title="Delete Section"
+                      >
+                        🗑️
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* SubSections / Question Blocks List */}
+                <div className="flex flex-col gap-2.5">
+                  {sec.subSections?.map((sub, subIdx) => {
+                    const blockTotal = (Number(sub.count) || 0) * (Number(sub.marksEach) || 0);
+                    return (
+                      <div
+                        key={sub.id || subIdx}
+                        className="p-3 rounded-xl bg-gray-50/70 dark:bg-gray-950/70 border border-gray-200 dark:border-gray-800 flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs"
+                      >
+                        <div className="flex-1">
+                          <input
+                            type="text"
+                            value={sub.heading || ''}
+                            onChange={(e) => handleUpdateSubSection(secIdx, subIdx, 'heading', e.target.value)}
+                            placeholder="e.g. Q1. Attempt Any Two Questions out of Three"
+                            className="w-full px-2.5 py-1 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md font-medium text-gray-800 dark:text-gray-200 focus:outline-none"
+                          />
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+                          {/* Type */}
+                          <div className="flex items-center gap-1">
+                            <span className="text-[10px] text-gray-500 font-semibold">Type:</span>
+                            <select
+                              value={sub.type || 'Short Answer'}
+                              onChange={(e) => handleUpdateSubSection(secIdx, subIdx, 'type', e.target.value)}
+                              className="px-2 py-1 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md text-[11px] font-semibold"
+                            >
+                              <option value="Short Answer">Short Answer</option>
+                              <option value="MCQ">MCQ (Multiple Choice)</option>
+                              <option value="Descriptive">Descriptive (5M - 7M)</option>
+                              <option value="Essay / Case Study">Essay / Comprehensive</option>
+                              <option value="Caselet">Caselet / Practical Problem</option>
+                              <option value="Numerical">Numerical / Formula</option>
+                            </select>
+                          </div>
+
+                          {/* Attempt Count */}
+                          <div className="flex items-center gap-1">
+                            <span className="text-[10px] text-gray-500 font-semibold">Attempt:</span>
+                            <input
+                              type="number"
+                              min="1"
+                              max="20"
+                              value={sub.count || 1}
+                              onChange={(e) => handleUpdateSubSection(secIdx, subIdx, 'count', Number(e.target.value) || 1)}
+                              className="w-12 px-1.5 py-1 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md text-center text-xs font-bold"
+                            />
+                          </div>
+
+                          {/* Choices */}
+                          <div className="flex items-center gap-1">
+                            <span className="text-[10px] text-gray-500 font-semibold">of</span>
+                            <input
+                              type="number"
+                              min="1"
+                              max="20"
+                              value={sub.choices || sub.count || 1}
+                              onChange={(e) => handleUpdateSubSection(secIdx, subIdx, 'choices', Number(e.target.value) || 1)}
+                              className="w-12 px-1.5 py-1 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md text-center text-xs font-bold"
+                              title="Total choices given in paper"
+                            />
+                          </div>
+
+                          {/* Marks Each */}
+                          <div className="flex items-center gap-1">
+                            <span className="text-[10px] text-gray-500 font-semibold">@</span>
+                            <input
+                              type="number"
+                              step="0.5"
+                              min="1"
+                              max="50"
+                              value={sub.marksEach || 2}
+                              onChange={(e) => handleUpdateSubSection(secIdx, subIdx, 'marksEach', Number(e.target.value) || 1)}
+                              className="w-14 px-1.5 py-1 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md text-center text-xs font-bold text-primary-600 dark:text-primary-400"
+                            />
+                            <span className="text-[10px] text-gray-500">M</span>
+                          </div>
+
+                          {/* Subtotal */}
+                          <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400 min-w-[55px] text-right">
+                            = {blockTotal}M
+                          </span>
+
+                          {sec.subSections.length > 1 && (
+                            <button
+                              onClick={() => handleRemoveSubSection(secIdx, subIdx)}
+                              className="p-1 hover:bg-rose-50 text-rose-500 rounded text-xs transition-colors cursor-pointer"
+                              title="Remove Question Block"
+                            >
+                              ✕
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  <button
+                    onClick={() => handleAddSubSection(secIdx)}
+                    className="self-start px-2.5 py-1 text-[11px] font-bold text-primary-600 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-950/60 rounded-lg transition-colors cursor-pointer flex items-center gap-1"
+                  >
+                    <span>+</span>
+                    <span>Add Question Block to this Section</span>
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Live Calculation Summary Banner & Controls */}
+        <div className="p-4 rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-gray-500 dark:text-gray-400">Total Blueprint Allocation:</span>
+              <span className={`text-sm font-extrabold font-mono px-2.5 py-0.5 rounded-full ${
+                isMarksBalanced
+                  ? 'bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300'
+                  : 'bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300'
+              }`}>
+                {totalAllocatedMarks} Marks
+              </span>
+            </div>
+
+            <div className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
+              <span>(Target:</span>
+              <strong className="text-gray-800 dark:text-gray-200">{targetMarks} Marks</strong>
+              <span>— {isMarksBalanced ? '✓ Perfect Match' : `Difference: ${Math.abs(totalAllocatedMarks - targetMarks)} Marks`}</span>
+              <span>)</span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleResetPaperPattern}
+              className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs font-bold rounded-xl transition-all cursor-pointer"
+            >
+              🔄 Reset to Parul 40M Default
+            </button>
+            <button
+              onClick={handleSavePaperPattern}
+              className="px-4 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white text-xs font-bold rounded-xl shadow-md transition-all flex items-center gap-1.5 cursor-pointer"
+            >
+              <span>✓</span>
+              <span>Save & Apply Pattern</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* ──────────────────────────────────────────────────────────────────────── */}
+      {/* SECTION 3: ASK AN AGENT TO RESOLVE ANY ISSUE                            */}
       {/* ──────────────────────────────────────────────────────────────────────── */}
       <div className="glass-card p-6 flex flex-col gap-4 border-primary-500/30 bg-gradient-to-br from-primary-500/5 to-indigo-500/5">
         <div className="flex items-center justify-between">

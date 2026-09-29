@@ -1,44 +1,26 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { generateDynamicQuestions } from '../utils/questionGenerator';
 import { extractMultipleDocuments } from '../utils/clientDocExtractor';
+import { getUserId, getActiveSessionId } from '../utils/apiClient';
 
 const PIPELINE_STAGES = [
   {
-    agent: 'Lead Document Ingestion Agent',
+    agent: 'Document extraction',
     avatar: '📡',
-    stage: 'Deep Slide-by-Slide & Page-by-Page Extraction',
-    detail: 'Extracting PDF text streams, formulas, syllabus outlines, and core academic definitions...'
+    stage: 'Reading source files',
+    detail: 'Extracting text from each uploaded file and retaining its document identity.'
   },
   {
-    agent: 'Sentinel-V3 (Security & Grounding Auditor)',
+    agent: 'Extraction validation',
     avatar: '🛡️',
-    stage: 'Line-by-Line Token Filtering & Grounding Gate',
-    detail: 'Sanitizing syntax, stripping PDF code artifacts, verifying zero-hallucination source links...'
+    stage: 'Checking extracted content',
+    detail: 'Checking which files produced readable source text and reporting any failures.'
   },
   {
-    agent: 'Prof. S. Mukherjee (Lead Exam Strategist)',
+    agent: 'Knowledge source setup',
     avatar: '👨‍🏫',
-    stage: 'Syllabus Topic Weightage & Unit Classification',
-    detail: 'Allocating question weights across Bloom’s Taxonomy and Parul University 40-mark marking scheme...'
-  },
-  {
-    agent: 'Prof. N. Kulkarni (Adversarial Critic)',
-    avatar: '⚖️',
-    stage: 'Adversarial Question Formulation & Rigor Check',
-    detail: 'Synthesizing 300 distinct practice questions, eliminating ambiguity and duplicate concepts...'
-  },
-  {
-    agent: 'Dr. R. Gupta (Model Solutions Architect)',
-    avatar: '📝',
-    stage: 'Step-by-Step Marking Scheme & Caselet Derivations',
-    detail: 'Drafting 4 Model Question Paper Sets (Set A, B, C, D) with comprehensive model answers...'
-  },
-  {
-    agent: 'Agent Neuro (Cognitive Learning Coach)',
-    avatar: '🧠',
-    stage: 'Adaptive Spaced Repetition Scheduling',
-    detail: 'Generating Leitner flashcard deck and personalized 5-day exam preparation roadmap...'
+    stage: 'Saving document sources',
+    detail: 'Saving the extracted text per document so later question generation can cite the right source.'
   }
 ];
 
@@ -152,87 +134,114 @@ export default function UploadTab({ appState, setAppState, setActiveTab, session
     setCurrentStageIndex(0);
 
     try {
-      // Stage 1: Document extraction
       setCurrentStageIndex(0);
       setProgressPercent(20);
-      const extractedData = await extractMultipleDocuments(files);
-      let extractedText = extractedData.combinedText || '';
-      let wordCount = extractedData.totalWords || extractedText.split(/\s+/).filter(Boolean).length;
-      let charCount = extractedData.totalChars || extractedText.length;
       let backendData = null;
+      let backendError = null;
 
-      // Stage 2: Server-side OCR & AST Sanitization (with non-blocking timeout)
       setCurrentStageIndex(1);
       setProgressPercent(40);
       try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 2000);
+        const timeoutId = setTimeout(() => controller.abort(), 60000);
         const formData = new FormData();
         files.forEach(f => formData.append('files', f));
         const res = await fetch('/api/v1/process-multiple', {
           method: 'POST',
+          headers: {
+            'X-User-ID': getUserId(),
+            'X-Session-ID': getActiveSessionId()
+          },
           body: formData,
           signal: controller.signal
         });
         clearTimeout(timeoutId);
-        if (res.ok) {
-          backendData = await res.json();
-          if (backendData.extracted_text && backendData.extracted_text.length > extractedText.length) {
-            extractedText = backendData.extracted_text;
-            wordCount = backendData.total_word_count || wordCount;
-            charCount = backendData.total_character_count || charCount;
-          }
+        if (!res.ok) {
+          const failure = await res.json().catch(() => ({}));
+          throw new Error(failure.detail || `Server extraction failed (${res.status}).`);
         }
-      } catch (backendErr) {
-        console.info("Processed via in-browser PDF.js engine:", backendErr);
+        backendData = await res.json();
+      } catch (error) {
+        backendError = error;
       }
 
-      // Stage 3: Syllabus & Topic Blueprint Mapping
+      const extractedData = backendData?.files?.length
+        ? {
+            files: backendData.files.map(file => ({
+              filename: file.filename,
+              text: file.text || '',
+              wordCount: file.word_count || 0,
+              charCount: file.character_count || 0,
+              error: file.error || (!file.success ? 'Server extraction failed.' : null),
+              documentId: file.document_id,
+              headings: file.headings || [],
+              topics: file.topics || [],
+              definitions: file.definitions || [],
+              formulas: file.formulas || [],
+              elements: file.elements || [],
+              pages: file.pages || []
+            }))
+          }
+        : await extractMultipleDocuments(files);
+      const readableDocuments = extractedData.files.filter(file => file.text?.trim());
+      const failedDocuments = extractedData.files.filter(file => !file.text?.trim());
+      if (!readableDocuments.length) {
+        const reasons = failedDocuments.map(file => `${file.filename}: ${file.error || 'No readable text extracted.'}`).join('\n');
+        throw new Error(reasons || backendError?.message || 'No readable text could be extracted from the uploaded files.');
+      }
+      const extractedDocuments = readableDocuments.map((file, index) => ({
+        id: file.documentId || `doc_${index + 1}`,
+        filename: file.filename,
+        text: file.text,
+        wordCount: file.wordCount,
+        charCount: file.charCount,
+        headings: file.headings || [],
+        topics: file.topics || [],
+        definitions: file.definitions || [],
+        formulas: file.formulas || [],
+        elements: file.elements || [],
+        pages: file.pages || []
+      }));
+      const extractedText = extractedDocuments
+        .map((doc, index) => `=== [DOCUMENT ${index + 1}: ${doc.filename}] ===\n${doc.text}`)
+        .join('\n\n');
+      const wordCount = extractedDocuments.reduce((sum, doc) => sum + doc.wordCount, 0);
+      const charCount = extractedDocuments.reduce((sum, doc) => sum + doc.charCount, 0);
+
       setCurrentStageIndex(2);
-      setProgressPercent(60);
-      await new Promise(r => setTimeout(r, 400));
-
-      // Stage 4 & 5: Adversarial Question Generation & Solutions
-      setCurrentStageIndex(3);
-      setProgressPercent(80);
-      const dynamicQs = generateDynamicQuestions(extractedText, files.map(f => f.name).join(' '));
-      const top25 = dynamicQs.slice(0, 25);
-      await new Promise(r => setTimeout(r, 400));
-
-      // Stage 6: Final Adaptive Learning Integration
-      setCurrentStageIndex(5);
       setProgressPercent(100);
-      await new Promise(r => setTimeout(r, 300));
 
       setAppState(prev => ({
         ...prev,
         uploadedFiles: files,
         uploadedFile: files[0],
-        extractedText: extractedText,
+        extractedText,
+        extractedDocuments,
         results: backendData || { files: extractedData.files },
-        questions: dynamicQs,
-        rankedQuestions: top25,
-        answers: top25,
+        questions: [],
+        rankedQuestions: [],
+        answers: [],
         stats: { 
           pdfCount: files.length,
-          questionCount: dynamicQs.length,
-          confidence: 98,
-          answerCount: top25.length
+          questionCount: 0,
+          confidence: 0,
+          answerCount: 0
         }
       }));
 
       setProcessed(true);
       setProcessInfo({
         totalFiles: files.length,
-        filesList: extractedData.files.map(f => ({ filename: f.filename, word_count: f.wordCount })),
+        filesList: extractedData.files.map(f => ({ filename: f.filename, word_count: f.wordCount, error: f.error || null })),
         wordCount: wordCount,
         characterCount: charCount,
-        summary: backendData?.summary || null
+        summary: backendData?.summary || null,
+        failures: failedDocuments
       });
 
     } catch (err) {
       console.error("Error during document processing:", err);
-      alert("Failed to process documents. Please ensure the files are readable.");
+      alert(err.message || 'Failed to extract readable text from the documents.');
     } finally {
       setLoading(false);
     }
@@ -462,16 +471,16 @@ export default function UploadTab({ appState, setAppState, setActiveTab, session
               <span className="text-3xl">🎯</span>
               <div>
                 <h3 className="font-bold text-base text-emerald-900 dark:text-emerald-300">
-                  Deep Multi-Agent Analysis Complete!
+                  Document Extraction Complete
                 </h3>
                 <p className="text-xs text-emerald-700 dark:text-emerald-400">
-                  Parsed {processInfo.totalFiles} Document(s) • {processInfo.wordCount} Words Analyzed • Zero-Hallucination Verified
+                  Extracted {processInfo.totalFiles - (processInfo.failures?.length || 0)} of {processInfo.totalFiles} file(s) • {processInfo.wordCount} words retained per source
                 </p>
               </div>
             </div>
 
             <span className="px-3 py-1 bg-emerald-500 text-white font-bold text-xs rounded-full self-start md:self-auto shadow-xs">
-              4 Model Papers Ready
+              Source text ready
             </span>
           </div>
 
@@ -484,9 +493,9 @@ export default function UploadTab({ appState, setAppState, setActiveTab, session
               <div>
                 <span className="text-xl">🎯</span>
                 <h5 className="font-bold text-xs text-gray-900 dark:text-gray-100 mt-1">
-                  4 Model Exam Papers
+                  Exam prediction pipeline
                 </h5>
-                <p className="text-[10px] text-gray-500">Sets A, B, C, D with Full Solutions</p>
+                <p className="text-[10px] text-gray-500">Rank evidence and build a profile-shaped mock paper</p>
               </div>
               <span className="text-[10px] font-bold text-primary-600 mt-2">Open Predictor →</span>
             </button>
@@ -498,9 +507,9 @@ export default function UploadTab({ appState, setAppState, setActiveTab, session
               <div>
                 <span className="text-xl">❓</span>
                 <h5 className="font-bold text-xs text-gray-900 dark:text-gray-100 mt-1">
-                  300 Question Bank
+                  Question bank
                 </h5>
-                <p className="text-[10px] text-gray-500">Tiered Funnel (Top 25, 100, 200)</p>
+                <p className="text-[10px] text-gray-500">Generate candidates from the extracted source material</p>
               </div>
               <span className="text-[10px] font-bold text-primary-600 mt-2">Open Bank →</span>
             </button>

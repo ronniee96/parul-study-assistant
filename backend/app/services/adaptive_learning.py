@@ -5,6 +5,7 @@ Provides ethical, user-consented personalization based on learning interactions
 
 import json
 import logging
+import re
 from typing import Dict, List, Any, Optional
 from datetime import datetime, timedelta
 import os
@@ -19,13 +20,13 @@ class AdaptiveLearningService:
     """
 
     def __init__(self, user_id: str = None, storage_path: str = "./user_data"):
-        self.user_id = user_id or "default_user"
+        raw_id = str(user_id or "default_user").strip()
+        self.user_id = re.sub(r'[^a-zA-Z0-9_\-]', '_', raw_id) or "default_user"
         self.storage_path = storage_path
-        self.consent_given = False
+        self.profiles_dir = os.path.join(storage_path, "profiles")
+        os.makedirs(self.profiles_dir, exist_ok=True)
         self.learning_profile = self._load_learning_profile()
-
-        # Ensure storage directory exists
-        os.makedirs(storage_path, exist_ok=True)
+        self.consent_given = bool(self.learning_profile.get("consent", {}).get("given", False))
 
     def give_consent(self, consent_types: List[str] = None) -> bool:
         """
@@ -369,7 +370,7 @@ class AdaptiveLearningService:
     # Private helper methods
     def _load_learning_profile(self) -> Dict[str, Any]:
         """Load learning profile from storage"""
-        profile_file = os.path.join(self.storage_path, f"{self.user_id}_profile.json")
+        profile_file = os.path.join(self.profiles_dir, f"{self.user_id}_profile.json")
         try:
             if os.path.exists(profile_file):
                 with open(profile_file, 'r') as f:
@@ -391,7 +392,7 @@ class AdaptiveLearningService:
         if not self.user_id:
             return
 
-        profile_file = os.path.join(self.storage_path, f"{self.user_id}_profile.json")
+        profile_file = os.path.join(self.profiles_dir, f"{self.user_id}_profile.json")
         try:
             with open(profile_file, 'w') as f:
                 json.dump(self.learning_profile, f, indent=2, default=str)
@@ -527,8 +528,19 @@ class AdaptiveLearningService:
         else:
             return "hard"
 
-# Global instance for easy access (in production, you'd use dependency injection)
-adaptive_service = AdaptiveLearningService()
+# Per-user service caching to ensure strict multi-tenant isolation
+_user_services: Dict[str, AdaptiveLearningService] = {}
+
+def get_adaptive_service(user_id: Optional[str] = None) -> AdaptiveLearningService:
+    """Return an isolated AdaptiveLearningService instance scoped to user_id"""
+    raw_id = str(user_id or "default_user").strip()
+    safe_id = re.sub(r'[^a-zA-Z0-9_\-]', '_', raw_id) or "default_user"
+    if safe_id not in _user_services:
+        _user_services[safe_id] = AdaptiveLearningService(user_id=safe_id)
+    return _user_services[safe_id]
+
+# Default instance for backwards-compatibility
+adaptive_service = get_adaptive_service("default_user")
 
 # Example usage
 if __name__ == "__main__":

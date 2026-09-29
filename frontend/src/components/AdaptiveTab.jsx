@@ -27,7 +27,7 @@ function formatEasyFlashcard(q) {
     .map(s => s.trim())
     .filter(s => s.length > 12 && !s.startsWith('•') && !s.startsWith('-') && !s.includes('[DIAGRAM'));
 
-  let coreDefinition = rawSentences[0] || `${topic} is a fundamental concept in this syllabus.`;
+  let coreDefinition = rawSentences[0] || cleaned || `No supported answer text is available for ${topic}.`;
   if (rawSentences[1] && rawSentences[0].length < 120) {
     coreDefinition += ' ' + rawSentences[1];
   }
@@ -56,14 +56,6 @@ function formatEasyFlashcard(q) {
     if (bulletMatches && bulletMatches.length > 0) {
       bullets = bulletMatches.slice(0, 3).map(b => b.replace(/^[•\-\*]\s*/, '').slice(0, 95));
     }
-  }
-
-  if (bullets.length === 0) {
-    bullets = [
-      `Key definition tested for ${topic} in examinations`,
-      `Always distinguish controllable variables from fixed commitments`,
-      `High-probability exam concept for quick scoring`
-    ];
   }
 
   return {
@@ -161,7 +153,7 @@ export default function AdaptiveTab({ appState = {}, setActiveTab }) {
         keyPoints: easyRecall.bullets,
         category: q.topic || 'Core Concept',
         topicTitle: q.topic || 'Document Review',
-        examTip: `High-yield ${q.marks || 5}-mark item predicted with ${q.confidence || 90}% likelihood in Parul University examination.`,
+        examTip: `Review this ${q.marks || 5}-mark practice item against the cited study material.`,
         source: 'Uploaded Document'
       };
     });

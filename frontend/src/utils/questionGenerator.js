@@ -93,8 +93,8 @@ export function cleanTextLines(rawText) {
 export function extractAcademicConcepts(extractedText = '', filename = '') {
   const concepts = [];
   const text = cleanTextLines(extractedText);
-  const isAccounting = /mac|cost|account|finan|audit|budget|decision|cvp|variance|bep/i.test(filename + ' ' + text);
-  const isTech = /cs|it|data|algo|prog|soft|code|web|ai|ml|system|database/i.test(filename + ' ' + text);
+  const isAccounting = /\b(management\s+accounting|cost\s+accounting|cost\s+sheet|costing|financial\s+accounting|financial\s+management|auditing|budgetary|cvp\s+analysis|variance\s+analysis|break\s+even|cma)\b/i.test(filename + ' ' + text);
+  const isTech = /\b(computer\s+science|programming|algorithm|software|data\s+structure|machine\s+learning|artificial\s+intelligence|web\s+development|database|cybersecurity|python|java|react)\b/i.test(filename + ' ' + text);
 
   // 1. Definitory Pattern Matching
   const sentences = text.split(/(?<=[.!?])\s+/).map(s => s.trim()).filter(s => s.length > 15 && !isCodeOrGarbage(s));

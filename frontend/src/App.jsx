@@ -15,7 +15,19 @@ import AgentSquadTab from './components/AgentSquadTab';
 import SettingsTab from './components/SettingsTab';
 import APIKeyModal from './components/APIKeyModal';
 import AkiDashboardCompanion from './components/AkiDashboardCompanion';
+import SessionManagerModal from './components/SessionManagerModal';
 import { motion, AnimatePresence } from 'framer-motion';
+import { getSavedPaperPattern } from './utils/paperPatterns';
+import {
+  getUserId,
+  getActiveSessionId,
+  setActiveSessionId,
+  saveSessionState,
+  loadSessionState,
+  createNewSession,
+  listSessions,
+  deleteSession
+} from './utils/apiClient';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('upload');
@@ -47,63 +59,123 @@ export default function App() {
     if (priority) localStorage.setItem('study_assistant_primary_priority', priority);
   };
   
-  // App state initializes clean (0 PDFs, 0 Questions, 0 Answers)
-  const [appState, setAppState] = useState(() => ({
-    uploadedFile: null,
-    uploadedFiles: [],
-    extractedText: '',
-    results: null,
-    summaryData: null,
-    questions: [],
-    rankedQuestions: [],
-    predictedPaper: null,
-    answers: [],
-    captures: [],
-    stats: {
-      pdfCount: 0,
-      questionCount: 0,
-      confidence: 0,
-      answerCount: 0
+  // Session management state
+  const [currentSessionId, setCurrentSessionId] = useState(() => getActiveSessionId());
+  const [savedSessionsList, setSavedSessionsList] = useState(() => listSessions());
+  const [sessionModalOpen, setSessionModalOpen] = useState(false);
+  const [userId] = useState(() => getUserId());
+
+  // App state hydrates from active session storage if available, preserving student's work on refresh
+  const [appState, setAppState] = useState(() => {
+    const activeId = getActiveSessionId();
+    const persisted = loadSessionState(activeId);
+    if (persisted && (persisted.uploadedFiles?.length > 0 || persisted.extractedText || persisted.questions?.length > 0)) {
+      return {
+        ...persisted,
+        paperPattern: persisted.paperPattern || getSavedPaperPattern()
+      };
     }
-  }));
+    return {
+      uploadedFile: null,
+      uploadedFiles: [],
+      extractedText: '',
+      extractedDocuments: [],
+      pastPapers: [],
+      examProfile: null,
+      pipelineData: null,
+      results: null,
+      summaryData: null,
+      questions: [],
+      rankedQuestions: [],
+      predictedPaper: null,
+      answers: [],
+      captures: [],
+      paperPattern: getSavedPaperPattern(),
+      stats: {
+        pdfCount: 0,
+        questionCount: 0,
+        confidence: 0,
+        answerCount: 0
+      }
+    };
+  });
 
   const [lastSaved, setLastSaved] = useState(null);
 
-  const handleResetWorkspace = (showPrompt = false) => {
-    if (!showPrompt || window.confirm("Start a fresh study session? This will clear all uploaded PDFs, questions, and notes. (Your API keys will remain saved)")) {
-      const emptyState = {
-        uploadedFile: null,
-        uploadedFiles: [],
-        extractedText: '',
-        results: null,
-        summaryData: null,
-        questions: [],
-        rankedQuestions: [],
-        predictedPaper: null,
-        answers: [],
-        captures: [],
-        stats: { pdfCount: 0, questionCount: 0, confidence: 0, answerCount: 0 }
-      };
-      setAppState(emptyState);
-      
-      // Purge all possible workspace cache keys
-      try {
-        localStorage.removeItem('study_assistant_workspace_v2');
-        localStorage.removeItem('study_workspace_questions');
-        localStorage.removeItem('study_workspace_summary');
-        localStorage.removeItem('study_assistant_sr_stats');
-        localStorage.removeItem('study_assistant_card_progress');
-        localStorage.removeItem('parul_gemini_active_model');
-        sessionStorage.clear();
-      } catch (e) {
-        console.warn("Error clearing storage:", e);
+  // Auto-save session state whenever it is updated
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (currentSessionId) {
+        saveSessionState(currentSessionId, appState);
+        setLastSaved(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+        setSavedSessionsList(listSessions());
       }
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [appState, currentSessionId]);
 
-      setSessionKey(prev => prev + 1);
-      setActiveTab('upload');
-      setLastSaved(null);
-      setToastMessage("✨ Fresh session started! All previous data cleared. Upload new PDF(s) to begin.");
-      setTimeout(() => setToastMessage(null), 4000);
+  const handleStartNewSession = (sessionName) => {
+    const newId = createNewSession(sessionName || 'New Study Session');
+    setCurrentSessionId(newId);
+    const emptyState = {
+      uploadedFile: null,
+      uploadedFiles: [],
+      extractedText: '',
+      extractedDocuments: [],
+      pastPapers: [],
+      examProfile: null,
+      pipelineData: null,
+      results: null,
+      summaryData: null,
+      questions: [],
+      rankedQuestions: [],
+      predictedPaper: null,
+      answers: [],
+      captures: [],
+      paperPattern: getSavedPaperPattern(),
+      stats: { pdfCount: 0, questionCount: 0, confidence: 0, answerCount: 0 }
+    };
+    setAppState(emptyState);
+    saveSessionState(newId, emptyState);
+    setSavedSessionsList(listSessions());
+    setSessionKey(prev => prev + 1);
+    setActiveTab('upload');
+    setLastSaved(null);
+    setToastMessage("✨ Fresh session started! Your previous session is safely preserved.");
+    setTimeout(() => setToastMessage(null), 4000);
+  };
+
+  const handleSwitchSession = (sessionId) => {
+    setActiveSessionId(sessionId);
+    setCurrentSessionId(sessionId);
+    const loaded = loadSessionState(sessionId);
+    if (loaded) {
+      setAppState({
+        ...loaded,
+        paperPattern: loaded.paperPattern || getSavedPaperPattern()
+      });
+    }
+    setSessionKey(prev => prev + 1);
+    setSessionModalOpen(false);
+    setToastMessage("📂 Session loaded!");
+    setTimeout(() => setToastMessage(null), 3000);
+  };
+
+  const handleDeleteSession = (sessionId) => {
+    const updated = deleteSession(sessionId);
+    setSavedSessionsList(updated);
+    if (sessionId === currentSessionId) {
+      if (updated.length > 0) {
+        handleSwitchSession(updated[0].id);
+      } else {
+        handleStartNewSession('Default Session');
+      }
+    }
+  };
+
+  const handleResetWorkspace = (showPrompt = false) => {
+    if (!showPrompt || window.confirm("Start a fresh study session? Your previous session will remain safely saved in the Sessions list.")) {
+      handleStartNewSession('New Study Session');
     }
   };
 
@@ -122,7 +194,7 @@ export default function App() {
 
     setTimeout(() => {
       setIsRefreshingAgents(false);
-      setToastMessage("⚡ Agent Squad & Cognitive Engine Refreshed! All 6 AI models recalibrated for maximum analytical depth.");
+      setToastMessage("Study views refreshed.");
       setTimeout(() => setToastMessage(null), 4500);
     }, 450);
   };
@@ -144,7 +216,10 @@ export default function App() {
       primaryPriority,
       openApiKeyModal: () => setApiKeyModalOpen(true),
       sessionKey,
-      startNewSession: () => handleResetWorkspace(false)
+      startNewSession: () => handleResetWorkspace(false),
+      userId,
+      currentSessionId,
+      openSessionModal: () => setSessionModalOpen(true)
     };
 
     switch (activeTab) {
@@ -226,6 +301,15 @@ export default function App() {
             </button>
 
             <button
+              onClick={() => setSessionModalOpen(true)}
+              className="px-3 py-1.5 rounded-full bg-white/20 hover:bg-white/30 text-xs font-bold transition-all text-white border border-white/30 cursor-pointer shadow-sm flex items-center gap-1.5"
+              title="Manage study sessions & switch subjects without losing work"
+            >
+              <span>📁</span>
+              <span className="hidden md:inline">Sessions ({savedSessionsList.length})</span>
+            </button>
+
+            <button
               onClick={() => handleResetWorkspace(false)}
               className="px-3 py-1.5 rounded-full bg-white/20 hover:bg-white/30 text-xs font-bold transition-all text-white border border-white/30 cursor-pointer shadow-sm flex items-center gap-1.5"
               title="Start a completely new study session (clears previous PDFs & questions, keeps API keys)"
@@ -300,6 +384,16 @@ export default function App() {
         appState={appState}
         setActiveTab={setActiveTab}
         apiKeys={apiKeys}
+      />
+
+      <SessionManagerModal
+        isOpen={sessionModalOpen}
+        onClose={() => setSessionModalOpen(false)}
+        currentSessionId={currentSessionId}
+        sessions={savedSessionsList}
+        onSwitchSession={handleSwitchSession}
+        onCreateNewSession={handleStartNewSession}
+        onDeleteSession={handleDeleteSession}
       />
 
       <APIKeyModal 

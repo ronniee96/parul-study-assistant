@@ -88,14 +88,13 @@ class AkiStudyAgent:
     def query(self, prompt: str, context: Optional[str] = None, user_key: Optional[str] = None) -> Dict[str, Any]:
         """
         Process a question through Aki's Antigravity intelligence pipeline.
+        Thread-safe and multi-tenant safe: never mutates singleton credentials.
         """
-        active_key = user_key or self.api_key
-        if user_key and user_key != self.api_key:
-            self.api_key = user_key
-            self._init_client()
+        user_key_clean = user_key.strip() if (user_key and isinstance(user_key, str)) else None
+        active_key = user_key_clean or self.api_key
 
-        # 1. Try google.generativeai client if available
-        if self.client:
+        # 1. Try server's pre-configured google.generativeai client if no custom key provided
+        if not user_key_clean and self.client:
             try:
                 full_prompt = prompt
                 if context:
