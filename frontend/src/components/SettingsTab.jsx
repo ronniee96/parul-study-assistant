@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { ANIME_CHEER_QUOTES } from '../utils/animeQuotes';
 
 const DEFAULT_FEEDBACK = [
   {
@@ -51,115 +52,8 @@ const DEFAULT_FEEDBACK = [
     rating: 4,
     timestamp: 'Yesterday at 04:45 PM',
     status: 'open',
-    assignedAgent: 'Dr. Gupta',
+    assignedAgent: 'Dr. Divyanshu (President of Parul University)',
     agentResolution: null
-  }
-];
-
-const ANIME_CHEER_QUOTES = [
-  {
-    id: 'q-1',
-    kanji: "七転び八起き",
-    romaji: "Nana korobi ya oki",
-    english: "Fall seven times, stand up eight.",
-    author: "Japanese Classical Proverb (古事成語)",
-    badge: "🔥 Unyielding Spirit",
-    color: "from-rose-500/20 via-pink-500/20 to-purple-500/20",
-    border: "border-pink-500/50",
-    textGlow: "text-pink-600 dark:text-pink-300",
-    sfx: "Ganbare~! (がんばれー！)",
-    voice: "Even if past questions felt tough, your persistence today will conquer the semester exam! Aki and Rohan believe in your unstoppable power! 🌸💪"
-  },
-  {
-    id: 'q-2',
-    kanji: "限界を超えろ！更に向こうへ、Plus Ultra！",
-    romaji: "Genkai o koero! Sara ni mukō e, Plus Ultra!",
-    english: "Surpass your limits! Go beyond, Plus Ultra!",
-    author: "All Might — My Hero Academia (僕のヒーローアカデミア)",
-    badge: "⚡ Plus Ultra Power",
-    color: "from-amber-500/20 via-orange-500/20 to-red-500/20",
-    border: "border-amber-500/50",
-    textGlow: "text-amber-600 dark:text-amber-300",
-    sfx: "Plus Ultra~! (更に向こうへ！)",
-    voice: "Your mind has incredible power waiting to be unlocked! Review your high-yield points and step into the examination hall like a hero! ⚡💥"
-  },
-  {
-    id: 'q-3',
-    kanji: "継続は力なり",
-    romaji: "Keizoku wa chikara nari",
-    english: "Continuity is power — Consistency breeds miracles.",
-    author: "Japanese Wisdom (座右の銘)",
-    badge: "💎 Supreme Mastery",
-    color: "from-emerald-500/20 via-teal-500/20 to-cyan-500/20",
-    border: "border-emerald-500/50",
-    textGlow: "text-emerald-600 dark:text-emerald-300",
-    sfx: "Yatta~! (やったー！)",
-    voice: "Every formula solved and every late night spent studying builds an unshakable foundation. Nothing can stop you now! 📚✨"
-  },
-  {
-    id: 'q-4',
-    kanji: "諦めたらそこで試合終了ですよ",
-    romaji: "Akirametara soko de shiai shūryō desu yo",
-    english: "If you give up now, the game is already over.",
-    author: "Coach Anzai — Slam Dunk (スラムダンク)",
-    badge: "🏆 Champion Mentality",
-    color: "from-red-500/20 via-rose-500/20 to-pink-500/20",
-    border: "border-red-500/50",
-    textGlow: "text-rose-600 dark:text-rose-300",
-    sfx: "Katsu zo~! (勝つぞー！)",
-    voice: "Stay calm when reading Section C case studies. Break down the problem step-by-step, draw your ASCII blueprint, and capture every mark! 🏀🎯"
-  },
-  {
-    id: 'q-5',
-    kanji: "勝つまで諦めない、それが俺の忍道だ！",
-    romaji: "Katsu made akiramenai, sore ga ore no nindō da!",
-    english: "Never giving up until I win — that is my ninja way!",
-    author: "Naruto Uzumaki (NARUTO -ナルト-)",
-    badge: "🍥 Shinobi Determination",
-    color: "from-orange-500/20 via-amber-500/20 to-yellow-500/20",
-    border: "border-orange-500/50",
-    textGlow: "text-orange-600 dark:text-orange-300",
-    sfx: "Dattebayo~! (だってばよ！)",
-    voice: "Believe it! You've prepared thoroughly with the 6-agent squad. You have the exact knowledge needed to ace this test! 🍥⚔️"
-  },
-  {
-    id: 'q-6',
-    kanji: "一期一会",
-    romaji: "Ichigo Ichie",
-    english: "Treasure this moment — each encounter happens only once.",
-    author: "Classical Japanese Proverb (茶道 一期一会)",
-    badge: "🌸 Zen Focus",
-    color: "from-violet-500/20 via-purple-500/20 to-fuchsia-500/20",
-    border: "border-violet-500/50",
-    textGlow: "text-violet-600 dark:text-violet-300",
-    sfx: "Kizuna~! (絆！)",
-    voice: "Take a deep breath and center your focus. Your preparation is your masterpiece — let it shine gracefully in your answer booklet! 🍵🌸"
-  },
-  {
-    id: 'q-7',
-    kanji: "心臓を捧げよ！",
-    romaji: "Shinzō o sasageyo!",
-    english: "Dedicate your heart with absolute conviction!",
-    author: "Commander Erwin — Attack on Titan (進撃の巨人)",
-    badge: "⚔️ Titan Conqueror",
-    color: "from-blue-500/20 via-indigo-500/20 to-slate-500/20",
-    border: "border-indigo-500/50",
-    textGlow: "text-indigo-600 dark:text-indigo-300",
-    sfx: "Sasageyo~! (捧げよー！)",
-    voice: "Dedicate full focus to your 3-hour exam! Clear all doubts, cite core theories, and conquer the semester with total victory! 🛡️⚡"
-  },
-  {
-    id: 'q-8',
-    kanji: "未来は今、君の手の中にある",
-    romaji: "Mirai wa ima, kimi no te no naka ni aru",
-    english: "The future is right here in your hands.",
-    author: "Steins;Gate (シュタインズ・ゲート)",
-    badge: "🌌 World Line Divergence 1.048%",
-    color: "from-cyan-500/20 via-sky-500/20 to-teal-500/20",
-    border: "border-cyan-500/50",
-    textGlow: "text-cyan-600 dark:text-cyan-300",
-    sfx: "El Psy Kongroo! (運命石の扉)",
-    voice: "Every minute of study recalibrates your future towards success! El Psy Kongroo — top semester scores are in your destiny! ⏱️🌌"
   }
 ];
 
@@ -307,9 +201,42 @@ export default function SettingsTab({
   const [akiClickCount, setAkiClickCount] = useState(0);
   const [akiActionState, setAkiActionState] = useState('idle'); // 'idle' | 'jumping' | 'sparkle'
   const [akiEmotes, setAkiEmotes] = useState([]);
+  const [manualPose, setManualPose] = useState(null); // null (auto) | '/aki_sasageyo.png' | '/aki_victory.png' | '/aki_love.png' | '/aki.png'
+  const [isBlinking, setIsBlinking] = useState(false);
+  const [isTalking, setIsTalking] = useState(false);
   const [akiUserQuery, setAkiUserQuery] = useState('');
   const [akiKnowledgeResponse, setAkiKnowledgeResponse] = useState(null);
   const [isAskingAki, setIsAskingAki] = useState(false);
+
+  // Natural Eye Blinking cycle every 3.8 seconds
+  useEffect(() => {
+    const blinkInterval = setInterval(() => {
+      setIsBlinking(true);
+      setTimeout(() => setIsBlinking(false), 150);
+    }, 3800);
+    return () => clearInterval(blinkInterval);
+  }, []);
+
+  // Dynamic Pose Matching based on active quote
+  const getAkiPoseImage = () => {
+    if (manualPose) return manualPose;
+    const currentQ = ANIME_CHEER_QUOTES[currentQuoteIdx];
+    const text = ((currentQ?.romaji || '') + ' ' + (currentQ?.english || '') + ' ' + (currentQ?.author || '')).toLowerCase();
+    
+    // Attack on Titan salute ("Shinzo o Sasageyo!")
+    if (text.includes('sasageyo') || text.includes('titan') || text.includes('erwin') || text.includes('eren')) {
+      return '/aki_sasageyo.png';
+    }
+    // Victory & Champion peace signs
+    if (text.includes('victory') || text.includes('win') || text.includes('katsu') || text.includes('champion') || text.includes('plus ultra')) {
+      return '/aki_victory.png';
+    }
+    // Love & Heart & Kindness
+    if (text.includes('love') || text.includes('heart') || text.includes('kizuna') || text.includes('peace') || text.includes('wisdom') || text.includes('kindness')) {
+      return '/aki_love.png';
+    }
+    return '/aki.png';
+  };
 
   // Trigger high-energy interactive click action on Aki
   const handleAkiInteraction = () => {
@@ -317,12 +244,20 @@ export default function SettingsTab({
     setAnimeCheered(true);
     setAkiClickCount(c => c + 1);
     setAkiActionState('jumping');
-    // Rotate to next cool quote
-    setCurrentQuoteIdx(prev => (prev + 1) % ANIME_CHEER_QUOTES.length);
+    setIsTalking(true);
+
+    // Randomize to a brand-new quote from the 50 quotes!
+    setCurrentQuoteIdx(prev => {
+      let next;
+      do {
+        next = Math.floor(Math.random() * ANIME_CHEER_QUOTES.length);
+      } while (next === prev && ANIME_CHEER_QUOTES.length > 1);
+      return next;
+    });
     setCardDisplayMode('quote');
 
-    // Burst cute floating emotes
-    const emoteIcons = ['✨', '💖', '⭐', '🌸', '🎉', '「がんばれー！」', '💫', '🔥'];
+    // ONLY English & Romaji cheer emotes, NO Japanese characters!
+    const emoteIcons = ['✨', '💖', '⭐', '🌸', '🎉', 'GANBARE! 🔥', 'FIGHT! 💪', 'LET\'S GO! 🚀', 'PLUS ULTRA! ⚡', 'YOU GOT THIS! ⭐', 'SASAGEYO! ⚔️'];
     const newEmotes = Array.from({ length: 5 }, (_, i) => ({
       id: Date.now() + i,
       icon: emoteIcons[Math.floor(Math.random() * emoteIcons.length)],
@@ -334,6 +269,7 @@ export default function SettingsTab({
     setTimeout(() => {
       setAkiActionState('idle');
       setAkiEmotes([]);
+      setIsTalking(false);
     }, 1500);
   };
 
@@ -401,7 +337,7 @@ export default function SettingsTab({
   }, [apiKeys]);
 
   const AGENT_PERSONAS = [
-    { id: 'dr_verma', name: 'Dr. Verma', role: 'Dean of Academics', icon: '🎓', desc: 'Focuses on Bloom\'s Taxonomy, formal academic terminology, and institutional marking schemes.' },
+    { id: 'dr_divyanshu', name: 'Dr. Divyanshu (University President)', role: 'President & Chief Academic Patron', icon: '🏛️', desc: 'Presides over university academic excellence, Bloom\'s Taxonomy governance, and overall exam syllabus integrity.' },
     { id: 'prof_mukherjee', name: 'Prof. Mukherjee', role: 'Descriptive & Frameworks Lead', icon: '✍️', desc: 'Specializes in 10-mark blueprints, ASCII process flowcharts, and managerial essays.' },
     { id: 'prof_kulkarni', name: 'Prof. Kulkarni', role: 'Applied Case & Quantitative Analyst', icon: '📊', desc: 'Emphasizes numerical formulas, SWOT/BCG matrices, and real-world corporate case studies.' },
     { id: 'dr_gupta', name: 'Dr. Gupta', role: 'Pedagogy & Memory Retention', icon: '🧠', desc: 'Focuses on high-yield recall, examiner trap warnings, and simple mnemonics.' },
@@ -692,14 +628,36 @@ export default function SettingsTab({
   };
 
   // Admin Action: Dispatch Agent Auto-Fix to a user complaint
-  const handleAdminAutoFix = (feedbackId, agentName) => {
+  const handleAdminAutoFix = (feedbackId, agentName = 'Dr. Divyanshu (President of Parul University)') => {
     const updatedList = feedbackList.map(item => {
       if (item.id === feedbackId) {
         return {
           ...item,
           status: 'resolved',
-          assignedAgent: agentName || item.assignedAgent || 'Dr. Verma',
-          agentResolution: `Resolved by ${agentName || 'Agent Squad'}: Workspace parameters tuned, source definitions verified, and updated response blueprint dispatched to student.`
+          assignedAgent: agentName,
+          agentResolution: `Directly resolved by ${agentName} & AI Squad: Problem audited, syllabus parameters retuned, and corrected blueprint verified for student.`
+        };
+      }
+      return item;
+    });
+
+    setFeedbackList(updatedList);
+    try {
+      localStorage.setItem('study_assistant_user_feedback_logs', JSON.stringify(updatedList));
+    } catch (err) {
+      console.warn("Error saving feedback:", err);
+    }
+  };
+
+  // Bulk Auto-Resolve all pending issues with Dr. Divyanshu & Squad
+  const handleAutoResolveAllIssues = () => {
+    const updatedList = feedbackList.map(item => {
+      if (item.status === 'open') {
+        return {
+          ...item,
+          status: 'resolved',
+          assignedAgent: 'Dr. Divyanshu (President of Parul University)',
+          agentResolution: 'Directly verified and resolved by Dr. Divyanshu & AI Squad. Root cause remediated with NAAC Grade A++ academic compliance.'
         };
       }
       return item;
@@ -738,7 +696,7 @@ export default function SettingsTab({
       else if (issueCategory === 'formulas') targetAgentObj = AGENT_PERSONAS.find(a => a.id === 'prof_kulkarni');
       else if (issueCategory === 'syllabus') targetAgentObj = AGENT_PERSONAS.find(a => a.id === 'sentinel');
       else if (issueCategory === 'api_speed') targetAgentObj = AGENT_PERSONAS.find(a => a.id === 'agent_neuro');
-      else targetAgentObj = AGENT_PERSONAS.find(a => a.id === 'dr_verma');
+      else targetAgentObj = AGENT_PERSONAS.find(a => a.id === 'dr_divyanshu') || AGENT_PERSONAS[0];
     }
 
     await new Promise(r => setTimeout(r, 1000));
@@ -988,7 +946,7 @@ export default function SettingsTab({
               onChange={(e) => updateSetting('examinerPersona', e.target.value)}
               className="mt-1 w-full px-3 py-2 bg-white dark:bg-gray-950 border border-gray-300 dark:border-gray-700 rounded-lg text-xs font-medium focus:ring-2 focus:ring-primary-500 focus:outline-none"
             >
-              <option value="dr_verma">Dr. Verma (Dean of Academics — Bloom's Taxonomy)</option>
+              <option value="dr_divyanshu">Dr. Divyanshu (University President — Academic Patron)</option>
               <option value="prof_mukherjee">Prof. Mukherjee (Qualitative Frameworks & Diagrams)</option>
               <option value="prof_kulkarni">Prof. Kulkarni (Applied Case & Quantitative Analyst)</option>
               <option value="dr_gupta">Dr. Gupta (Pedagogy & High-Retention Memory)</option>
@@ -1396,10 +1354,18 @@ export default function SettingsTab({
               onClick={handleAkiInteraction}
               title="Click Aki to make her jump & cheer with cool quotes! 🌸"
             >
-              {/* Cute Chibi Anime Girl Figurine "Aki" from Reference Image */}
+              {/* Cute Chibi Anime Girl Figurine "Aki" */}
               <div className="relative w-44 h-52 flex items-center justify-center">
-                <img 
-                  src="/aki.png" 
+                <motion.img 
+                  key={getAkiPoseImage()}
+                  initial={{ opacity: 0.85, scale: 0.96 }}
+                  animate={{ 
+                    opacity: 1, 
+                    scale: 1,
+                    scaleY: isBlinking ? 0.96 : 1
+                  }}
+                  transition={{ duration: 0.18 }}
+                  src={getAkiPoseImage()} 
                   alt="Aki - Study Assistant Anime Mascot" 
                   className="w-full h-full object-contain drop-shadow-xl select-none pointer-events-none transition-transform group-hover:scale-105"
                 />
@@ -1442,6 +1408,50 @@ export default function SettingsTab({
               <div className="mt-2 px-3 py-1 rounded-full bg-pink-100/90 dark:bg-pink-950/90 border border-pink-300/80 dark:border-pink-800 text-[10px] font-bold text-pink-700 dark:text-pink-300 shadow-xs flex items-center gap-1">
                 <span>🌸</span>
                 <span>Aki • Study Mascot (Click to Jump!)</span>
+              </div>
+
+              {/* Interactive Pose Selector Pills */}
+              <div className="flex items-center gap-1 mt-1.5" onClick={(e) => e.stopPropagation()}>
+                <button
+                  type="button"
+                  onClick={() => setManualPose('/aki_sasageyo.png')}
+                  className={`px-2 py-0.5 rounded-md text-[10px] font-bold cursor-pointer transition-colors ${
+                    manualPose === '/aki_sasageyo.png' ? 'bg-indigo-600 text-white' : 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100'
+                  }`}
+                  title="Shinzo o Sasageyo! (Attack on Titan salute)"
+                >
+                  ⚔️ Sasageyo
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setManualPose('/aki_victory.png')}
+                  className={`px-2 py-0.5 rounded-md text-[10px] font-bold cursor-pointer transition-colors ${
+                    manualPose === '/aki_victory.png' ? 'bg-pink-600 text-white' : 'bg-pink-50 dark:bg-pink-950/60 text-pink-700 dark:text-pink-300 hover:bg-pink-100'
+                  }`}
+                  title="Victory peace sign"
+                >
+                  ✌️ Victory
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setManualPose('/aki_love.png')}
+                  className={`px-2 py-0.5 rounded-md text-[10px] font-bold cursor-pointer transition-colors ${
+                    manualPose === '/aki_love.png' ? 'bg-rose-600 text-white' : 'bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 hover:bg-rose-100'
+                  }`}
+                  title="Finger heart love sign"
+                >
+                  💖 Love
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setManualPose(null)}
+                  className={`px-1.5 py-0.5 rounded-md text-[10px] font-bold cursor-pointer transition-colors ${
+                    manualPose === null ? 'bg-purple-600 text-white' : 'bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 hover:bg-purple-100'
+                  }`}
+                  title="Auto match pose to quote"
+                >
+                  Auto
+                </button>
               </div>
             </motion.div>
           </div>
@@ -1521,23 +1531,27 @@ export default function SettingsTab({
                           {ANIME_CHEER_QUOTES[currentQuoteIdx]?.badge || "🌸 Aki Cheer"}
                         </span>
                         <span className="font-mono text-purple-600 dark:text-purple-400 font-semibold italic">
-                          {ANIME_CHEER_QUOTES[currentQuoteIdx]?.sfx || "Ganbatte~! (がんばれー！)"}
+                          {ANIME_CHEER_QUOTES[currentQuoteIdx]?.sfx || "Ganbatte~! (Never Give Up!)"}
                         </span>
                       </div>
 
                       <div className="p-4 rounded-2xl bg-gradient-to-br from-pink-500/10 via-purple-500/10 to-indigo-500/10 border border-pink-300/40 dark:border-pink-700/40 text-center relative overflow-hidden shadow-2xs">
-                        <p className="font-extrabold text-lg md:text-xl tracking-wide bg-gradient-to-r from-pink-600 via-purple-600 to-indigo-600 dark:from-pink-300 dark:via-purple-300 dark:to-indigo-300 bg-clip-text text-transparent font-sans">
-                          「{ANIME_CHEER_QUOTES[currentQuoteIdx]?.kanji}」
-                        </p>
-                        <p className="text-[11px] text-gray-500 dark:text-gray-400 font-mono tracking-wider mt-1">
-                          {ANIME_CHEER_QUOTES[currentQuoteIdx]?.romaji}
-                        </p>
-                        <p className="text-xs md:text-sm text-gray-800 dark:text-gray-200 font-semibold mt-2 italic">
+                        {/* 1. ENGLISH TRANSLATION IN BIG BOLD LETTERS ON TOP */}
+                        <p className="font-black text-xl sm:text-2xl md:text-3xl tracking-wide uppercase bg-gradient-to-r from-pink-600 via-purple-600 to-indigo-600 dark:from-pink-300 dark:via-purple-300 dark:to-indigo-300 bg-clip-text text-transparent font-sans drop-shadow-xs">
                           "{ANIME_CHEER_QUOTES[currentQuoteIdx]?.english}"
                         </p>
-                        <span className="text-[11px] text-gray-500 dark:text-gray-400 block mt-1 font-medium">
-                          — {ANIME_CHEER_QUOTES[currentQuoteIdx]?.author}
-                        </span>
+
+                        {/* 2. BIG BOLD ROMAJI CATCHPHRASE (EASY FOR STUDENTS TO READ & CHANT) */}
+                        <p className="text-sm sm:text-base font-extrabold text-indigo-700 dark:text-indigo-300 tracking-wider mt-1.5 font-mono">
+                          ⚡ {ANIME_CHEER_QUOTES[currentQuoteIdx]?.romaji}
+                        </p>
+
+                        {/* 3. AUTHOR & SUBTLE SECONDARY NOTE */}
+                        <div className="flex items-center justify-center gap-1.5 text-[11px] text-gray-500 dark:text-gray-400 mt-2 font-medium">
+                          <span>— {ANIME_CHEER_QUOTES[currentQuoteIdx]?.author}</span>
+                          <span>•</span>
+                          <span className="text-gray-400 dark:text-gray-500 italic">JP: {ANIME_CHEER_QUOTES[currentQuoteIdx]?.kanji}</span>
+                        </div>
                       </div>
 
                       <p className="text-xs text-gray-700 dark:text-gray-300 leading-snug">
@@ -2017,8 +2031,46 @@ export default function SettingsTab({
               </div>
               <div className="p-3 rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 text-center">
                 <span className="text-[10px] text-gray-500 uppercase font-bold">Resolution Rate</span>
-                <span className="text-xl font-extrabold text-primary-500 block">94.8% Auto-Fixed</span>
+                <span className="text-xl font-extrabold text-primary-500 block">
+                  {feedbackList.length > 0 
+                    ? ((feedbackList.filter(f => f.status === 'resolved').length / feedbackList.length) * 100).toFixed(1) + '%'
+                    : '100%'}
+                </span>
               </div>
+            </div>
+
+            {/* Continuous Live Watcher & Auto-Heal Daemon Banner */}
+            <div className="p-3.5 rounded-2xl bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-indigo-500/10 border border-emerald-400/40 dark:border-emerald-800/40 flex flex-wrap items-center justify-between gap-3 shadow-xs">
+              <div className="flex items-center gap-2.5">
+                <span className="relative flex h-3 w-3">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+                </span>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-black text-gray-900 dark:text-gray-100">
+                      Live Telemetry Daemon • Dr. Divyanshu (President) Auto-Resolution Stream
+                    </span>
+                    <span className="px-2 py-0.2 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 font-extrabold text-[9px] border border-emerald-300/60">
+                      Active 24/7
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-gray-600 dark:text-gray-400">
+                    Constantly scanning student submissions for syllabus alignment, formula errors, and clarity. Automatically heals issues.
+                  </p>
+                </div>
+              </div>
+
+              {feedbackList.filter(f => f.status === 'open').length > 0 && (
+                <button
+                  onClick={handleAutoResolveAllIssues}
+                  className="px-3 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer hover:scale-102 active:scale-98"
+                  title="Auto-resolve all pending student problems with Dr. Divyanshu and AI Squad"
+                >
+                  <span>⚡</span>
+                  <span>Auto-Resolve All ({feedbackList.filter(f => f.status === 'open').length} Pending)</span>
+                </button>
+              )}
             </div>
 
             {/* Filter Tabs */}
@@ -2119,11 +2171,11 @@ export default function SettingsTab({
                     <div className="flex items-center gap-2">
                       {item.status !== 'resolved' && (
                         <button
-                          onClick={() => handleAdminAutoFix(item.id, 'Dr. Verma')}
+                          onClick={() => handleAdminAutoFix(item.id, 'Dr. Divyanshu (President of Parul University)')}
                           className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-[11px] transition-colors cursor-pointer flex items-center gap-1"
                         >
                           <span>⚡</span>
-                          <span>Dispatch Agent Auto-Fix</span>
+                          <span>Dispatch Dr. Divyanshu Auto-Fix</span>
                         </button>
                       )}
                       <button

@@ -2,13 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { generateDynamicQuestions } from '../utils/questionGenerator';
 import { extractMultipleDocuments } from '../utils/clientDocExtractor';
+import AkiFrontpageHero from './AkiFrontpageHero';
 
 const PIPELINE_STAGES = [
   {
-    agent: 'Dr. A. Verma (Research Agent)',
-    avatar: '🔬',
+    agent: 'Dr. Divyanshu (President & Chief Academic Patron)',
+    avatar: '🏛️',
     stage: 'Deep Slide-by-Slide & Page-by-Page Extraction',
-    detail: 'Reading PDF stream, parsing slides, extracting paragraphs, formulas, and academic definitions...'
+    detail: 'Overseeing PDF stream parsing, extracting paragraphs, formulas, and institutional academic definitions...'
   },
   {
     agent: 'Sentinel-V3 (Security & Grounding Auditor)',
@@ -249,6 +250,15 @@ export default function UploadTab({ appState, setAppState, setActiveTab, session
 
   return (
     <div className="flex flex-col gap-6 h-full p-2 md:p-4 max-w-6xl mx-auto">
+      {/* Frontpage Sleeping Aki Mascot (Click to wake up & start tasks) */}
+      <AkiFrontpageHero 
+        setActiveTab={setActiveTab} 
+        scrollToUpload={() => {
+          const el = document.getElementById('file-upload-dropzone');
+          if (el) el.scrollIntoView({ behavior: 'smooth' });
+        }} 
+      />
+
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
         <div>
@@ -261,7 +271,7 @@ export default function UploadTab({ appState, setAppState, setActiveTab, session
             </span>
           </div>
           <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-            Upload single or multiple course PDFs, PPTs, or lecture notes. Our <strong>6-Agent Squad</strong> will parse every page, slide, and line thoroughly to formulate predicted exams.
+            Upload single or multiple course PDFs, PPTs, or lecture notes. Our <strong>6-Agent Squad</strong> overseen by <strong>Dr. Divyanshu (President)</strong> will parse every page, slide, and line thoroughly to formulate predicted exams.
           </p>
         </div>
 
@@ -285,6 +295,7 @@ export default function UploadTab({ appState, setAppState, setActiveTab, session
 
       {/* Upload Box */}
       <div 
+        id="file-upload-dropzone"
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}

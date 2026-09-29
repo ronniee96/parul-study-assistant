@@ -3,27 +3,27 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 const AGENTS = [
   {
-    id: 'strategist',
-    name: 'Prof. S. Mukherjee',
-    role: 'Lead Exam Strategist & Chief Examiner',
-    avatar: '👨‍🏫',
-    model: 'Gemini 1.5 Pro / GPT-4o',
-    gradient: 'from-blue-500 to-indigo-600',
-    specialty: 'University Syllabus Weightage, Marking Rubrics & Section Allocations',
-    confidence: '99.2%',
-    tasksDone: 342,
-    status: 'Ready',
-    directive: 'Ensure strict compliance with Parul University Bloom’s taxonomy and question point distribution.'
+    id: 'president',
+    name: 'Dr. Divyanshu Patel',
+    role: 'University President & Chief Academic Patron',
+    avatar: '🏛️',
+    model: 'Gemini 1.5 Pro / GPT-4o Enterprise',
+    gradient: 'from-blue-600 via-indigo-600 to-purple-700',
+    specialty: 'Institutional Governance, NAAC Grade A++ Academic Rigor & University Syllabus Vision',
+    confidence: '99.8%',
+    tasksDone: 620,
+    status: 'Active',
+    directive: 'Uphold Parul University academic excellence, oversee Bloom’s taxonomy benchmarks, and empower every student to excel.'
   },
   {
     id: 'researcher',
-    name: 'Dr. A. Verma',
-    role: 'Syllabus & Research Synthesis Agent',
-    avatar: '🔬',
+    name: 'Prof. S. Mukherjee',
+    role: 'Lead Exam Strategist & Chief Examiner',
+    avatar: '👨‍🏫',
     model: 'Perplexity / Claude 3.5 Sonnet',
     gradient: 'from-cyan-500 to-blue-600',
-    specialty: 'Deep Document Indexing, Formula Extraction & Cross-Subject Citations',
-    confidence: '98.7%',
+    specialty: 'University Syllabus Weightage, Marking Rubrics & Section Allocations',
+    confidence: '98.9%',
     tasksDone: 418,
     status: 'Active',
     directive: 'Parse text, extract definitions, formulas, and link concepts across all uploaded modules.'

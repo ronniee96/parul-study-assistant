@@ -81,6 +81,42 @@ export default function Sidebar({ activeTab, setActiveTab, collapsed, setCollaps
         )}
       </div>
 
+      {/* Aki Issue & Help Assistant Widget */}
+      <div 
+        onClick={() => {
+          setActiveTab('settings');
+          setTimeout(() => {
+            const el = document.getElementById('student-feedback-form');
+            if (el) {
+              el.scrollIntoView({ behavior: 'smooth' });
+              el.classList.add('ring-4', 'ring-pink-500', 'transition-all');
+              setTimeout(() => el.classList.remove('ring-4', 'ring-pink-500'), 3000);
+            }
+          }, 250);
+        }}
+        className={`mx-3 mb-2 rounded-xl transition-all cursor-pointer group ${
+          !collapsed 
+            ? 'p-2.5 bg-pink-500/10 hover:bg-pink-500/20 border border-pink-300/60 dark:border-pink-800 flex items-center gap-2'
+            : 'p-1.5 flex justify-center hover:scale-110'
+        }`}
+        title="Facing an issue or need help? Aki will redirect you to Rohan's feedback form!"
+      >
+        <div className="w-7 h-7 rounded-full bg-pink-100 dark:bg-pink-950 flex items-center justify-center shrink-0 overflow-hidden border border-pink-300">
+          <img src="/aki.png" alt="Aki" className="w-full h-full object-contain group-hover:scale-110 transition-transform" />
+        </div>
+        {!collapsed && (
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-bold text-pink-700 dark:text-pink-300">Aki Assistant</span>
+              <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-pink-200/70 dark:bg-pink-900 text-pink-800 dark:text-pink-200 font-extrabold">Help</span>
+            </div>
+            <span className="text-[10px] text-gray-600 dark:text-gray-400 block truncate group-hover:text-pink-600 dark:group-hover:text-pink-300 font-medium">
+              🚨 Facing an Issue? Tell Rohan →
+            </span>
+          </div>
+        )}
+      </div>
+
       <div className="p-3 border-t border-gray-200 dark:border-gray-800 flex justify-center">
         <button 
           onClick={() => setCollapsed(!collapsed)}
