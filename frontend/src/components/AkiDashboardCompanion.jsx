@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ANIME_CHEER_QUOTES } from '../utils/animeQuotes';
-import { apiFetch } from '../utils/apiClient';
 
 // Client-side Web Audio API synthesizer for adorable anime chime sound on click
 function playAnimeSparkleChime() {
@@ -256,7 +255,7 @@ export default function AkiDashboardCompanion({
     }
 
     try {
-      const data = await apiFetch('/api/v1/aki/chat', {
+      const res = await fetch('/api/v1/aki/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -267,7 +266,12 @@ export default function AkiDashboardCompanion({
         })
       });
 
-      setAkiChatReply(data.response || data.message || solveClientSideQuery(q));
+      if (res.ok) {
+        const data = await res.json();
+        setAkiChatReply(data.response || data.message || solveClientSideQuery(q));
+      } else {
+        setAkiChatReply(solveClientSideQuery(q));
+      }
     } catch {
       setAkiChatReply(solveClientSideQuery(q));
     } finally {
@@ -279,7 +283,7 @@ export default function AkiDashboardCompanion({
   return (
     /* ── OUTER: responsive width, smoothly expands when chat is open ── */
     <div className={`fixed bottom-24 right-5 sm:right-7 z-40 select-none flex flex-col items-end pointer-events-none transition-all duration-300 ${
-      showChatInput ? 'w-[320px] sm:w-[420px] md:w-[480px] max-w-[94vw]' : 'w-[190px]'
+      showChatInput ? 'w-[290px] sm:w-[340px]' : 'w-[190px]'
     } overflow-visible`}>
 
       {/* ══════════════════════════════════════════════════════════════════ */}
@@ -355,14 +359,14 @@ export default function AkiDashboardCompanion({
                   </div>
 
                   {/* Answering Bar Content */}
-                  <div className="max-h-[45vh] overflow-y-auto pr-1.5 text-left select-text scrollbar-thin">
+                  <div className="max-h-[160px] overflow-y-auto pr-1 text-left select-text">
                     {isAskingAki ? (
-                      <div className="flex items-center gap-2 py-3 text-xs font-semibold text-pink-600 dark:text-pink-300 animate-pulse">
+                      <div className="flex items-center gap-2 py-2 text-xs font-semibold text-pink-600 dark:text-pink-300 animate-pulse">
                         <span className="animate-spin text-sm">⚡</span>
                         <span>Aki is calculating & synthesizing answer...</span>
                       </div>
                     ) : akiChatReply ? (
-                      <div className="text-xs text-gray-900 dark:text-gray-100 font-medium leading-relaxed whitespace-pre-wrap break-words overflow-x-hidden font-sans">
+                      <div className="text-xs text-gray-900 dark:text-gray-100 font-medium leading-relaxed whitespace-pre-wrap">
                         {akiChatReply}
                       </div>
                     ) : (

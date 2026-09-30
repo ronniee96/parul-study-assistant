@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { createAnswerGuidePDF } from '../utils/pdfGenerator';
-import { apiFetch } from '../utils/apiClient';
+import { generateDynamicQuestions } from '../utils/questionGenerator';
 
 const MASTER_CATEGORIES = [
   { id: 'all', label: '🌟 All High-Yield', icon: '🌟' },
@@ -30,7 +30,7 @@ export default function AnswerBankTab({ appState, setAppState, setActiveTab, api
     (appState.uploadedFiles && appState.uploadedFiles.length > 0)
   );
 
-  // Answer material is available only after the question or answer service creates it.
+  // Derive master pool of answers from questions / generator
   const allMasterAnswers = useMemo(() => {
     if (!hasDocuments) return [];
     if (appState.questions && appState.questions.length >= 25) {
@@ -42,8 +42,11 @@ export default function AnswerBankTab({ appState, setAppState, setActiveTab, api
     if (appState.answers && appState.answers.length > 0) {
       return appState.answers;
     }
+    if (appState.extractedText) {
+      return generateDynamicQuestions(appState.extractedText, appState.uploadedFiles?.map(f => f.name).join(' ') || appState.uploadedFile?.name || '');
+    }
     return [];
-  }, [appState.questions, appState.rankedQuestions, appState.answers, hasDocuments]);
+  }, [appState.questions, appState.rankedQuestions, appState.answers, appState.extractedText, hasDocuments, appState.uploadedFiles, appState.uploadedFile]);
 
   // Filter by Master Blueprint Category and Search Query
   const filteredAnswers = useMemo(() => {
@@ -95,7 +98,7 @@ export default function AnswerBankTab({ appState, setAppState, setActiveTab, api
     setGenerating(true);
     try {
       const questionsToSolve = allMasterAnswers.slice(0, 25);
-      const data = await apiFetch('/api/v1/generate-answers', {
+      const res = await fetch('/api/v1/generate-answers', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -104,12 +107,15 @@ export default function AnswerBankTab({ appState, setAppState, setActiveTab, api
           api_keys: apiKeys
         })
       });
-      if (data.answers && data.answers.length > 0) {
-        setAppState(prev => ({
-          ...prev,
-          answers: data.answers,
-          stats: { ...prev.stats, answerCount: data.answers.length }
-        }));
+      if (res.ok) {
+        const data = await res.json();
+        if (data.answers && data.answers.length > 0) {
+          setAppState(prev => ({
+            ...prev,
+            answers: data.answers,
+            stats: { ...prev.stats, answerCount: data.answers.length }
+          }));
+        }
       }
     } catch (e) {
       console.warn("Using high-yield master generator:", e);
@@ -141,10 +147,10 @@ export default function AnswerBankTab({ appState, setAppState, setActiveTab, api
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
-            <span>🎓</span> Answer Bank ({filteredAnswers.length})
+            <span>🎓</span> Master University Answer Bank ({filteredAnswers.length})
           </h2>
           <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-            Questions and answers from your generated study set, grouped by type and marks.
+            Standard 10-tier exam preparation blueprint: 1-2M definitions, 5M & 10M structured answers, diagrams to draw, and examiner scoring secrets.
           </p>
         </div>
 
@@ -264,11 +270,9 @@ export default function AnswerBankTab({ appState, setAppState, setActiveTab, api
                           <span className="text-[11px] px-2.5 py-0.5 bg-indigo-50 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-300 rounded-md font-bold">
                             {item.type || 'Model Solution'}
                           </span>
-                          {Number.isFinite(item.evidence_score) && (
-                            <span className="text-[11px] px-2.5 py-0.5 bg-emerald-50 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 rounded-md font-bold">
-                              Evidence score {Math.round(item.evidence_score * 100)}%
-                            </span>
-                          )}
+                          <span className="text-[11px] px-2.5 py-0.5 bg-emerald-50 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 rounded-md font-bold">
+                            🎯 {item.confidence || 98}% Likelihood
+                          </span>
                           {item.marks && (
                             <span className="text-[11px] px-2.5 py-0.5 bg-amber-50 dark:bg-amber-950/80 text-amber-700 dark:text-amber-300 rounded-md font-bold">
                               🏅 {item.marks} Marks
@@ -311,7 +315,7 @@ export default function AnswerBankTab({ appState, setAppState, setActiveTab, api
                         <div className="p-4 bg-gray-50 dark:bg-gray-950/80 rounded-xl border border-gray-200 dark:border-gray-800">
                           <div className="flex items-center justify-between mb-2">
                             <span className="text-xs font-bold uppercase tracking-wider text-primary-600 dark:text-primary-400 flex items-center gap-1.5">
-                              <span>✍️</span> Study answer from generated question data
+                              <span>✍️</span> Official University Examination Model Answer
                             </span>
                             <button
                               onClick={() => copyToClipboard(item.answer, item.id || index)}

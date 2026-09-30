@@ -1,0 +1,374 @@
+[
+  {
+    "id": "parul_pyq_16100252",
+    "handle": "123456789/5236",
+    "title": "Cost Accounting - II (Course Code: 16100252) End-Term Examination",
+    "subject": "Cost Accounting",
+    "subject_code": "16100252",
+    "faculty": "Faculty of Management Studies",
+    "program": "BBA / B.Com",
+    "semester": "Semester 4",
+    "exam_type": "External Examination",
+    "year": "2023",
+    "total_marks": 60,
+    "duration_hours": 2.5,
+    "sample_questions": [
+      {
+        "question": "Define Break-Even Point (BEP). State two assumptions of CVP analysis.",
+        "marks": 2,
+        "type": "short_answer",
+        "topic": "Marginal Costing"
+      },
+      {
+        "question": "Explain the difference between Standard Costing and Budgetary Control.",
+        "marks": 5,
+        "type": "differentiate",
+        "topic": "Standard Costing"
+      },
+      {
+        "question": "Calculate Material Cost Variance, Material Price Variance, and Material Usage Variance from given standard vs actual data.",
+        "marks": 7,
+        "type": "numerical",
+        "topic": "Variance Analysis"
+      },
+      {
+        "question": "A company produces 10,000 units at Rs. 50/unit. Fixed cost is Rs. 1,00,000, Variable cost is Rs. 30/unit. Calculate P/V ratio and BEP.",
+        "marks": 8,
+        "type": "numerical",
+        "topic": "Marginal Costing"
+      },
+      {
+        "question": "Discuss the objectives and advantages of Flexible Budgeting with an illustration.",
+        "marks": 15,
+        "type": "essay",
+        "topic": "Budgetary Control"
+      }
+    ]
+  },
+  {
+    "id": "parul_pyq_05101201",
+    "handle": "123456789/4102",
+    "title": "Design and Analysis of Algorithms (Course Code: 05101201)",
+    "subject": "Design and Analysis of Algorithms",
+    "subject_code": "05101201",
+    "faculty": "Faculty of Engineering & Technology",
+    "program": "B.Tech CSE / IT",
+    "semester": "Semester 5",
+    "exam_type": "External Examination",
+    "year": "2023",
+    "total_marks": 60,
+    "duration_hours": 2.5,
+    "sample_questions": [
+      {
+        "question": "Define Big-O, Big-Omega, and Big-Theta asymptotic notations with diagrams.",
+        "marks": 2,
+        "type": "short_answer",
+        "topic": "Asymptotic Analysis"
+      },
+      {
+        "question": "Differentiate between Greedy Method and Dynamic Programming approaches.",
+        "marks": 5,
+        "type": "differentiate",
+        "topic": "Algorithm Paradigms"
+      },
+      {
+        "question": "Solve the 0/1 Knapsack problem using dynamic programming with a state table.",
+        "marks": 7,
+        "type": "numerical",
+        "topic": "Dynamic Programming"
+      },
+      {
+        "question": "Explain Dijkstra's shortest path algorithm step-by-step with complexity analysis.",
+        "marks": 8,
+        "type": "process_mechanism",
+        "topic": "Graph Algorithms"
+      },
+      {
+        "question": "Analyze Quick Sort worst-case vs average-case time complexity using recurrence relations.",
+        "marks": 15,
+        "type": "essay",
+        "topic": "Divide and Conquer"
+      }
+    ]
+  },
+  {
+    "id": "parul_pyq_05101202",
+    "handle": "123456789/4105",
+    "title": "Database Management Systems (Course Code: 05101202)",
+    "subject": "Database Management Systems",
+    "subject_code": "05101202",
+    "faculty": "Faculty of Engineering & Technology",
+    "program": "B.Tech CSE / IT",
+    "semester": "Semester 4",
+    "exam_type": "External Examination",
+    "year": "2023",
+    "total_marks": 60,
+    "duration_hours": 2.5,
+    "sample_questions": [
+      {
+        "question": "State ACID properties of database transactions with brief definitions.",
+        "marks": 2,
+        "type": "short_answer",
+        "topic": "Transactions"
+      },
+      {
+        "question": "Explain 1NF, 2NF, 3NF and BCNF normalization with anomalies examples.",
+        "marks": 7,
+        "type": "descriptive",
+        "topic": "Normalization"
+      },
+      {
+        "question": "Differentiate between B-Tree and B+ Tree indexing structures.",
+        "marks": 5,
+        "type": "differentiate",
+        "topic": "Indexing"
+      },
+      {
+        "question": "Explain Two-Phase Locking (2PL) protocol and how it prevents concurrency conflicts.",
+        "marks": 8,
+        "type": "process_mechanism",
+        "topic": "Concurrency Control"
+      }
+    ]
+  },
+  {
+    "id": "parul_live_123456789_22823",
+    "handle": "123456789/22823",
+    "title": "Relational Database Management System (05101156)",
+    "subject": "Relational Database Management System",
+    "subject_code": "",
+    "exam_type": "University Examination",
+    "year": "2025",
+    "total_marks": 60,
+    "duration_hours": 2.5,
+    "url": "http://localhost:8080/xmlui/handle/123456789/22823"
+  },
+  {
+    "id": "parul_live_123456789_10255",
+    "handle": "123456789/10255",
+    "title": "Database Management System",
+    "subject": "Database Management System",
+    "subject_code": "",
+    "exam_type": "University Examination",
+    "year": "2021",
+    "total_marks": 60,
+    "duration_hours": 2.5,
+    "url": "http://localhost:8080/xmlui/handle/123456789/10255"
+  },
+  {
+    "id": "parul_live_123456789_12996",
+    "handle": "123456789/12996",
+    "title": "Advance Database System( 203105485)",
+    "subject": "Advance Database System",
+    "subject_code": "",
+    "exam_type": "University Examination",
+    "year": "2023",
+    "total_marks": 60,
+    "duration_hours": 2.5,
+    "url": "http://localhost:8080/xmlui/handle/123456789/12996"
+  },
+  {
+    "id": "parul_live_123456789_14466",
+    "handle": "123456789/14466",
+    "title": "Database Management System (203105251)",
+    "subject": "Database Management System",
+    "subject_code": "",
+    "exam_type": "University Examination",
+    "year": "2024",
+    "total_marks": 60,
+    "duration_hours": 2.5,
+    "url": "http://localhost:8080/xmlui/handle/123456789/14466"
+  },
+  {
+    "id": "parul_live_123456789_22817",
+    "handle": "123456789/22817",
+    "title": "Database Management Systems (05010102DS01)",
+    "subject": "Database Management Systems",
+    "subject_code": "",
+    "exam_type": "University Examination",
+    "year": "2025",
+    "total_marks": 60,
+    "duration_hours": 2.5,
+    "url": "http://localhost:8080/xmlui/handle/123456789/22817"
+  },
+  {
+    "id": "parul_live_123456789_23011",
+    "handle": "123456789/23011",
+    "title": "Relational Database Management System (05101156)",
+    "subject": "Relational Database Management System",
+    "subject_code": "",
+    "exam_type": "University Examination",
+    "year": "2025",
+    "total_marks": 60,
+    "duration_hours": 2.5,
+    "url": "http://localhost:8080/xmlui/handle/123456789/23011"
+  },
+  {
+    "id": "parul_live_123456789_11000",
+    "handle": "123456789/11000",
+    "title": "Webinar on Indexing and citation database for research",
+    "subject": "Webinar on Indexing and citation database for research",
+    "subject_code": "",
+    "exam_type": "University Examination",
+    "year": "2021",
+    "total_marks": 60,
+    "duration_hours": 2.5,
+    "url": "http://localhost:8080/xmlui/handle/123456789/11000"
+  },
+  {
+    "id": "parul_live_123456789_1078",
+    "handle": "123456789/1078",
+    "title": "Database Management System",
+    "subject": "Database Management System",
+    "subject_code": "",
+    "exam_type": "University Examination",
+    "year": "2020",
+    "total_marks": 60,
+    "duration_hours": 2.5,
+    "url": "http://localhost:8080/xmlui/handle/123456789/1078"
+  },
+  {
+    "id": "parul_live_123456789_9413",
+    "handle": "123456789/9413",
+    "title": "Importance of Vidwan expert database and national research network",
+    "subject": "Importance of Vidwan expert database and national research network",
+    "subject_code": "",
+    "exam_type": "University Examination",
+    "year": "2021",
+    "total_marks": 60,
+    "duration_hours": 2.5,
+    "url": "http://localhost:8080/xmlui/handle/123456789/9413"
+  },
+  {
+    "id": "parul_live_123456789_3661",
+    "handle": "123456789/3661",
+    "title": "Database Management System - 05101153",
+    "subject": "Database Management System - 05101153",
+    "subject_code": "",
+    "exam_type": "University Examination",
+    "year": "2020",
+    "total_marks": 60,
+    "duration_hours": 2.5,
+    "url": "http://localhost:8080/xmlui/handle/123456789/3661"
+  },
+  {
+    "id": "parul_live_123456789_3768",
+    "handle": "123456789/3768",
+    "title": "Database Management System - 05101153 /05301153",
+    "subject": "Database Management System - 05101153 /05301153",
+    "subject_code": "",
+    "exam_type": "University Examination",
+    "year": "2020",
+    "total_marks": 60,
+    "duration_hours": 2.5,
+    "url": "http://localhost:8080/xmlui/handle/123456789/3768"
+  },
+  {
+    "id": "parul_live_123456789_3830",
+    "handle": "123456789/3830",
+    "title": "Database Management System - 05101153",
+    "subject": "Database Management System - 05101153",
+    "subject_code": "",
+    "exam_type": "University Examination",
+    "year": "2020",
+    "total_marks": 60,
+    "duration_hours": 2.5,
+    "url": "http://localhost:8080/xmlui/handle/123456789/3830"
+  },
+  {
+    "id": "parul_live_123456789_3899",
+    "handle": "123456789/3899",
+    "title": "Database Management System - 05101153",
+    "subject": "Database Management System - 05101153",
+    "subject_code": "",
+    "exam_type": "University Examination",
+    "year": "2020",
+    "total_marks": 60,
+    "duration_hours": 2.5,
+    "url": "http://localhost:8080/xmlui/handle/123456789/3899"
+  },
+  {
+    "id": "parul_live_123456789_4055",
+    "handle": "123456789/4055",
+    "title": "Database Management System - 05201104",
+    "subject": "Database Management System - 05201104",
+    "subject_code": "",
+    "exam_type": "University Examination",
+    "year": "2020",
+    "total_marks": 60,
+    "duration_hours": 2.5,
+    "url": "http://localhost:8080/xmlui/handle/123456789/4055"
+  },
+  {
+    "id": "parul_live_123456789_4017",
+    "handle": "123456789/4017",
+    "title": "Database Management System - 05201104",
+    "subject": "Database Management System - 05201104",
+    "subject_code": "",
+    "exam_type": "University Examination",
+    "year": "2020",
+    "total_marks": 60,
+    "duration_hours": 2.5,
+    "url": "http://localhost:8080/xmlui/handle/123456789/4017"
+  },
+  {
+    "id": "parul_live_123456789_4085",
+    "handle": "123456789/4085",
+    "title": "Database Management System - 05201104",
+    "subject": "Database Management System - 05201104",
+    "subject_code": "",
+    "exam_type": "University Examination",
+    "year": "2020",
+    "total_marks": 60,
+    "duration_hours": 2.5,
+    "url": "http://localhost:8080/xmlui/handle/123456789/4085"
+  },
+  {
+    "id": "parul_live_123456789_5326",
+    "handle": "123456789/5326",
+    "title": "Advance Database System - 03201101",
+    "subject": "Advance Database System - 03201101",
+    "subject_code": "",
+    "exam_type": "University Examination",
+    "year": "2020",
+    "total_marks": 60,
+    "duration_hours": 2.5,
+    "url": "http://localhost:8080/xmlui/handle/123456789/5326"
+  },
+  {
+    "id": "parul_live_123456789_12453",
+    "handle": "123456789/12453",
+    "title": "Pedagogy Session on Online Library Database Training",
+    "subject": "Pedagogy Session on Online Library Database Training",
+    "subject_code": "",
+    "exam_type": "University Examination",
+    "year": "2022",
+    "total_marks": 60,
+    "duration_hours": 2.5,
+    "url": "http://localhost:8080/xmlui/handle/123456789/12453"
+  },
+  {
+    "id": "parul_live_123456789_12681",
+    "handle": "123456789/12681",
+    "title": "One-day Webinar on \u2018Importance of VIDWAN Expert Database and  National Researcher Network",
+    "subject": "One-day Webinar on \u2018Importance of VIDWAN Expert Database and  National Researcher Network",
+    "subject_code": "",
+    "exam_type": "University Examination",
+    "year": "2023",
+    "total_marks": 60,
+    "duration_hours": 2.5,
+    "url": "http://localhost:8080/xmlui/handle/123456789/12681"
+  },
+  {
+    "id": "parul_live_123456789_12680",
+    "handle": "123456789/12680",
+    "title": "One-day Training on \u2018IEEE Xplore & EBSCO Database\u2019",
+    "subject": "One-day Training on \u2018IEEE Xplore & EBSCO Database\u2019",
+    "subject_code": "",
+    "exam_type": "University Examination",
+    "year": "2023",
+    "total_marks": 60,
+    "duration_hours": 2.5,
+    "url": "http://localhost:8080/xmlui/handle/123456789/12680"
+  }
+]
