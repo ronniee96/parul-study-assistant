@@ -52,6 +52,8 @@ class DocumentIntelligence:
         """
         doc_id = document_id or f"doc_{uuid.uuid4().hex[:8]}"
         ext = os.path.splitext(filename)[1].lower()
+        if not ext:
+            ext = ".txt"
         pages_content = []
 
         if ext not in {'.pdf', '.ppt', '.pptx', '.doc', '.docx', '.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.txt'}:

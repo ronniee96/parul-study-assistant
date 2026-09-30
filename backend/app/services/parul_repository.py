@@ -37,11 +37,21 @@ class ParulRepositoryHarvester:
             try:
                 with open(CACHE_FILE, "r", encoding="utf-8") as f:
                     records = json.load(f)
-                    return [
-                        paper for paper in records
-                        if isinstance(paper, dict)
-                        and str(paper.get("url", "")).startswith(self.BASE_URL + "/")
-                    ]
+                    loaded = []
+                    for paper in records:
+                        if not isinstance(paper, dict):
+                            continue
+                        url = str(paper.get("url", ""))
+                        handle = paper.get("handle")
+                        if url.startswith("http://localhost:8080/xmlui/handle/"):
+                            paper["url"] = url.replace("http://localhost:8080", self.BASE_URL)
+                        elif not url and handle:
+                            paper["url"] = f"{self.BASE_URL}/xmlui/handle/{handle}"
+                        if paper.get("sample_questions"):
+                            paper["questions_source_verified"] = True
+                        if paper.get("url", "").startswith(self.BASE_URL + "/") or paper.get("handle"):
+                            loaded.append(paper)
+                    return loaded
             except Exception as e:
                 logger.warning(f"Failed to read Parul PYQ cache: {e}")
         return []

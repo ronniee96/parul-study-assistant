@@ -10,6 +10,7 @@ import io
 import json
 import os
 import logging
+from collections import Counter
 
 from app.services.document_processor import DocumentProcessor
 from app.services.ai_service import AIService
@@ -661,23 +662,25 @@ async def generate_mega_questions(request: Request):
 
     # Filter by user preferred types if specified and not default
     if question_types and len(question_types) < 4:
-        filtered = [q for q in questions if q.type in question_types]
+        filtered = [q for q in questions if (q.get("type") if isinstance(q, dict) else getattr(q, "type", None)) in question_types]
         if len(filtered) >= 10:
             questions = filtered
 
+    serialized_questions = [q if isinstance(q, dict) else q.model_dump() for q in questions]
+
     return {
-        "success": bool(questions),
-        "questions": [q.model_dump() for q in questions],
-        "total_generated": len(questions),
+        "success": bool(serialized_questions),
+        "questions": serialized_questions,
+        "total_generated": len(serialized_questions),
         "document_id": doc_id,
         "filename": filename,
         "method": method,
         "requested_count": num_questions,
-        "target_met": len(questions) >= num_questions,
+        "target_met": len(serialized_questions) >= num_questions,
         "failover_log": failover_log,
-        "note": None if len(questions) >= num_questions else f"Generated {len(questions)} distinct candidates from the available source; the requested {num_questions} was not reached without repeating candidates.",
-        "taxonomy_distribution": dict(Counter(q.type for q in questions)),
-        "bloom_distribution": dict(Counter(q.bloom_level for q in questions))
+        "note": None if len(serialized_questions) >= num_questions else f"Generated {len(serialized_questions)} distinct candidates from the available source; the requested {num_questions} was not reached without repeating candidates.",
+        "taxonomy_distribution": dict(Counter((q.get("type") if isinstance(q, dict) else getattr(q, "type", "unknown")) for q in serialized_questions)),
+        "bloom_distribution": dict(Counter((q.get("bloom_level") if isinstance(q, dict) else getattr(q, "bloom_level", "unknown")) for q in serialized_questions))
     }
 
 @router.post('/predict-exam-pipeline')
