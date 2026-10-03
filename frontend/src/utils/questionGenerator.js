@@ -93,8 +93,8 @@ export function cleanTextLines(rawText) {
 export function extractAcademicConcepts(extractedText = '', filename = '') {
   const concepts = [];
   const text = cleanTextLines(extractedText);
-  const isAccounting = /\b(management\s+accounting|cost\s+accounting|cost\s+sheet|costing|financial\s+accounting|financial\s+management|auditing|budgetary|cvp\s+analysis|variance\s+analysis|break\s+even|cma)\b/i.test(filename + ' ' + text);
-  const isTech = /\b(computer\s+science|programming|algorithm|software|data\s+structure|machine\s+learning|artificial\s+intelligence|web\s+development|database|cybersecurity|python|java|react)\b/i.test(filename + ' ' + text);
+  const isAccounting = /mac|cost|account|finan|audit|budget|decision|cvp|variance|bep/i.test(filename + ' ' + text);
+  const isTech = /cs|it|data|algo|prog|soft|code|web|ai|ml|system|database/i.test(filename + ' ' + text);
 
   // 1. Definitory Pattern Matching
   const sentences = text.split(/(?<=[.!?])\s+/).map(s => s.trim()).filter(s => s.length > 15 && !isCodeOrGarbage(s));
@@ -316,8 +316,7 @@ export function generateDynamicQuestions(extractedText = '', filename = '') {
         // 2-3 lines max, simple exam language, no examples, directly writable
         qObj = {
           id: id++,
-          type: "Short Answer",
-          subType: "Very Short Definition (1-2M)",
+          type: "Very Short Definition (1-2M)",
           category: "1-2 Mark Definitions",
           marks: 2,
           difficulty: 1,
@@ -339,8 +338,7 @@ export function generateDynamicQuestions(extractedText = '', filename = '') {
         // Elaborated but to point, standard university notes level, numbered format
         qObj = {
           id: id++,
-          type: "Short Answer",
-          subType: "Elaborated Definition (2-5M)",
+          type: "Elaborated Definition (2-5M)",
           category: "2-5 Mark Definitions",
           marks: 3,
           difficulty: 2,
@@ -362,8 +360,7 @@ export function generateDynamicQuestions(extractedText = '', filename = '') {
         // Brief but complete, clear headings, bullet points, definitions + key points
         qObj = {
           id: id++,
-          type: "Short Answer",
-          subType: "5-Mark Structured Answer",
+          type: "5-Mark Structured Answer",
           category: "5-Mark Answers",
           marks: 5,
           difficulty: 3,
@@ -385,8 +382,7 @@ export function generateDynamicQuestions(extractedText = '', filename = '') {
         // Clear intro, structured breakdown, diagram to draw, formal language, examiner scoring points
         qObj = {
           id: id++,
-          type: "Essay",
-          subType: "10-Mark Detailed Essay",
+          type: "10-Mark Detailed Essay",
           category: "10-Mark Answers",
           marks: 10,
           difficulty: 5,
@@ -408,8 +404,7 @@ export function generateDynamicQuestions(extractedText = '', filename = '') {
         // Mention diagram name clearly, step-wise format, what to write below diagram
         qObj = {
           id: id++,
-          type: "Short Answer",
-          subType: "Diagram & Step-by-Step Breakdown",
+          type: "Diagram & Step-by-Step Breakdown",
           category: "Important Diagrams",
           marks: 5,
           difficulty: 3,
@@ -431,8 +426,7 @@ export function generateDynamicQuestions(extractedText = '', filename = '') {
         // Logical step order, simple exam-friendly explanation, highlight keywords
         qObj = {
           id: id++,
-          type: "Short Answer",
-          subType: "Flowchart & Process Sequence",
+          type: "Flowchart & Process Sequence",
           category: "Process Flowcharts",
           marks: 5,
           difficulty: 3,
@@ -454,8 +448,7 @@ export function generateDynamicQuestions(extractedText = '', filename = '') {
         // Main headings -> subtopics -> keywords, compact, text-based hierarchy
         qObj = {
           id: id++,
-          type: "Short Answer",
-          subType: "Mind Map & Revision Structure",
+          type: "Mind Map & Revision Structure",
           category: "Mind Maps & Hierarchy",
           marks: 3,
           difficulty: 2,
@@ -477,8 +470,7 @@ export function generateDynamicQuestions(extractedText = '', filename = '') {
         // Definitions, lists, formulas, diagrams to remember, skip lengthy explanations, revisable in 30-45 mins
         qObj = {
           id: id++,
-          type: "Short Answer",
-          subType: "Last-Day Fast Revision Notes",
+          type: "Last-Day Fast Revision Notes",
           category: "Last-Day Revision Notes",
           marks: 5,
           difficulty: 2,
@@ -500,8 +492,7 @@ export function generateDynamicQuestions(extractedText = '', filename = '') {
         // Point-wise format, where students lose marks, writing tips for full marks
         qObj = {
           id: id++,
-          type: "Short Answer",
-          subType: "Common Mistakes & Examiner Secrets",
+          type: "Common Mistakes & Examiner Secrets",
           category: "Common Mistakes & Tips",
           marks: 2,
           difficulty: 2,
@@ -527,8 +518,7 @@ export function generateDynamicQuestions(extractedText = '', filename = '') {
 
         qObj = {
           id: id++,
-          type: "MCQ",
-          subType: "University Exam MCQ",
+          type: "University Exam MCQ",
           category: "Exam MCQs",
           marks: 2,
           difficulty: 2,
