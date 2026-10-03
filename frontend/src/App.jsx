@@ -23,8 +23,9 @@ export default function App() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [apiKeyModalOpen, setApiKeyModalOpen] = useState(false);
   const [sessionKey, setSessionKey] = useState(1);
+  const [sessionId, setSessionId] = useState(null);
   const [toastMessage, setToastMessage] = useState(null);
-  
+
   // API Keys state with permanent persistence across all sessions
   const [apiKeys, setApiKeys] = useState(() => {
     try {
@@ -46,7 +47,30 @@ export default function App() {
     localStorage.setItem('study_assistant_api_keys', JSON.stringify(keys));
     if (priority) localStorage.setItem('study_assistant_primary_priority', priority);
   };
-  
+
+  // Initialize or get session ID from backend
+  useEffect(() => {
+    const initSession = async () => {
+      try {
+        const res = await fetch('/api/v1/session/new', { method: 'POST' });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.session_id) {
+            setSessionId(data.session_id);
+            sessionStorage.setItem('study_assistant_session_id', data.session_id);
+          }
+        }
+      } catch (e) {
+        console.warn("Could not create backend session, using local:", e);
+        // Fallback to local session ID
+        const localSessionId = sessionStorage.getItem('study_assistant_session_id') || crypto.randomUUID();
+        sessionStorage.setItem('study_assistant_session_id', localSessionId);
+        setSessionId(localSessionId);
+      }
+    };
+    initSession();
+  }, []);
+
   // App state initializes clean (0 PDFs, 0 Questions, 0 Answers)
   const [appState, setAppState] = useState(() => ({
     uploadedFile: null,
@@ -69,7 +93,7 @@ export default function App() {
 
   const [lastSaved, setLastSaved] = useState(null);
 
-  const handleResetWorkspace = (showPrompt = false) => {
+  const handleResetWorkspace = async (showPrompt = false) => {
     if (!showPrompt || window.confirm("Start a fresh study session? This will clear all uploaded PDFs, questions, and notes. (Your API keys will remain saved)")) {
       const emptyState = {
         uploadedFile: null,
@@ -85,7 +109,7 @@ export default function App() {
         stats: { pdfCount: 0, questionCount: 0, confidence: 0, answerCount: 0 }
       };
       setAppState(emptyState);
-      
+
       // Purge all possible workspace cache keys
       try {
         localStorage.removeItem('study_assistant_workspace_v2');
@@ -97,6 +121,24 @@ export default function App() {
         sessionStorage.clear();
       } catch (e) {
         console.warn("Error clearing storage:", e);
+      }
+
+      // Create new backend session
+      try {
+        const res = await fetch('/api/v1/session/new', { method: 'POST' });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.session_id) {
+            setSessionId(data.session_id);
+            sessionStorage.setItem('study_assistant_session_id', data.session_id);
+          }
+        }
+      } catch (e) {
+        console.warn("Could not create new backend session:", e);
+        // Fallback to local session ID
+        const localSessionId = crypto.randomUUID();
+        sessionStorage.setItem('study_assistant_session_id', localSessionId);
+        setSessionId(localSessionId);
       }
 
       setSessionKey(prev => prev + 1);
@@ -144,6 +186,7 @@ export default function App() {
       primaryPriority,
       openApiKeyModal: () => setApiKeyModalOpen(true),
       sessionKey,
+      sessionId,
       startNewSession: () => handleResetWorkspace(false)
     };
 

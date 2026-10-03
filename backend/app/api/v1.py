@@ -11,6 +11,7 @@ import json
 import os
 import logging
 from collections import Counter
+from datetime import datetime
 
 from app.services.document_processor import DocumentProcessor
 from app.services.ai_service import AIService
@@ -25,7 +26,9 @@ from app.services.document_intelligence import DocumentIntelligence
 from app.services.paper_structure_analyzer import PaperStructureAnalyzer
 from app.services.parul_repository import ParulRepositoryHarvester
 from app.services.question_possibility_engine import QuestionPossibilityEngine
-from app.services.exam_prediction_pipeline import ExamPredictionPipeline
+from app.services.exam_prediction_pipeline import ExamPredictionPipeline, UniversityExamProfile
+from app.services.session_manager import SessionManager, get_session_manager, get_session_id_from_request, get_session_from_request
+from app.services.multi_agent_arena import MultiAgentArena
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -42,13 +45,76 @@ aki_agent = AkiStudyAgent()
 question_possibility_engine = QuestionPossibilityEngine()
 exam_prediction_pipeline = ExamPredictionPipeline(ai_service)
 parul_harvester = ParulRepositoryHarvester()
+session_manager = get_session_manager()
+multi_agent_arena = MultiAgentArena(ai_service)
+
+@router.post("/session/new")
+async def create_new_session(request: Request):
+    """
+    Create a new isolated study session.
+    Returns a new session ID that should be passed in X-Session-ID header for all subsequent requests.
+    """
+    session = session_manager.create_session()
+    return {
+        "success": True,
+        "session_id": session.session_id,
+        "created_at": session.created_at,
+        "message": "New study session created. Use this session_id in X-Session-ID header for all requests."
+    }
+
+
+@router.get("/session/{session_id}")
+async def get_session_data(session_id: str, request: Request):
+    """
+    Get all data for a specific session.
+    Use this to restore session state on frontend load.
+    """
+    session = session_manager.get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    return {
+        "success": True,
+        "session_id": session.session_id,
+        "created_at": session.created_at,
+        "updated_at": session.updated_at,
+        "documents": session.documents,
+        "questions": session.questions,
+        "ranked_questions": session.ranked_questions,
+        "summary": session.summary,
+        "predicted_paper": session.predicted_paper,
+        "answers": session.answers,
+        "captures": session.captures,
+        "stats": session.stats,
+        "extracted_text": session.extracted_text,
+        "metadata": session.metadata
+    }
+
+
+@router.delete("/session/{session_id}")
+async def delete_session(session_id: str, request: Request):
+    """
+    Delete a session and all its data.
+    """
+    success = session_manager.delete_session(session_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Session not found")
+    return {
+        "success": True,
+        "message": f"Session {session_id} deleted"
+    }
+
 
 @router.post("/upload")
-async def upload_file(file: UploadFile = File(...)):
+async def upload_file(file: UploadFile = File(...), request: Request = None):
     """
     Upload and validate study materials
     Only accepts files you have legitimate access to
     """
+    # Get session ID from request
+    session_id = get_session_id_from_request(request) if request else None
+    session = session_manager.get_or_create_session(session_id)
+
     # Validate file type
     allowed_extensions = {'.pdf', '.ppt', '.pptx', '.jpg', '.jpeg', '.png', '.txt', '.doc', '.docx'}
     file_extension = os.path.splitext(file.filename)[1].lower()
@@ -72,11 +138,21 @@ async def upload_file(file: UploadFile = File(...)):
     # Reset file position for further processing
     await file.seek(0)
 
+    # Store document metadata in session
+    document_info = {
+        "filename": file.filename,
+        "size": len(contents),
+        "type": file_extension,
+        "uploaded_at": datetime.now().isoformat()
+    }
+    session_manager.add_document(session.session_id, document_info)
+
     return {
         "message": f"File '{file.filename}' uploaded successfully",
         "filename": file.filename,
         "size": len(contents),
         "type": file_extension,
+        "session_id": session.session_id,
         "next_steps": "File received. Use /process to extract content and generate summaries."
     }
 
@@ -86,11 +162,16 @@ async def process_document(
     background_tasks: BackgroundTasks = None,
     generate_summary: bool = True,
     generate_questions: bool = False,
-    num_questions: int = 10
+    num_questions: int = 10,
+    request: Request = None
 ):
     """
     Process uploaded document to extract content and optionally generate summaries/questions
+    All results are stored in the session for isolation.
     """
+    session_id = get_session_id_from_request(request) if request else None
+    session = session_manager.get_or_create_session(session_id)
+
     try:
         # Read file content
         contents = await file.read()
@@ -106,8 +187,35 @@ async def process_document(
             )
 
         extracted_text = processing_result["text"]
+
+        # Store extracted text in session
+        session_manager.set_extracted_text(session.session_id, extracted_text)
+
+        # Store full processing result as document
+        document_data = {
+            "document_id": processing_result.get("document_id", f"doc_{len(session.documents) + 1}"),
+            "filename": file.filename,
+            "file_type": processing_result["file_type"],
+            "word_count": processing_result["word_count"],
+            "character_count": processing_result["character_count"],
+            "text": extracted_text,
+            "headings": processing_result.get("headings", []),
+            "topics": processing_result.get("topics", []),
+            "definitions": processing_result.get("definitions", []),
+            "formulas": processing_result.get("formulas", []),
+            "elements": processing_result.get("elements", []),
+            "pages": processing_result.get("pages", []),
+            "processed_at": datetime.now().isoformat()
+        }
+
+        # Update session documents with full data
+        updated_docs = [d for d in session.documents if d.get("document_id") != document_data["document_id"]]
+        updated_docs.append(document_data)
+        session_manager.set_documents(session.session_id, updated_docs)
+
         response_data = {
             "message": "Document processed successfully",
+            "session_id": session.session_id,
             "filename": file.filename,
             "file_type": processing_result["file_type"],
             "word_count": processing_result["word_count"],
@@ -125,6 +233,8 @@ async def process_document(
         if generate_summary:
             summary_result = ai_service.summarize_text(extracted_text)
             response_data["summary"] = summary_result
+            # Store summary in session
+            session_manager.set_summary(session.session_id, summary_result)
 
         # Generate questions if requested
         if generate_questions:
@@ -134,6 +244,9 @@ async def process_document(
                 question_types=["multiple_choice", "short_answer"]
             )
             response_data["questions"] = questions_result
+            # Store questions in session
+            if questions_result.get("success") and questions_result.get("questions"):
+                session_manager.set_questions(session.session_id, questions_result["questions"])
 
         return response_data
 
@@ -151,12 +264,17 @@ async def process_multiple_documents(
     files: List[UploadFile] = File(...),
     generate_summary: bool = False,
     generate_questions: bool = False,
-    num_questions: int = 10
+    num_questions: int = 10,
+    request: Request = None
 ):
     """
     Process multiple uploaded documents (PDFs, PPTs, Docs) simultaneously in a single batch.
     Extracts, structures, and combines content across all files.
+    All results are stored in the session for isolation.
     """
+    session_id = get_session_id_from_request(request) if request else None
+    session = session_manager.get_or_create_session(session_id)
+
     if not files:
         raise HTTPException(status_code=400, detail="No files uploaded")
 
@@ -164,6 +282,7 @@ async def process_multiple_documents(
     file_summaries = []
     total_words = 0
     total_chars = 0
+    processed_documents = []
 
     for i, file in enumerate(files):
         try:
@@ -179,7 +298,7 @@ async def process_multiple_documents(
                 header = f"=== [DOCUMENT {i+1}: {file.filename}] ===\n"
                 combined_texts.append(header + text)
 
-                file_summaries.append({
+                doc_summary = {
                     "document_id": res.get("document_id"),
                     "filename": file.filename,
                     "file_type": res.get("file_type", "Document"),
@@ -193,7 +312,9 @@ async def process_multiple_documents(
                     "elements": res.get("elements", []),
                     "pages": res.get("pages", []),
                     "success": True
-                })
+                }
+                file_summaries.append(doc_summary)
+                processed_documents.append(doc_summary)
             else:
                 file_summaries.append({
                     "filename": file.filename,
@@ -210,9 +331,16 @@ async def process_multiple_documents(
 
     full_extracted_text = "\n\n".join(combined_texts)
 
+    # Store extracted text in session
+    session_manager.set_extracted_text(session.session_id, full_extracted_text)
+
+    # Store all processed documents in session
+    session_manager.set_documents(session.session_id, processed_documents)
+
     response_data = {
         "success": any(file.get("success") for file in file_summaries),
         "message": f"Extracted {sum(bool(file.get('success')) for file in file_summaries)} of {len(files)} documents",
+        "session_id": session.session_id,
         "total_files": len(files),
         "files": file_summaries,
         "total_word_count": total_words,
@@ -229,6 +357,7 @@ async def process_multiple_documents(
     if generate_summary and full_extracted_text:
         summary_res = ai_service.summarize_text(full_extracted_text[:6000])
         response_data["summary"] = summary_res
+        session_manager.set_summary(session.session_id, summary_res)
 
     if generate_questions and full_extracted_text:
         questions_res = ai_service.generate_questions(
@@ -237,6 +366,8 @@ async def process_multiple_documents(
             question_types=["multiple_choice", "short_answer"]
         )
         response_data["questions"] = questions_res
+        if questions_res.get("success") and questions_res.get("questions"):
+            session_manager.set_questions(session.session_id, questions_res["questions"])
 
     return response_data
 
@@ -299,13 +430,32 @@ async def generate_summary_endpoint(request: Request):
 
 @router.post("/generate-questions")
 async def generate_questions_endpoint(
-    text: str,
+    request: Request,
+    text: str = "",
     num_questions: int = 10,
     question_types: list = ["multiple_choice", "short_answer"]
 ):
     """
     Generate practice questions from provided text
+    Stores results in session for isolation.
     """
+    # Try to get text from request body if not in params
+    if not text:
+        try:
+            data = await request.json()
+            text = data.get("text", "")
+            num_questions = data.get("num_questions", num_questions)
+            question_types = data.get("question_types", question_types)
+        except:
+            pass
+
+    session_id = get_session_id_from_request(request)
+    session = session_manager.get_or_create_session(session_id)
+
+    # If no text provided, try to use session's extracted text
+    if not text or len(text.strip()) < 50:
+        text = session_manager.get_extracted_text(session.session_id)
+
     if not text or len(text.strip()) < 50:
         raise HTTPException(
             status_code=400,
@@ -319,6 +469,13 @@ async def generate_questions_endpoint(
                 status_code=422,
                 detail=result["error"]
             )
+
+        # Store questions in session
+        if result.get("questions"):
+            session_manager.set_questions(session.session_id, result["questions"])
+
+        # Include session_id in response
+        result["session_id"] = session.session_id
         return result
     except Exception as e:
         logger.error(f"Error in question generation: {str(e)}")
@@ -579,7 +736,11 @@ async def generate_mega_questions(request: Request):
     Generate comprehensive question universe (up to 300 questions per document)
     with full cognitive taxonomy (MCQ, Short, Long, Numerical, Derivations, Comparisons)
     and exact source page provenance.
+    Results are stored in session for isolation.
     """
+    session_id = get_session_id_from_request(request)
+    session = session_manager.get_or_create_session(session_id)
+
     text = ""
     num_questions = 300
     question_types = ['multiple_choice', 'short_answer', 'essay', 'numerical', 'differentiate']
@@ -616,6 +777,10 @@ async def generate_mega_questions(request: Request):
 
     if not 1 <= num_questions <= 1000:
         raise HTTPException(status_code=400, detail="num_questions must be between 1 and 1000")
+
+    # If no text provided, try to use session's extracted text
+    if not text or len(text.strip()) < 20:
+        text = session_manager.get_extracted_text(session.session_id)
 
     if not text or len(text.strip()) < 20:
         raise HTTPException(status_code=400, detail="Text too short to generate questions")
@@ -668,8 +833,12 @@ async def generate_mega_questions(request: Request):
 
     serialized_questions = [q if isinstance(q, dict) else q.model_dump() for q in questions]
 
+    # Store questions in session
+    session_manager.set_questions(session.session_id, serialized_questions)
+
     return {
         "success": bool(serialized_questions),
+        "session_id": session.session_id,
         "questions": serialized_questions,
         "total_generated": len(serialized_questions),
         "document_id": doc_id,
@@ -689,7 +858,11 @@ async def predict_exam_pipeline_endpoint(request: Request):
     Forensic Multi-Stage Exam Intelligence Pipeline:
     Candidate Universe (~300/600) -> Top 200 (Diverse) -> Adversarial AI Review -> Top 100 -> Final Top 25
     Outputs transparent evidence scores, pro/con arguments, and an authentic mock paper.
+    All results stored in session for isolation.
     """
+    session_id = get_session_id_from_request(request)
+    session = session_manager.get_or_create_session(session_id)
+
     try:
         data = await request.json()
         documents = data.get("documents", [])
@@ -721,6 +894,9 @@ async def predict_exam_pipeline_endpoint(request: Request):
             document = dict(documents[0]) if documents else {}
             txt = document.get("text") or document.get("full_text") or material_text
             if not txt:
+                # Try to use session's extracted text
+                txt = session_manager.get_extracted_text(session.session_id)
+            if not txt:
                 raise HTTPException(status_code=400, detail="Course material text is required")
             fname = document.get("filename", "Course Material")
             if not document.get("elements") and not document.get("definitions") and not document.get("formulas"):
@@ -748,6 +924,17 @@ async def predict_exam_pipeline_endpoint(request: Request):
             per_document_candidate_counts=per_document_counts,
         )
 
+        # Store pipeline results in session
+        if pipeline_result.get("top_25"):
+            # Store top 25 as ranked questions
+            top_25_data = [q.model_dump() if hasattr(q, 'model_dump') else q for q in pipeline_result["top_25"]]
+            session_manager.set_ranked_questions(session.session_id, top_25_data)
+
+        if pipeline_result.get("predicted_mock_paper"):
+            session_manager.set_predicted_paper(session.session_id, pipeline_result["predicted_mock_paper"])
+
+        # Include session_id in response
+        pipeline_result["session_id"] = session.session_id
         return pipeline_result
 
     except HTTPException:
@@ -778,7 +965,11 @@ async def predict_exam_endpoint(request: Request):
     """
     Predict university exam paper with multi-stage forensic evidence pipeline
     Maintains full backward compatibility with existing UI contracts.
+    All results stored in session for isolation.
     """
+    session_id = get_session_id_from_request(request)
+    session = session_manager.get_or_create_session(session_id)
+
     material_text = ""
     subject_name = "Subject"
     total_marks = 60
@@ -805,6 +996,10 @@ async def predict_exam_endpoint(request: Request):
                 past_papers = json.loads(pp)
             except Exception:
                 pass
+
+    # If no material_text provided, try to use session's extracted text
+    if not material_text or len(material_text.strip()) < 20:
+        material_text = session_manager.get_extracted_text(session.session_id)
 
     if not material_text or len(material_text.strip()) < 20:
         raise HTTPException(status_code=400, detail="Material text too short for exam prediction")
@@ -841,8 +1036,17 @@ async def predict_exam_endpoint(request: Request):
         scores = [q.evidence_score or 0.85 for q in pipeline_result["top_25"]]
         avg_conf = round((sum(scores) / len(scores)) * 100, 1)
 
+    # Store results in session
+    if pipeline_result.get("top_25"):
+        top_25_data = [q.model_dump() if hasattr(q, 'model_dump') else q for q in pipeline_result["top_25"]]
+        session_manager.set_ranked_questions(session.session_id, top_25_data)
+
+    if pipeline_result.get("predicted_mock_paper"):
+        session_manager.set_predicted_paper(session.session_id, pipeline_result["predicted_mock_paper"])
+
     return {
         "success": True,
+        "session_id": session.session_id,
         "subject_name": subject_name,
         "total_marks": mock_paper.get("total_marks", total_marks),
         "time_hours": mock_paper.get("duration_hours", 2.5),
@@ -864,7 +1068,11 @@ async def generate_answers_endpoint(request: Request):
     """
     Generate model answers with failover AI engine
     Accepts JSON body or Form data
+    Results stored in session for isolation.
     """
+    session_id = get_session_id_from_request(request)
+    session = session_manager.get_or_create_session(session_id)
+
     data = {}
     try:
         data = await request.json()
@@ -874,12 +1082,23 @@ async def generate_answers_endpoint(request: Request):
         if body:
             data = json.loads(body)
 
+    # If no source_text provided, try session's extracted text
+    source_text = data.get('source_text', '')
+    if not source_text:
+        source_text = session_manager.get_extracted_text(session.session_id)
+
     result = answer_generator.generate_answers(
         data.get('questions', []),
-        data.get('source_text', ''),
+        source_text,
         api_keys=data.get('api_keys'),
         preferred_order=data.get('preferred_order')
     )
+
+    # Store answers in session
+    if result.get("success") and result.get("answers"):
+        session_manager.set_answers(session.session_id, result["answers"])
+        result["session_id"] = session.session_id
+
     return result
 
 @router.post('/test-api-key')
@@ -897,7 +1116,11 @@ async def process_captured_slides(request: Request):
     """
     Process captured slide frames from screen capture:
     Multimodal AI analysis & question generation
+    Results stored in session for isolation.
     """
+    session_id = get_session_id_from_request(request)
+    session = session_manager.get_or_create_session(session_id)
+
     data = await request.json()
     frames = data.get("frames", [])
     api_keys = data.get("api_keys", {})
@@ -907,6 +1130,12 @@ async def process_captured_slides(request: Request):
         raise HTTPException(status_code=400, detail="No captured frames provided")
 
     result = ai_service.analyze_slides_and_generate(frames, api_keys=api_keys, preferred_order=preferred_order)
+
+    # Store captures in session
+    if result.get("success") and result.get("captures"):
+        session_manager.set_captures(session.session_id, result["captures"])
+        result["session_id"] = session.session_id
+
     return result
 
 @router.post('/create-pdf')
@@ -1001,16 +1230,76 @@ async def aki_chat_endpoint(request: Request):
         data = await request.json()
     except Exception:
         data = {}
-    
+
     prompt = data.get("prompt", "").strip()
     if not prompt:
         raise HTTPException(status_code=400, detail="Prompt is required")
-        
+
     context = data.get("context", "")
     api_key = data.get("api_key")
-    
+
     result = aki_agent.query(prompt=prompt, context=context, user_key=api_key)
     return result
+
+
+@router.post('/multi-agent/deliberate')
+async def multi_agent_deliberate_endpoint(request: Request):
+    """
+    Multi-Agent Adversarial Arena - Real AI Agent Deliberation
+    Orchestrates 6 specialized agents: Academic Patron, Prof. Mukherjee, Prof. Kulkarni,
+    Dr. Gupta, Agent Neuro, Sentinel-V3 with auto-failover across providers.
+    Session-scoped deliberation state persists via SessionManager.
+    """
+    session_id = get_session_id_from_request(request)
+    session = session_manager.get_or_create_session(session_id)
+
+    try:
+        data = await request.json()
+        extracted_text = data.get("extracted_text", "")
+        questions = data.get("questions", [])
+        exam_profile = data.get("exam_profile", {})
+        api_keys = data.get("api_keys")
+        preferred_order = data.get("preferred_order")
+
+        # If no extracted_text provided, try to use session's extracted text
+        if not extracted_text or len(extracted_text.strip()) < 20:
+            extracted_text = session_manager.get_extracted_text(session.session_id)
+
+        if not extracted_text or len(extracted_text.strip()) < 20:
+            raise HTTPException(status_code=400, detail="Extracted text too short for multi-agent deliberation")
+
+        # If no questions provided, try session's questions
+        if not questions:
+            questions = session_manager.get_questions(session.session_id)
+
+        # Run real multi-agent deliberation
+        result = await multi_agent_arena.run_deliberation(
+            extracted_text=extracted_text,
+            questions=questions,
+            exam_profile=exam_profile,
+            api_keys=api_keys,
+            preferred_order=preferred_order,
+            session_id=session.session_id
+        )
+
+        # Store deliberation result in session
+        if result.get("success"):
+            session_manager.set_metadata(session.session_id, {
+                "deliberation_logs": result.get("deliberation_logs", []),
+                "consensus_report": result.get("consensus_report", {}),
+                "deliberated_at": datetime.now().isoformat()
+            })
+
+        # Include session_id in response
+        result["session_id"] = session.session_id
+        return result
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in multi-agent deliberation: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 @router.get('/health')
 async def health_check():

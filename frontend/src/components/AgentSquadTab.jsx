@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const AGENTS = [
@@ -75,76 +75,109 @@ const AGENTS = [
     model: 'Mistral Large / Local AST Engine',
     gradient: 'from-rose-500 to-pink-600',
     specialty: 'Source Citation Verification, Code Token Stripping & Zero-Hallucination Gate',
-    confidence: '99.9%',
+    confidence: 'High',
     tasksDone: 620,
     status: 'Guarding',
     directive: 'Reject any non-syllabus terms, code fragments, or unverified claims before user delivery.'
   }
 ];
 
-export default function AgentSquadTab({ appState, setActiveTab, openApiKeyModal, apiKeys }) {
+export default function AgentSquadTab({ appState, setActiveTab, openApiKeyModal, apiKeys, sessionId }) {
   const [selectedAgent, setSelectedAgent] = useState(AGENTS[0]);
   const [isDeliberating, setIsDeliberating] = useState(false);
   const [deliberationLogs, setDeliberationLogs] = useState([]);
   const [activeEnsembleMode, setActiveEnsembleMode] = useState('consensus');
   const [consensusReport, setConsensusReport] = useState(null);
+  const [errorMessage, setErrorMessage] = useState(null);
 
   const hasContent = Boolean(appState.extractedText || appState.uploadedFile || (appState.questions && appState.questions.length > 0));
   const docName = appState.uploadedFiles?.[0]?.name || appState.uploadedFile?.name || 'Uploaded Syllabus';
 
-  const runMultiAgentCouncil = async () => {
+  const runMultiAgentCouncil = useCallback(async () => {
+    if (!hasContent) {
+      setErrorMessage("No study material uploaded. Please upload documents first.");
+      return;
+    }
+
     setIsDeliberating(true);
     setDeliberationLogs([]);
     setConsensusReport(null);
+    setErrorMessage(null);
 
-    const steps = [
-      {
-        agent: AGENTS[1], // Researcher
-        action: 'Ingesting & Indexing Document Corpus',
-        detail: `Scanning ${docName}. Extracted core theoretical milestones and module definitions.`
-      },
-      {
-        agent: AGENTS[0], // Strategist
-        action: 'Formulating Parul University Blueprint',
-        detail: `Allocating 300 Questions across Bloom's Taxonomy: 100 MCQs (2 marks), 150 Short (5 marks), 50 Essays (12 marks).`
-      },
-      {
-        agent: AGENTS[2], // Critic
-        action: 'Running Adversarial Question Stress-Test',
-        detail: `Tested questions against syllabus boundaries. Stripped 0 ambiguities. Quality score: 98.4/100.`
-      },
-      {
-        agent: AGENTS[3], // Architect
-        action: 'Drafting Step-by-Step Marking Scheme & Solutions',
-        detail: `Synthesized model solutions with bold key points, formulas, and university evaluation criteria.`
-      },
-      {
-        agent: AGENTS[5], // Sentinel
-        action: 'Zero-Hallucination & Document Grounding Gate',
-        detail: `All questions verified against source citations. Code fragments and syntax noise: 0 detected. 100% grounded.`
-      },
-      {
-        agent: AGENTS[4], // Neuro
-        action: 'Building 5-Day Leitner Spaced Repetition Roadmap',
-        detail: `Mapped review cadence for optimal retention before university mid-term exams.`
+    try {
+      // Prepare payload for backend
+      const payload = {
+        extracted_text: appState.extractedText || "",
+        questions: appState.questions || [],
+        exam_profile: appState.predictedPaper || {},
+        api_keys: apiKeys,
+        preferred_order: apiKeys ? Object.keys(apiKeys).filter(k => apiKeys[k] && apiKeys[k].trim().length > 5) : undefined
+      };
+
+      const headers = {
+        'Content-Type': 'application/json'
+      };
+      if (sessionId) {
+        headers['X-Session-ID'] = sessionId;
       }
-    ];
 
-    for (let i = 0; i < steps.length; i++) {
-      await new Promise(r => setTimeout(r, 600));
-      setDeliberationLogs(prev => [...prev, steps[i]]);
+      const response = await fetch('/api/v1/multi-agent/deliberate', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(payload)
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || `HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const result = await response.json();
+
+      if (!result.success) {
+        throw new Error(result.error || "Multi-agent deliberation failed");
+      }
+
+      // Convert backend deliberation logs to frontend format
+      const formattedLogs = (result.deliberation_logs || []).map((log, idx) => ({
+        agent: log.agent,
+        action: log.action,
+        detail: log.detail,
+        success: log.success,
+        provider: log.provider
+      }));
+
+      setDeliberationLogs(formattedLogs);
+      setConsensusReport(result.consensus_report);
+
+    } catch (error) {
+      console.error("Multi-agent deliberation error:", error);
+      setErrorMessage(`Deliberation failed: ${error.message}`);
+
+      // Show error in logs
+      setDeliberationLogs([{
+        agent: AGENTS[0],
+        action: 'Error',
+        detail: error.message,
+        success: false,
+        provider: 'none'
+      }]);
+
+      setConsensusReport({
+        status: 'Deliberation Failed',
+        overallConfidence: '0%',
+        questionsApproved: 0,
+        hallucinationRisk: 'Unknown',
+        recommendation: error.message,
+        agentsParticipated: 0,
+        agentsTotal: 6,
+        failedAgents: AGENTS.map(a => a.name),
+        keyFindings: []
+      });
+    } finally {
+      setIsDeliberating(false);
     }
-
-    setConsensusReport({
-      status: 'Council Consensus Reached',
-      overallConfidence: '98.8%',
-      questionsApproved: appState.questions?.length || 300,
-      hallucinationRisk: '0.00%',
-      recommendation: 'Predicted question paper and answer bank are verified and ready for high-scoring revision.'
-    });
-
-    setIsDeliberating(false);
-  };
+  }, [hasContent, appState, apiKeys, sessionId]);
 
   return (
     <div className="flex flex-col gap-6 h-full p-2 md:p-4 max-w-6xl mx-auto">
@@ -185,6 +218,22 @@ export default function AgentSquadTab({ appState, setActiveTab, openApiKeyModal,
           </button>
         </div>
       </div>
+
+      {/* Error Message Display */}
+      {errorMessage && (
+        <div className="p-4 rounded-xl bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 flex items-center justify-between gap-4 animate-in slide-in-from-top-2">
+          <div className="flex items-center gap-2 text-red-700 dark:text-red-300">
+            <span className="text-lg">⚠️</span>
+            <span className="font-medium text-sm">{errorMessage}</span>
+          </div>
+          <button
+            onClick={() => setErrorMessage(null)}
+            className="px-3 py-1.5 rounded-lg bg-red-100 dark:bg-red-900/50 hover:bg-red-200 dark:hover:bg-red-800 text-red-700 dark:text-red-200 text-xs font-bold shrink-0 transition-colors"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
 
       {/* Agents Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
