@@ -14,8 +14,187 @@ export function createPDFFromImages(images, title = 'Captured Slides') {
   pdf.save(`${cleanTitle}.pdf`);
 }
 
+// Universal & Custom Pattern University Examination Paper Generator
+export function createCustomPatternExamPDF(paperData = {}) {
+  const pdf = new jsPDF('p', 'mm', 'a4');
+  const metadata = paperData.metadata || {};
+  const university = metadata.university || 'PARUL UNIVERSITY';
+  const faculty = metadata.faculty || 'FACULTY OF MANAGEMENT STUDIES & HIGHER EDUCATION';
+  const program = metadata.program || 'University Examination';
+  const examType = metadata.examType || 'Mid-Term Examination';
+  const subject = metadata.subject || 'Course Syllabus';
+  const subjectCode = metadata.subjectCode || 'PU302';
+  const semester = metadata.semester || 'Semester: III';
+  const time = metadata.time || '1 hr 30 min';
+  const totalMarks = metadata.totalMarks || 40;
+
+  let sections = paperData.sections;
+  if (!sections || !Array.isArray(sections) || sections.length === 0) {
+    sections = [];
+    if (paperData.sectionA) sections.push(paperData.sectionA);
+    if (paperData.sectionB) sections.push(paperData.sectionB);
+  }
+
+  const drawPageHeader = (pageNum) => {
+    pdf.setDrawColor(0, 0, 0);
+    pdf.setLineWidth(0.3);
+
+    // Enrollment No
+    pdf.setFont('helvetica', 'normal');
+    pdf.setFontSize(8.5);
+    pdf.text('Enrollment No: ............................................', 130, 12);
+
+    // University Header
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(13);
+    pdf.text(university.toUpperCase(), 105, 18, { align: 'center' });
+    pdf.setFontSize(10);
+    pdf.text(examType.toUpperCase(), 105, 23.5, { align: 'center' });
+    pdf.setFontSize(8.5);
+    pdf.text(faculty.toUpperCase(), 105, 28, { align: 'center' });
+
+    // Metadata Table Box
+    pdf.setLineWidth(0.2);
+    pdf.rect(15, 31, 180, 16);
+    pdf.line(15, 39, 195, 39);
+    pdf.line(95, 31, 95, 47);
+    pdf.line(145, 31, 145, 47);
+
+    pdf.setFontSize(8);
+    pdf.setFont('helvetica', 'normal');
+    pdf.text(`${semester}`, 18, 36);
+    pdf.text('Date:     --/--/2026', 98, 36);
+    pdf.text(`Time:     ${time}`, 148, 36);
+
+    pdf.text(`Subject Code:   ${subjectCode}`, 18, 44);
+    pdf.text(`Subject:   ${subject.slice(0, 26)}`, 98, 44);
+    pdf.text(`Total Marks:   ${totalMarks}`, 148, 44);
+
+    // Instructions
+    pdf.setFontSize(7.5);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text('Instructions to Candidates:', 15, 51);
+    pdf.setFont('helvetica', 'normal');
+    pdf.text('1. All questions are structured strictly according to the approved examination blueprint.', 15, 55);
+    pdf.text('2. Figures to the right indicate full marks. Make suitable assumptions wherever necessary.', 15, 59);
+    pdf.line(15, 61, 195, 61);
+
+    // Page footer
+    pdf.setFontSize(8);
+    pdf.text(`Page ${pageNum}`, 180, 285);
+  };
+
+  let pageNumber = 1;
+  drawPageHeader(pageNumber);
+  let y = 67;
+
+  sections.forEach((sec, sIdx) => {
+    if (y > 240) {
+      pdf.addPage();
+      pageNumber++;
+      drawPageHeader(pageNumber);
+      y = 67;
+    }
+
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(10.5);
+    pdf.text(sec.title || `SECTION – ${String.fromCharCode(65 + sIdx)}`, 105, y, { align: 'center' });
+    y += 6;
+
+    const subList = sec.subSections || [];
+    const allSubs = subList.length > 0 ? subList : [sec.q1, sec.q2, sec.q3].filter(Boolean);
+
+    allSubs.forEach(sub => {
+      if (y > 245) {
+        pdf.addPage();
+        pageNumber++;
+        drawPageHeader(pageNumber);
+        y = 67;
+      }
+
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(8.5);
+      pdf.text(sub.heading || 'Answer the questions:', 15, y);
+      if (sub.marksTotal) {
+        pdf.text(String(sub.marksTotal), 195, y, { align: 'right' });
+      }
+      y += 3.5;
+
+      if (sub.caseletText) {
+        const caseLines = pdf.splitTextToSize(sub.caseletText, 170);
+        const boxH = caseLines.length * 4 + 6;
+        if (y + boxH > 270) {
+          pdf.addPage();
+          pageNumber++;
+          drawPageHeader(pageNumber);
+          y = 67;
+        }
+        pdf.setDrawColor(180, 180, 180);
+        pdf.rect(15, y, 180, boxH);
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(8);
+        pdf.text(caseLines, 18, y + 4.5);
+        y += boxH + 4;
+      } else if (sub.items && sub.items.length > 0) {
+        pdf.setDrawColor(0, 0, 0);
+        pdf.rect(15, y, 180, 5.5);
+        pdf.line(25, y, 25, y + 5.5);
+        pdf.line(150, y, 150, y + 5.5);
+        pdf.line(165, y, 165, y + 5.5);
+        pdf.line(180, y, 180, y + 5.5);
+
+        pdf.setFontSize(7.5);
+        pdf.setFont('helvetica', 'bold');
+        pdf.text('No.', 17, y + 3.8);
+        pdf.text('Question', 28, y + 3.8);
+        pdf.text('Marks', 152, y + 3.8);
+        pdf.text('CO', 169, y + 3.8);
+        pdf.text('BT', 184, y + 3.8);
+        y += 5.5;
+
+        pdf.setFont('helvetica', 'normal');
+        sub.items.forEach(item => {
+          const qText = item.question || item.q || '';
+          const lines = pdf.splitTextToSize(qText, 120);
+          const rowH = Math.max(lines.length * 4.2 + 3, 7.5);
+
+          if (y + rowH > 275) {
+            pdf.addPage();
+            pageNumber++;
+            drawPageHeader(pageNumber);
+            y = 67;
+          }
+
+          pdf.rect(15, y, 180, rowH);
+          pdf.line(25, y, 25, y + rowH);
+          pdf.line(150, y, 150, y + rowH);
+          pdf.line(165, y, 165, y + rowH);
+          pdf.line(180, y, 180, y + rowH);
+
+          pdf.setFontSize(7.5);
+          pdf.text(item.no || 'i.', 17, y + 4.5);
+          pdf.text(lines, 28, y + 4.2);
+          pdf.text(String(item.marks || 2), 155, y + 4.5);
+          pdf.text(item.co || 'CO1', 169, y + 4.5);
+          pdf.text(item.bt || 'BT-1', 184, y + 4.5);
+          y += rowH;
+        });
+        y += 4;
+      }
+    });
+    y += 4;
+  });
+
+  const cleanName = `${university.replace(/[^a-zA-Z0-9]/g, '_')}_${subject.replace(/[^a-zA-Z0-9]/g, '_')}_Exam_Paper.pdf`;
+  pdf.save(cleanName);
+}
+
 // Parul University Official MBA Mid-Term Examination Paper Generator (40 Marks)
 export function createParulExamPDF(paperData = {}) {
+  // If paper has custom sections or non-default university, use universal generator
+  if (paperData.sections && paperData.sections.length > 0) {
+    return createCustomPatternExamPDF(paperData);
+  }
   const pdf = new jsPDF('p', 'mm', 'a4');
   const subject = paperData.metadata?.subject || 'Course Syllabus';
   const faculty = paperData.metadata?.faculty || 'FACULTY OF MANAGEMENT STUDIES, PARUL UNIVERSITY';
