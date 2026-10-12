@@ -15,6 +15,8 @@ import AgentSquadTab from './components/AgentSquadTab';
 import SettingsTab from './components/SettingsTab';
 import APIKeyModal from './components/APIKeyModal';
 import AkiDashboardCompanion from './components/AkiDashboardCompanion';
+import PrivacyPolicy from './components/PrivacyPolicy';
+import TermsAndConditions from './components/TermsAndConditions';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export default function App() {
@@ -23,7 +25,6 @@ export default function App() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [apiKeyModalOpen, setApiKeyModalOpen] = useState(false);
   const [sessionKey, setSessionKey] = useState(1);
-  const [sessionId, setSessionId] = useState(null);
   const [toastMessage, setToastMessage] = useState(null);
 
   // API Keys state with permanent persistence across all sessions
@@ -48,29 +49,6 @@ export default function App() {
     if (priority) localStorage.setItem('study_assistant_primary_priority', priority);
   };
 
-  // Initialize or get session ID from backend
-  useEffect(() => {
-    const initSession = async () => {
-      try {
-        const res = await fetch('/api/v1/session/new', { method: 'POST' });
-        if (res.ok) {
-          const data = await res.json();
-          if (data.session_id) {
-            setSessionId(data.session_id);
-            sessionStorage.setItem('study_assistant_session_id', data.session_id);
-          }
-        }
-      } catch (e) {
-        console.warn("Could not create backend session, using local:", e);
-        // Fallback to local session ID
-        const localSessionId = sessionStorage.getItem('study_assistant_session_id') || crypto.randomUUID();
-        sessionStorage.setItem('study_assistant_session_id', localSessionId);
-        setSessionId(localSessionId);
-      }
-    };
-    initSession();
-  }, []);
-
   // App state initializes clean (0 PDFs, 0 Questions, 0 Answers)
   const [appState, setAppState] = useState(() => ({
     uploadedFile: null,
@@ -93,7 +71,7 @@ export default function App() {
 
   const [lastSaved, setLastSaved] = useState(null);
 
-  const handleResetWorkspace = async (showPrompt = false) => {
+  const handleResetWorkspace = (showPrompt = false) => {
     if (!showPrompt || window.confirm("Start a fresh study session? This will clear all uploaded PDFs, questions, and notes. (Your API keys will remain saved)")) {
       const emptyState = {
         uploadedFile: null,
@@ -123,24 +101,6 @@ export default function App() {
         console.warn("Error clearing storage:", e);
       }
 
-      // Create new backend session
-      try {
-        const res = await fetch('/api/v1/session/new', { method: 'POST' });
-        if (res.ok) {
-          const data = await res.json();
-          if (data.session_id) {
-            setSessionId(data.session_id);
-            sessionStorage.setItem('study_assistant_session_id', data.session_id);
-          }
-        }
-      } catch (e) {
-        console.warn("Could not create new backend session:", e);
-        // Fallback to local session ID
-        const localSessionId = crypto.randomUUID();
-        sessionStorage.setItem('study_assistant_session_id', localSessionId);
-        setSessionId(localSessionId);
-      }
-
       setSessionKey(prev => prev + 1);
       setActiveTab('upload');
       setLastSaved(null);
@@ -153,7 +113,7 @@ export default function App() {
 
   const handleRefreshAgents = () => {
     setIsRefreshingAgents(true);
-    
+
     // Purge transient prompt caches & reasoning noise while keeping document corpus and API keys intact
     try {
       sessionStorage.removeItem('study_assistant_transient_prompt_cache');
@@ -186,36 +146,39 @@ export default function App() {
       primaryPriority,
       openApiKeyModal: () => setApiKeyModalOpen(true),
       sessionKey,
-      sessionId,
       startNewSession: () => handleResetWorkspace(false)
     };
 
     switch (activeTab) {
-      case 'upload': 
+      case 'upload':
         return <UploadTab {...tabProps} />;
       case 'squad':
         return <AgentSquadTab {...tabProps} />;
-      case 'capture': 
+      case 'capture':
         return <ScreenCaptureTab {...tabProps} />;
-      case 'summary': 
+      case 'summary':
         return <SummaryTab {...tabProps} />;
       case 'research':
         return <ResearchHubTab {...tabProps} />;
-      case 'questions': 
+      case 'questions':
         return <QuestionEngineTab {...tabProps} />;
-      case 'predictor': 
+      case 'predictor':
         return <ExamPredictorTab {...tabProps} />;
-      case 'answers': 
+      case 'answers':
         return <AnswerBankTab {...tabProps} />;
-      case 'adaptive': 
+      case 'adaptive':
         return <AdaptiveTab {...tabProps} />;
       case 'transparency':
         return <TransparencyAuditTab {...tabProps} />;
-      case 'plan': 
+      case 'plan':
         return <StudyPlanTab {...tabProps} />;
       case 'settings':
         return <SettingsTab {...tabProps} handleSaveApiKeys={handleSaveApiKeys} />;
-      default: 
+      case 'privacy':
+        return <PrivacyPolicy onBack={() => setActiveTab('upload')} />;
+      case 'terms':
+        return <TermsAndConditions onBack={() => setActiveTab('upload')} />;
+      default:
         return <UploadTab {...tabProps} />;
     }
   };
@@ -225,35 +188,37 @@ export default function App() {
 
   return (
     <div className="flex h-screen overflow-hidden bg-gray-50 dark:bg-gray-950 transition-colors duration-300">
-      <Sidebar 
-        activeTab={activeTab} 
-        setActiveTab={setActiveTab} 
+      <Sidebar
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
         collapsed={sidebarCollapsed}
         setCollapsed={setSidebarCollapsed}
       />
-      
+
       <div className="flex-1 flex flex-col h-full overflow-hidden">
-        <header className="h-16 flex items-center justify-between px-6 bg-gradient-to-r from-primary-500 to-primary-700 animated-gradient-bg text-white shadow-md">
+        <header className="h-16 flex items-center justify-between px-6 bg-slate-900 text-white shadow-xs border-b border-slate-800">
           <div className="flex items-center gap-3">
-            <span className="text-2xl">🎓</span>
+            <div className="w-8 h-8 rounded-lg bg-primary-600 flex items-center justify-center font-bold text-xs text-white">
+              PU
+            </div>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-lg md:text-xl font-bold tracking-tight leading-none">Parul Study Assistant</h1>
-                <span className="px-2 py-0.5 rounded-full bg-white/20 text-[10px] font-semibold text-white/95 border border-white/25 hidden sm:inline-block">
-                  By Rohan Mitra
+                <h1 className="text-base md:text-lg font-bold tracking-tight leading-none text-white">Parul Study Assistant</h1>
+                <span className="px-2 py-0.5 rounded-full bg-slate-800 text-[10px] font-semibold text-slate-300 border border-slate-700 hidden sm:inline-block">
+                  Academic Portal
                 </span>
               </div>
               <div className="flex items-center gap-1.5 mt-0.5">
-                <span className="text-[10px] text-blue-100 font-medium tracking-wider uppercase">Exam Predictor & Syllabus AI</span>
-                <span className="text-[10px] text-blue-200/80">• Made by Rohan Mitra (AI Architect & Coder)</span>
+                <span className="text-[10px] text-slate-400 font-medium tracking-wider uppercase">Exam Intelligence & Syllabus Analysis</span>
+                <span className="text-[10px] text-slate-500">• NAAC Grade A++ Standard</span>
               </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0 flex-nowrap overflow-x-auto py-1">
+          <div className="flex items-center gap-2.5 shrink-0 flex-nowrap">
             {lastSaved && (
-              <span className="hidden xl:inline-flex h-9 items-center gap-1.5 px-3 rounded-full bg-white/15 text-[11px] text-white/90 font-medium border border-white/20 shrink-0 whitespace-nowrap">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-300"></span>
+              <span className="hidden xl:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-800 text-[11px] text-slate-300 font-medium border border-slate-700 shrink-0 whitespace-nowrap">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
                 <span>Saved {lastSaved}</span>
               </span>
             )}
@@ -261,50 +226,56 @@ export default function App() {
             <button
               onClick={handleRefreshAgents}
               disabled={isRefreshingAgents}
-              className="inline-flex h-9 items-center gap-1.5 px-3.5 rounded-full bg-white/20 hover:bg-white/30 text-xs font-bold transition-all text-white border border-white/30 cursor-pointer shadow-sm shrink-0 whitespace-nowrap active:scale-95"
-              title="Refresh Agent Squad cognitive context & recalibrate AI reasoning (preserves uploaded documents and permanent API keys)"
+              className={`p-2 rounded-lg transition-colors cursor-pointer text-xs shrink-0 ${
+                isRefreshingAgents ? 'bg-slate-800 text-slate-400' : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700'
+              }`}
+              title="Verify Backend & AI Engine Connectivity"
             >
-              <span className={isRefreshingAgents ? "inline-block animate-spin" : ""}>⚡</span>
-              <span className="hidden sm:inline">{isRefreshingAgents ? 'Recalibrating...' : 'Refresh Agents'}</span>
+              <svg className={`w-4 h-4 ${isRefreshingAgents ? 'animate-spin' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+              </svg>
             </button>
 
-            <button
-              onClick={() => handleResetWorkspace(false)}
-              className="inline-flex h-9 items-center gap-1.5 px-3.5 rounded-full bg-white/20 hover:bg-white/30 text-xs font-bold transition-all text-white border border-white/30 cursor-pointer shadow-sm shrink-0 whitespace-nowrap"
-              title="Start a completely new study session (clears previous PDFs & questions, keeps API keys)"
-            >
-              <span>🔄</span>
-              <span className="hidden md:inline">New Session</span>
-            </button>
+            {hasActiveSession && (
+              <button
+                onClick={() => handleResetWorkspace(true)}
+                className="px-3 py-1.5 rounded-lg bg-rose-950/40 hover:bg-rose-900/60 text-rose-300 border border-rose-800/60 text-xs font-semibold transition-all cursor-pointer whitespace-nowrap"
+                title="Purge current session data and start fresh"
+              >
+                Reset Session
+              </button>
+            )}
 
             <button
               onClick={() => setApiKeyModalOpen(true)}
-              className="inline-flex h-9 items-center gap-2 px-3.5 rounded-full bg-white/20 hover:bg-white/30 text-xs font-bold transition-all border border-white/30 cursor-pointer shadow-sm shrink-0 whitespace-nowrap"
-              title="Configure Google Gemini, ChatGPT, and Claude API Keys with Auto-Switching"
+              className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-semibold transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap"
+              title="Configure AI API Providers"
             >
-              <span>🔑</span>
               <span className="hidden sm:inline">
-                {hasConfiguredKeys ? `AI Engines: Active (${primaryPriority.toUpperCase()})` : 'Connect AI Keys'}
+                {hasConfiguredKeys ? `AI Engines: (${primaryPriority.toUpperCase()})` : 'AI Providers'}
               </span>
-              <span className={`w-2 h-2 rounded-full ${hasConfiguredKeys ? 'bg-emerald-400 animate-pulse' : 'bg-amber-300'}`}></span>
+              <span className={`w-2 h-2 rounded-full ${hasConfiguredKeys ? 'bg-emerald-400' : 'bg-amber-400'}`}></span>
             </button>
 
             <button
               onClick={() => setActiveTab('settings')}
-              className={`inline-flex h-9 w-9 items-center justify-center rounded-full transition-colors cursor-pointer text-sm shrink-0 ${
-                activeTab === 'settings' ? 'bg-white/30 text-white ring-2 ring-white/50' : 'hover:bg-white/20 text-white/90'
+              className={`p-2 rounded-lg transition-colors cursor-pointer text-xs shrink-0 ${
+                activeTab === 'settings' ? 'bg-primary-600 text-white' : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700'
               }`}
-              title="Study Assistant Settings, Answer Preferences & Agent Help Desk"
+              title="Settings & Storage"
             >
-              <span>⚙️</span>
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="12" r="3"/>
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+              </svg>
             </button>
 
-            <button 
+            <button
               onClick={() => setDarkMode(!darkMode)}
-              className="inline-flex h-9 px-3 items-center justify-center gap-1.5 rounded-full hover:bg-white/20 border border-white/20 transition-colors cursor-pointer text-xs font-bold shrink-0 whitespace-nowrap"
+              className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-colors cursor-pointer text-xs shrink-0 whitespace-nowrap"
               title="Toggle Light / Dark mode"
             >
-              {darkMode ? '☀️ Light' : '🌙 Dark'}
+              {darkMode ? 'Light Mode' : 'Dark Mode'}
             </button>
           </div>
         </header>
@@ -322,9 +293,9 @@ export default function App() {
             </motion.div>
           )}
         </AnimatePresence>
-        
+
         <main className="flex-1 overflow-y-auto p-4 md:p-8">
-          <motion.div 
+          <motion.div
             key={`${activeTab}-${sessionKey}`}
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -334,18 +305,18 @@ export default function App() {
             {renderTab()}
           </motion.div>
         </main>
-        
+
         <QuickStats stats={appState.stats} />
       </div>
 
       {/* Aki Anime Study Companion & Antigravity Assistant (Transparent Screen Dashboard) */}
-      <AkiDashboardCompanion 
+      <AkiDashboardCompanion
         appState={appState}
         setActiveTab={setActiveTab}
         apiKeys={apiKeys}
       />
 
-      <APIKeyModal 
+      <APIKeyModal
         isOpen={apiKeyModalOpen}
         onClose={() => setApiKeyModalOpen(false)}
         apiKeys={apiKeys}

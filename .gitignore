@@ -1,6 +1,8 @@
 # Python
 backend/venv/
 backend/venv.nosync/
+backend/.venv/
+.venv/
 *.nosync/
 backend/__pycache__/
 backend/**/__pycache__/

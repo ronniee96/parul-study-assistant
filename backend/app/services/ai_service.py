@@ -949,30 +949,22 @@ Text:
                 })
 
         if not extracted_topics:
-            # Fallback topics
-            is_acc = bool(re.search(r'cost|account|finan|margin|budget|variance|bep', text, re.IGNORECASE))
-            if is_acc:
-                curriculum_topics = [
-                    ("Cost Classification & Cost Sheet", "Cost classification categorizes expenditures into direct materials, direct labor, and overheads to determine Prime Cost and Works Cost."),
-                    ("Marginal Costing & Break-Even Analysis (CVP)", "Marginal costing separates variable costs from fixed costs to calculate Contribution (Sales - Variable Cost = Fixed Cost + Profit) and Break-Even Point."),
-                    ("Budgetary Control & Flexible Budgets", "Budgetary control establishes quantitative targets and measures variances across varying operational capacity levels (60%, 80%, 100%)."),
-                    ("Standard Costing & Variance Analysis", "Standard costing sets benchmark unit costs for materials, labor, and overheads, isolating differences into Price and Usage variances."),
-                    ("Managerial Decision Making: Make-or-Buy", "Managerial accounting evaluates incremental relevant costs against external supplier quotes, ignoring committed sunk overheads."),
-                    ("Activity-Based Costing (ABC)", "Activity-Based Costing assigns overheads to cost pools and products using measurable cost driver rates rather than arbitrary volume keys.")
-                ]
-            else:
-                curriculum_topics = [
-                    ("Core Theoretical Foundations", "Fundamental principles establish the empirical baseline and operational laws governing analysis in this syllabus."),
-                    ("System Architecture & Design Patterns", "Structured architectural patterns organize modules into high-cohesion, loosely-coupled failure domains."),
-                    ("Operational Process Flow & Methodologies", "Diagnostic methodologies evaluate performance, precision, and operational feasibility across varying conditions."),
-                    ("Performance Optimization & Evaluation", "Continuous benchmarking provides quantitative signals for strategic quality control and risk minimization.")
-                ]
-            for t_title, t_content in curriculum_topics:
-                extracted_topics.append({
-                    'title': t_title,
-                    'content': t_content,
-                    'sentences': [t_content]
-                })
+            # Dynamically derive topics from any available sentences in the uploaded text
+            for s in sentences:
+                clean_s = boilerplate_pattern.sub('', s).strip()
+                words = [w for w in re.findall(r'\b[A-Za-z]{3,}\b', clean_s)]
+                if len(words) >= 2:
+                    cand = " ".join(words[:4]).title()
+                    extracted_topics.append({
+                        'title': cand,
+                        'content': s,
+                        'sentences': [s]
+                    })
+                if len(extracted_topics) >= 6:
+                    break
+
+        if not extracted_topics:
+            return []
 
         questions = []
         for i in range(num):

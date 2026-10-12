@@ -157,6 +157,11 @@ export default function UploadTab({ appState, setAppState, setActiveTab, session
       setProgressPercent(20);
       const extractedData = await extractMultipleDocuments(files);
       let extractedText = extractedData.combinedText || '';
+
+      if (!extractedText || extractedText.trim().length < 50) {
+        throw new Error("No readable text could be extracted from the uploaded document(s). Please ensure the files contain selectable text or run OCR before uploading.");
+      }
+
       let wordCount = extractedData.totalWords || extractedText.split(/\s+/).filter(Boolean).length;
       let charCount = extractedData.totalChars || extractedText.length;
       let backendData = null;
@@ -184,25 +189,25 @@ export default function UploadTab({ appState, setAppState, setActiveTab, session
           }
         }
       } catch (backendErr) {
-        console.info("Processed via in-browser PDF.js engine:", backendErr);
+        console.info("Processed via in-browser PDF engine:", backendErr);
       }
 
       // Stage 3: Syllabus & Topic Blueprint Mapping
       setCurrentStageIndex(2);
       setProgressPercent(60);
-      await new Promise(r => setTimeout(r, 400));
 
       // Stage 4 & 5: Adversarial Question Generation & Solutions
       setCurrentStageIndex(3);
       setProgressPercent(80);
       const dynamicQs = generateDynamicQuestions(extractedText, files.map(f => f.name).join(' '));
       const top25 = dynamicQs.slice(0, 25);
-      await new Promise(r => setTimeout(r, 400));
+      const avgConfidence = dynamicQs.length > 0
+        ? Math.round(dynamicQs.reduce((sum, q) => sum + (q.confidence || 75), 0) / dynamicQs.length)
+        : 80;
 
-      // Stage 6: Final Adaptive Learning Integration
+      // Stage 6: Final Integration
       setCurrentStageIndex(5);
       setProgressPercent(100);
-      await new Promise(r => setTimeout(r, 300));
 
       setAppState(prev => ({
         ...prev,
@@ -216,7 +221,7 @@ export default function UploadTab({ appState, setAppState, setActiveTab, session
         stats: { 
           pdfCount: files.length,
           questionCount: dynamicQs.length,
-          confidence: 98,
+          confidence: avgConfidence,
           answerCount: top25.length
         }
       }));
@@ -232,7 +237,7 @@ export default function UploadTab({ appState, setAppState, setActiveTab, session
 
     } catch (err) {
       console.error("Error during document processing:", err);
-      alert("Failed to process documents. Please ensure the files are readable.");
+      alert(err.message || "Failed to process documents. Please ensure the files are readable.");
     } finally {
       setLoading(false);
     }

@@ -23,7 +23,7 @@ export default function QuestionEngineTab({ appState = {}, setAppState, setActiv
         appState.uploadedFiles?.map(f => f.name).join(' ') || appState.uploadedFile?.name || ''
       );
       const top25 = dynamicQs.slice(0, 25);
-      
+
       // Update questions if empty or if document content changed
       if (!appState.questions || appState.questions.length === 0 || appState.questions[0]?.topic !== dynamicQs[0]?.topic) {
         setAppState(prev => ({
@@ -145,7 +145,9 @@ export default function QuestionEngineTab({ appState = {}, setAppState, setActiv
         ...prev.stats,
         questionCount: dynamicQs.length,
         answerCount: top25.length,
-        confidence: 96
+        confidence: dynamicQs.length > 0
+          ? Math.round(dynamicQs.reduce((sum, q) => sum + (q.confidence || 75), 0) / dynamicQs.length)
+          : 85
       }
     }));
     setEngineUsed('Dynamic Academic NLP Engine');
@@ -182,66 +184,21 @@ export default function QuestionEngineTab({ appState = {}, setAppState, setActiv
     }, 500);
   };
 
-  // Smart question filter matcher that properly categorizes all master question types
-  const matchesFilterType = (q, filterType) => {
-    if (!filterType || filterType === 'All') return true;
-    const t = (q.type || '').toLowerCase();
-    const cat = (q.category || '').toLowerCase();
-
-    if (filterType === 'MCQ') {
-      return t.includes('mcq') || cat.includes('mcq') || Boolean(q.options && q.options.length >= 2);
-    }
-    if (filterType === 'Essay') {
-      return t.includes('essay') || cat.includes('essay') || (q.marks && q.marks >= 10);
-    }
-    if (filterType === 'Short Answer') {
-      return (
-        t.includes('short') ||
-        t.includes('definition') ||
-        t.includes('structured') ||
-        t.includes('diagram') ||
-        t.includes('flowchart') ||
-        t.includes('mind map') ||
-        t.includes('notes') ||
-        t.includes('mistakes') ||
-        cat.includes('definition') ||
-        cat.includes('structured') ||
-        cat.includes('diagram') ||
-        cat.includes('flowchart') ||
-        (!t.includes('mcq') && !t.includes('essay') && (!q.marks || q.marks < 10) && (!q.options || q.options.length === 0))
-      );
-    }
-    return t === filterType.toLowerCase() || cat === filterType.toLowerCase();
-  };
-
   const currentQuestions = useMemo(() => {
-    const all = appState.questions?.length 
-      ? appState.questions 
+    const all = appState.questions?.length
+      ? appState.questions
       : (hasDocuments ? generateDynamicQuestions(appState.extractedText, appState.uploadedFiles?.map(f => f.name).join(' ') || appState.uploadedFile?.name || '') : []);
     let filtered = all.slice(0, activeTier);
     if (selectedType !== 'All') {
-      filtered = filtered.filter(q => matchesFilterType(q, selectedType));
+      filtered = filtered.filter(q => q.type === selectedType);
     }
     return filtered;
   }, [appState.questions, activeTier, selectedType, appState.extractedText, hasDocuments, appState.uploadedFiles, appState.uploadedFile]);
 
-  const typeCounts = useMemo(() => {
-    const all = appState.questions?.length 
-      ? appState.questions 
-      : (hasDocuments ? generateDynamicQuestions(appState.extractedText, appState.uploadedFiles?.map(f => f.name).join(' ') || appState.uploadedFile?.name || '') : []);
-    const tierQuestions = all.slice(0, activeTier);
-    return {
-      All: tierQuestions.length,
-      Essay: tierQuestions.filter(q => matchesFilterType(q, 'Essay')).length,
-      'Short Answer': tierQuestions.filter(q => matchesFilterType(q, 'Short Answer')).length,
-      MCQ: tierQuestions.filter(q => matchesFilterType(q, 'MCQ')).length,
-    };
-  }, [appState.questions, activeTier, appState.extractedText, hasDocuments, appState.uploadedFiles, appState.uploadedFile]);
-
   const handleExportPDF = (count, withAnswers = false) => {
     const qs = currentQuestions.slice(0, count);
-    const subject = appState.uploadedFiles?.length 
-      ? appState.uploadedFiles.map(f => f.name.replace(/\.[^/.]+$/, "")).join(" & ") 
+    const subject = appState.uploadedFiles?.length
+      ? appState.uploadedFiles.map(f => f.name.replace(/\.[^/.]+$/, "")).join(" & ")
       : (appState.uploadedFile?.name?.replace(/\.[^/.]+$/, "") || "Course Syllabus");
 
     if (withAnswers) {
@@ -307,7 +264,7 @@ export default function QuestionEngineTab({ appState = {}, setAppState, setActiv
           <span className="text-amber-500 text-base">⚡</span>
           <span className="font-semibold">Target Document:</span>
           <span className="font-bold text-primary-600 dark:text-primary-400">
-            {appState.uploadedFiles?.length 
+            {appState.uploadedFiles?.length
               ? `${appState.uploadedFiles.length} Uploaded Files (${appState.uploadedFiles.map(f => f.name).join(', ')})`
               : (appState.uploadedFile?.name || "Uploaded Syllabus Material")}
           </span>
@@ -359,19 +316,19 @@ export default function QuestionEngineTab({ appState = {}, setAppState, setActiv
 
       {/* Visual Funnel Hierarchy */}
       <div className="glass-card p-6 rounded-3xl flex flex-col gap-3">
-        {/* Tier 300 */}
-        <div 
+        {/* Tier All */}
+        <div
           onClick={() => setActiveTier(300)}
           className={`p-3.5 rounded-2xl font-bold text-xs md:text-sm text-white flex items-center justify-between cursor-pointer transition-all duration-300 shadow-md ${
-            activeTier === 300 
-              ? 'bg-blue-600 ring-4 ring-blue-300 dark:ring-blue-900 scale-[1.01]' 
+            activeTier === 300
+              ? 'bg-blue-600 ring-4 ring-blue-300 dark:ring-blue-900 scale-[1.01]'
               : 'bg-blue-500/80 hover:bg-blue-600 opacity-80'
           }`}
           style={{ width: '100%' }}
         >
           <div className="flex items-center gap-2">
             <span>📚</span>
-            <span>300 Total Course Questions</span>
+            <span>All Generated Questions ({appState.questions?.length || 0})</span>
           </div>
           <span className="text-[11px] bg-white/20 px-2 py-0.5 rounded-full">
             {activeTier === 300 ? 'Active Tier' : 'Click to View All'}
@@ -379,37 +336,37 @@ export default function QuestionEngineTab({ appState = {}, setAppState, setActiv
         </div>
 
         {/* Tier 200 */}
-        <div 
+        <div
           onClick={() => setActiveTier(200)}
           className={`p-3.5 rounded-2xl font-bold text-xs md:text-sm text-white flex items-center justify-between cursor-pointer transition-all duration-300 shadow-md mx-auto ${
-            activeTier === 200 
-              ? 'bg-emerald-600 ring-4 ring-emerald-300 dark:ring-emerald-900 scale-[1.01]' 
+            activeTier === 200
+              ? 'bg-emerald-600 ring-4 ring-emerald-300 dark:ring-emerald-900 scale-[1.01]'
               : 'bg-emerald-500/80 hover:bg-emerald-600 opacity-80'
           }`}
           style={{ width: '85%' }}
         >
           <div className="flex items-center gap-2">
             <span>⚖️</span>
-            <span>200 Core Syllabus Questions</span>
+            <span>Core Syllabus Tier ({Math.min(200, appState.questions?.length || 0)})</span>
           </div>
           <span className="text-[11px] bg-white/20 px-2 py-0.5 rounded-full">
-            {activeTier === 200 ? 'Active Tier' : 'Click to View 200'}
+            {activeTier === 200 ? 'Active Tier' : 'Click to View Core'}
           </span>
         </div>
 
         {/* Tier 100 */}
-        <div 
+        <div
           onClick={() => setActiveTier(100)}
           className={`p-3.5 rounded-2xl font-bold text-xs md:text-sm text-white flex items-center justify-between cursor-pointer transition-all duration-300 shadow-md mx-auto ${
-            activeTier === 100 
-              ? 'bg-amber-600 ring-4 ring-amber-300 dark:ring-amber-900 scale-[1.01]' 
+            activeTier === 100
+              ? 'bg-amber-600 ring-4 ring-amber-300 dark:ring-amber-900 scale-[1.01]'
               : 'bg-amber-500/80 hover:bg-amber-600 opacity-80'
           }`}
           style={{ width: '65%' }}
         >
           <div className="flex items-center gap-2">
             <span>🔥</span>
-            <span>100 High-Probability Questions</span>
+            <span>High-Probability Tier ({Math.min(100, appState.questions?.length || 0)})</span>
           </div>
           <span className="text-[11px] bg-white/20 px-2 py-0.5 rounded-full">
             {activeTier === 100 ? 'Active Tier' : 'Click to View 100'}
@@ -417,18 +374,18 @@ export default function QuestionEngineTab({ appState = {}, setAppState, setActiv
         </div>
 
         {/* Tier 25 */}
-        <div 
+        <div
           onClick={() => setActiveTier(25)}
           className={`p-3.5 rounded-2xl font-bold text-xs md:text-sm text-white flex items-center justify-between cursor-pointer transition-all duration-300 shadow-md mx-auto ${
-            activeTier === 25 
-              ? 'bg-rose-600 ring-4 ring-rose-300 dark:ring-rose-900 scale-[1.01]' 
+            activeTier === 25
+              ? 'bg-rose-600 ring-4 ring-rose-300 dark:ring-rose-900 scale-[1.01]'
               : 'bg-rose-500/80 hover:bg-rose-600 opacity-80'
           }`}
           style={{ width: '45%' }}
         >
           <div className="flex items-center gap-2">
             <span>🎯</span>
-            <span>25 Must-Solve (90%+ Exam Likelihood)</span>
+            <span>Must-Solve Top {Math.min(25, appState.questions?.length || 0)}</span>
           </div>
           <span className="text-[11px] bg-white/20 px-2 py-0.5 rounded-full">
             {activeTier === 25 ? 'Active Tier' : 'Click to View Top 25'}
@@ -449,20 +406,13 @@ export default function QuestionEngineTab({ appState = {}, setAppState, setActiv
             <button
               key={t}
               onClick={() => setSelectedType(t)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-                selectedType === t 
-                  ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm ring-1 ring-black/5' 
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
+                selectedType === t
+                  ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
                   : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
               }`}
             >
-              <span>{t}</span>
-              <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-extrabold ${
-                selectedType === t 
-                  ? 'bg-primary-100 text-primary-800 dark:bg-primary-900/60 dark:text-primary-300' 
-                  : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
-              }`}>
-                {typeCounts[t] || 0}
-              </span>
+              {t}
             </button>
           ))}
         </div>
@@ -486,7 +436,7 @@ export default function QuestionEngineTab({ appState = {}, setAppState, setActiv
                   <span className="w-7 h-7 rounded-lg bg-primary-100 dark:bg-primary-900/50 text-primary-700 dark:text-primary-300 font-bold text-xs flex items-center justify-center">
                     Q{idx + 1}
                   </span>
-                  
+
                   <span className="px-2 py-0.5 rounded-md bg-rose-100 dark:bg-rose-900/40 text-rose-700 dark:text-rose-300 text-xs font-bold flex items-center gap-1 border border-rose-200 dark:border-rose-800">
                     <span>🎯</span>
                     <span>{q.confidence}% Likelihood</span>
@@ -497,7 +447,7 @@ export default function QuestionEngineTab({ appState = {}, setAppState, setActiv
                   </span>
 
                   <span className="px-2 py-0.5 rounded-md bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 text-xs font-semibold">
-                    {q.subType || q.type}
+                    {q.type}
                   </span>
                 </div>
 
@@ -516,7 +466,7 @@ export default function QuestionEngineTab({ appState = {}, setAppState, setActiv
               {q.options && q.options.length > 0 && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
                   {q.options.map((opt, oIdx) => (
-                    <div 
+                    <div
                       key={oIdx}
                       className="p-2.5 rounded-xl bg-gray-50 dark:bg-gray-800/60 border border-gray-200 dark:border-gray-700/50 text-xs text-gray-800 dark:text-gray-200 font-medium"
                     >
