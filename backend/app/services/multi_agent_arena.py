@@ -573,7 +573,8 @@ Return JSON with:
                 elif "overall_verification" in out and "avg_verification_score" in out["overall_verification"]:
                     quality_scores.append(out["overall_verification"]["avg_verification_score"])
 
-        avg_confidence = sum(quality_scores) / len(quality_scores) if quality_scores else 0.85
+        avg_confidence = round(sum(quality_scores) / len(quality_scores), 3) if quality_scores else None
+        overall_conf_display = f"{round(avg_confidence * 100, 1)}%" if avg_confidence is not None else "Not available"
 
         # Count questions approved
         approved_count = 0
@@ -584,7 +585,9 @@ Return JSON with:
 
         return {
             "status": "Council Consensus Reached" if len(successful_agents) >= 4 else "Partial Consensus",
-            "overallConfidence": f"{round(avg_confidence * 100, 1)}%",
+            "overallConfidence": overall_conf_display,
+            "overallConfidenceScore": avg_confidence,
+            "confidenceMetric": "agent_quality_score" if avg_confidence is not None else "unavailable",
             "questionsApproved": approved_count or len(questions),
             "hallucinationRisk": "0.00%" if "sentinel" in successful_agents else "Unknown",
             "recommendation": "Predicted question paper and answer bank are verified and ready for high-scoring revision."
@@ -602,14 +605,15 @@ Return JSON with:
         for agent_id, output in agent_outputs.items():
             if output.get("success") and isinstance(output["output"], dict):
                 out = output["output"]
+                agent_name = output.get('config', {}).get('name', agent_id.title())
                 if "summary" in out:
-                    findings.append(f"{output['config']['name']}: {out['summary'][:120]}")
+                    findings.append(f"{agent_name}: {out['summary'][:120]}")
                 elif "overall_stats" in out:
                     stats = out["overall_stats"]
-                    findings.append(f"{output['config']['name']}: {stats.get('approved', 0)}/{stats.get('total_reviewed', '?')} approved")
+                    findings.append(f"{agent_name}: {stats.get('approved', 0)}/{stats.get('total_reviewed', '?')} approved")
                 elif "overall_verification" in out:
                     stats = out["overall_verification"]
-                    findings.append(f"{output['config']['name']}: {stats.get('fully_grounded', 0)}/{stats.get('total_checked', '?')} grounded")
+                    findings.append(f"{agent_name}: {stats.get('fully_grounded', 0)}/{stats.get('total_checked', '?')} grounded")
         return findings[:6]
 
 

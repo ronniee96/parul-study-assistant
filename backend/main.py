@@ -13,6 +13,7 @@ from dotenv import load_dotenv
 
 # Load environment variables
 load_dotenv()
+load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
 
 # Import API router
 from app.api.v1 import router as api_v1_router
@@ -44,13 +45,17 @@ app.add_middleware(
 @app.exception_handler(404)
 async def custom_404_handler(request: Request, exc: HTTPException):
     if request.url.path.startswith("/api/"):
+        detail_msg = getattr(exc, "detail", None)
+        if not detail_msg or detail_msg == "Not Found":
+            detail_msg = f"API endpoint not found: {request.method} {request.url.path}"
         return JSONResponse(
             status_code=404,
             content={
                 "success": False,
+                "detail": detail_msg,
                 "error": {
                     "code": "NOT_FOUND",
-                    "message": f"API endpoint not found: {request.method} {request.url.path}"
+                    "message": detail_msg
                 }
             }
         )

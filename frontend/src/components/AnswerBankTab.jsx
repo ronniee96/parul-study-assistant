@@ -2,6 +2,8 @@ import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { createAnswerGuidePDF } from '../utils/pdfGenerator';
 import { generateDynamicQuestions } from '../utils/questionGenerator';
+import { apiFetch } from '../utils/apiClient';
+import { formatModelConfidenceBadge } from '../utils/confidenceFormatter';
 
 const MASTER_CATEGORIES = [
   { id: 'all', label: '🌟 All High-Yield', icon: '🌟' },
@@ -98,7 +100,7 @@ export default function AnswerBankTab({ appState, setAppState, setActiveTab, api
     setGenerating(true);
     try {
       const questionsToSolve = allMasterAnswers.slice(0, 25);
-      const res = await fetch('/api/v1/generate-answers', {
+      const res = await apiFetch('/api/v1/generate-answers', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -271,7 +273,7 @@ export default function AnswerBankTab({ appState, setAppState, setActiveTab, api
                             {item.type || 'Model Solution'}
                           </span>
                           <span className="text-[11px] px-2.5 py-0.5 bg-emerald-50 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 rounded-md font-bold">
-                            🎯 {item.confidence || 98}% Likelihood
+                            🎯 {formatModelConfidenceBadge(item.confidence, item.evidence_score)}
                           </span>
                           {item.marks && (
                             <span className="text-[11px] px-2.5 py-0.5 bg-amber-50 dark:bg-amber-950/80 text-amber-700 dark:text-amber-300 rounded-md font-bold">

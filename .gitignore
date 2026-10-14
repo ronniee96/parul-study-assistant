@@ -31,3 +31,10 @@ frontend/.vite/
 .claude/
 .codex/
 .gemini/
+
+# Runtime session storage, local SQLite DB & uploaded data
+sessions/
+backend/sessions/
+*.session.json
+backend/data/*.sqlite3*
+backend/data/s3_local/

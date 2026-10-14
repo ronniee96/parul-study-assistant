@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { generateDynamicQuestions } from '../utils/questionGenerator';
 import { extractMultipleDocuments } from '../utils/clientDocExtractor';
+import { apiFetch } from '../utils/apiClient';
 
 const PIPELINE_STAGES = [
   {
@@ -70,8 +71,18 @@ export default function UploadTab({ appState, setAppState, setActiveTab, session
     } else if (appState.uploadedFiles && appState.uploadedFiles.length > 0) {
       setFiles(appState.uploadedFiles);
       setProcessed(Boolean(appState.extractedText));
+    } else if (appState.results?.files && appState.results.files.length > 0) {
+      const restored = appState.results.files.map(f => ({
+        name: f.filename || 'Persisted Course Material',
+        size: (f.word_count || 100) * 6,
+        isServerPersisted: true,
+        wordCount: f.word_count,
+        documentId: f.document_id,
+      }));
+      setFiles(restored);
+      setProcessed(Boolean(appState.extractedText));
     }
-  }, [appState.extractedText, appState.uploadedFile, appState.uploadedFiles, sessionKey]);
+  }, [appState.extractedText, appState.uploadedFile, appState.uploadedFiles, appState.results, sessionKey]);
 
   const handleDragOver = (e) => {
     e.preventDefault();
@@ -100,9 +111,23 @@ export default function UploadTab({ appState, setAppState, setActiveTab, session
   const addFiles = (newFiles) => {
     const validFiles = [];
     let oversizedCount = 0;
+    let imageCount = 0;
+    let legacyCount = 0;
+
+    const IMAGE_EXTS = ['.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.webp', '.gif'];
+    const LEGACY_EXTS = ['.doc', '.ppt'];
 
     for (const f of newFiles) {
-      if (f.size > 25 * 1024 * 1024) {
+      const ext = (f.name.slice(f.name.lastIndexOf('.')) || '').toLowerCase();
+      if (IMAGE_EXTS.includes(ext)) {
+        imageCount++;
+        continue;
+      }
+      if (LEGACY_EXTS.includes(ext)) {
+        legacyCount++;
+        continue;
+      }
+      if (f.size > 4 * 1024 * 1024) {
         oversizedCount++;
         continue;
       }
@@ -112,8 +137,14 @@ export default function UploadTab({ appState, setAppState, setActiveTab, session
       }
     }
 
+    if (imageCount > 0) {
+      alert(`${imageCount} image file(s) skipped: Serverless hosting does not include OCR binaries (tesseract). Please upload digital PDFs with selectable text, DOCX, PPTX, or TXT files.`);
+    }
+    if (legacyCount > 0) {
+      alert(`${legacyCount} legacy file(s) (.doc/.ppt) skipped: Please convert to modern OpenXML (.docx/.pptx) or PDF.`);
+    }
     if (oversizedCount > 0) {
-      alert(`${oversizedCount} file(s) exceeded the 25MB limit and were skipped.`);
+      alert(`${oversizedCount} file(s) exceeded the 4MB limit for zero-cost serverless runtime and were skipped. Please upload compressed PDFs or individual chapters.`);
     }
 
     if (validFiles.length > 0) {
@@ -159,22 +190,22 @@ export default function UploadTab({ appState, setAppState, setActiveTab, session
       let extractedText = extractedData.combinedText || '';
 
       if (!extractedText || extractedText.trim().length < 50) {
-        throw new Error("No readable text could be extracted from the uploaded document(s). Please ensure the files contain selectable text or run OCR before uploading.");
+        throw new Error("No readable text could be extracted from the uploaded document(s). Please ensure your PDFs contain selectable digital text. Pure scanned images without OCR cannot be processed on serverless hosting.");
       }
 
       let wordCount = extractedData.totalWords || extractedText.split(/\s+/).filter(Boolean).length;
       let charCount = extractedData.totalChars || extractedText.length;
       let backendData = null;
 
-      // Stage 2: Server-side OCR & AST Sanitization (with non-blocking timeout)
+      // Stage 2: Server-side Text Extraction & Structure Analysis (with non-blocking timeout)
       setCurrentStageIndex(1);
       setProgressPercent(40);
       try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 2000);
+        const timeoutId = setTimeout(() => controller.abort(), 8000);
         const formData = new FormData();
         files.forEach(f => formData.append('files', f));
-        const res = await fetch('/api/v1/process-multiple', {
+        const res = await apiFetch('/api/v1/process-multiple', {
           method: 'POST',
           body: formData,
           signal: controller.signal
@@ -200,10 +231,6 @@ export default function UploadTab({ appState, setAppState, setActiveTab, session
       setCurrentStageIndex(3);
       setProgressPercent(80);
       const dynamicQs = generateDynamicQuestions(extractedText, files.map(f => f.name).join(' '));
-      const top25 = dynamicQs.slice(0, 25);
-      const avgConfidence = dynamicQs.length > 0
-        ? Math.round(dynamicQs.reduce((sum, q) => sum + (q.confidence || 75), 0) / dynamicQs.length)
-        : 80;
 
       // Stage 6: Final Integration
       setCurrentStageIndex(5);
@@ -221,7 +248,7 @@ export default function UploadTab({ appState, setAppState, setActiveTab, session
         stats: { 
           pdfCount: files.length,
           questionCount: dynamicQs.length,
-          confidence: avgConfidence,
+          confidence: null,
           answerCount: top25.length
         }
       }));
@@ -307,7 +334,7 @@ export default function UploadTab({ appState, setAppState, setActiveTab, session
           multiple
           className="hidden" 
           onChange={handleFileInput}
-          accept=".pdf,.ppt,.pptx,.doc,.docx,.txt,.jpg,.jpeg,.png"
+          accept=".pdf,.pptx,.docx,.txt"
         />
 
         <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary-500 to-indigo-600 text-white flex items-center justify-center text-3xl shadow-lg mb-4">
@@ -315,10 +342,13 @@ export default function UploadTab({ appState, setAppState, setActiveTab, session
         </div>
 
         <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100 mb-1">
-          Drag and drop multiple PDFs or lecture slides here
+          Drag and drop course materials here (PDF, PPTX, DOCX, TXT)
         </h3>
-        <p className="text-xs text-gray-500 dark:text-gray-400 max-w-md mb-4">
-          Supports batch selection of 4–5+ PDFs, PPTs, or Word documents at once (up to 25MB each).
+        <p className="text-xs text-gray-500 dark:text-gray-400 max-w-md mb-2">
+          Supports text-selectable PDFs, Word (.docx), PowerPoint (.pptx), or text files (up to 4MB each).
+        </p>
+        <p className="text-[11px] text-amber-600 dark:text-amber-400 font-medium max-w-md mb-4 bg-amber-50 dark:bg-amber-950/40 px-3 py-1.5 rounded-lg border border-amber-200/50 dark:border-amber-800/50">
+          ⚠️ Note: Scanned image PDFs without selectable text and image files are not supported on free serverless hosting (OCR binaries unavailable).
         </p>
 
         <button 
@@ -330,7 +360,7 @@ export default function UploadTab({ appState, setAppState, setActiveTab, session
           className="px-5 py-2.5 bg-gradient-to-r from-primary-600 to-indigo-600 hover:from-primary-700 hover:to-indigo-700 text-white font-bold text-xs rounded-xl shadow-md transition-all cursor-pointer flex items-center gap-2"
         >
           <span>📂</span>
-          <span>Select Multiple PDFs (Hold Shift/Cmd)</span>
+          <span>Select Digital Text Files (PDF, PPTX, DOCX, TXT)</span>
         </button>
       </div>
 
@@ -359,8 +389,20 @@ export default function UploadTab({ appState, setAppState, setActiveTab, session
                     <p className="font-bold text-xs text-gray-800 dark:text-gray-200 truncate">
                       {file.name}
                     </p>
-                    <p className="text-[10px] text-gray-500">
-                      {(file.size / 1024).toFixed(1)} KB • <span className="text-emerald-600 dark:text-emerald-400 font-semibold">Ready</span>
+                    <p className="text-[10px] text-gray-500 flex items-center gap-1.5 flex-wrap">
+                      {file.isServerPersisted ? (
+                        <>
+                          <span className="text-primary-600 dark:text-primary-400 font-semibold">☁️ Server-Persisted (Neon)</span>
+                          <span>•</span>
+                          <span>{file.wordCount || 'Full'} words extracted</span>
+                        </>
+                      ) : (
+                        <>
+                          <span>{(file.size / 1024).toFixed(1)} KB</span>
+                          <span>•</span>
+                          <span className="text-emerald-600 dark:text-emerald-400 font-semibold">💻 Browser File Ready</span>
+                        </>
+                      )}
                     </p>
                   </div>
                 </div>

@@ -14,6 +14,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from app.services.exam_predictor import ExamPredictor
 from app.services.parul_repository import ParulRepositoryHarvester
+from app.services.question_ranker import QuestionRanker
 
 class HeldOutExamPredictionTests(unittest.TestCase):
     def setUp(self):
@@ -107,11 +108,122 @@ class HeldOutExamPredictionTests(unittest.TestCase):
         print(f"[DAA Evaluation] Predicted Questions Precision: {precision * 100:.1f}%")
         self.assertGreaterEqual(precision, 0.75, f"Precision was {precision:.2f}, expected >= 0.75")
 
-        # Verify Ranking Quality: High confidence questions must have confidence >= 0.65
-        confidences = [q["confidence"] for q in predicted_questions]
+        # Verify Confidence Calibration & Evidence Score Integrity
+        confidences = [q.get("confidence") for q in predicted_questions]
+        evidence_scores = [q.get("evidence_score") for q in predicted_questions]
         print(f"[DAA Evaluation] Confidences: {confidences}")
-        self.assertTrue(all(0.0 <= c <= 1.0 for c in confidences))
-        self.assertTrue(any(c >= 0.60 for c in confidences[:5]))
+        print(f"[DAA Evaluation] Evidence Scores: {evidence_scores}")
+
+        # In deterministic mode without AI keys, confidence must be None (never synthetic)
+        for c in confidences:
+            self.assertIsNone(c, "Deterministic prediction must have confidence: None (not synthetic)")
+
+        # Evidence scores must be populated and within normalized [0.0, 1.0]
+        self.assertTrue(all(es is not None and 0.0 <= es <= 1.0 for es in evidence_scores))
+        self.assertGreater(max(evidence_scores), min(evidence_scores), "Evidence scores must show discrimination across topics")
+
+    def test_independent_ranking_quality_precision_at_k(self):
+        """
+        Verify independent ranking quality using evidence scores on a held-out candidate fixture.
+        Measures:
+        1. Monotonicity of ranking by evidence score.
+        2. Precision@5: Fraction of top-5 ranked candidates that correspond to ground-truth syllabus topics.
+        3. Score Separation: Ground-truth evidenced questions score higher than distractor/unrelated concepts.
+        4. Model Confidence Isolation: Ensures confidence remains None/unmodified by evidence ranking.
+
+        LIMITATION NOTE:
+        This evaluates evidence-grounded prioritization (topic coverage, term frequency, past paper overlap),
+        not empirical student pass rates or calibrated future exam probability.
+        """
+        ranker = QuestionRanker()
+        syllabus_text = """
+        Course: Design and Analysis of Algorithms
+        Unit 1: Asymptotic Analysis and Mathematical Foundations
+        Asymptotic notations including Big-O notation, Big-Omega notation, and Big-Theta notation.
+        Unit 2: Divide and Conquer
+        Divide and conquer algorithmic paradigm. Merge Sort and Quick Sort algorithms.
+        Unit 3: Dynamic Programming and Algorithm Paradigms
+        Dynamic Programming optimization technique. 0/1 Knapsack problem. Greedy Method vs Dynamic Programming.
+        Unit 4: Graph Algorithms
+        Single source shortest path: Dijkstra's algorithm. Minimum spanning tree: Kruskal's algorithm and Prim's algorithm.
+        """
+
+        # 5 Ground-truth syllabus candidates matching official Parul DAA examination topics
+        relevant_candidates = [
+            {"id": 1, "topic": "Asymptotic Analysis", "question": "Explain Big-O, Big-Omega, and Big-Theta notations with diagrams.", "difficulty": "easy", "marks": 2, "confidence": None},
+            {"id": 2, "topic": "Algorithm Paradigms", "question": "Differentiate between Greedy Method and Dynamic Programming approaches.", "difficulty": "medium", "marks": 5, "confidence": None},
+            {"id": 3, "topic": "Dynamic Programming", "question": "Solve the 0/1 Knapsack problem using dynamic programming with state table.", "difficulty": "hard", "marks": 7, "confidence": None},
+            {"id": 4, "topic": "Graph Algorithms", "question": "Explain Dijkstra's shortest path algorithm step-by-step with complexity.", "difficulty": "medium", "marks": 8, "confidence": None},
+            {"id": 5, "topic": "Divide and Conquer", "question": "Analyze Quick Sort worst-case vs average-case time complexity using recurrence.", "difficulty": "hard", "marks": 15, "confidence": None},
+        ]
+
+        # 5 Distractor/unrelated candidates with zero syllabus relevance
+        distractor_candidates = [
+            {"id": 6, "topic": "Optical Peripheral", "question": "Explain the working mechanism of an optical computer mouse.", "difficulty": "easy", "marks": 2, "confidence": None},
+            {"id": 7, "topic": "Audio Amplifier", "question": "Describe the operational amplifier circuit configuration for audio signals.", "difficulty": "medium", "marks": 5, "confidence": None},
+            {"id": 8, "topic": "Hydraulic Pump", "question": "Discuss the displacement mechanism in industrial hydraulic pumps.", "difficulty": "hard", "marks": 7, "confidence": None},
+            {"id": 9, "topic": "Internal Combustion", "question": "Analyze the four-stroke thermodynamic cycle in internal combustion engines.", "difficulty": "hard", "marks": 8, "confidence": None},
+            {"id": 10, "topic": "Concrete Curing", "question": "Describe the hydration reaction and curing timeline of Portland cement.", "difficulty": "medium", "marks": 15, "confidence": None},
+        ]
+
+        all_candidates = distractor_candidates + relevant_candidates  # Distractors first to verify ranking reorders correctly
+        ranked_result = ranker.rank_questions(all_candidates, syllabus_text)
+        ranked = ranked_result["top_25"]
+        self.assertEqual(len(ranked), 10)
+
+        # 1. Monotonicity: Each question's evidence score must be >= the subsequent question's score
+        for i in range(len(ranked) - 1):
+            self.assertGreaterEqual(
+                ranked[i]["evidence_score"],
+                ranked[i + 1]["evidence_score"],
+                f"Rank {i} ({ranked[i]['evidence_score']}) must be >= Rank {i+1} ({ranked[i+1]['evidence_score']})"
+            )
+
+        # 2. Precision@5: Top 5 ranked questions must all belong to the syllabus (relevant candidate IDs 1..5)
+        top_5_ids = {q["id"] for q in ranked[:5]}
+        relevant_ids = {1, 2, 3, 4, 5}
+        precision_at_5 = len(top_5_ids & relevant_ids) / 5.0
+        print(f"[Independent Ranking Evaluation] Precision@5: {precision_at_5 * 100:.1f}%")
+        self.assertEqual(precision_at_5, 1.0, f"Expected Precision@5 to be 1.0, got {precision_at_5}")
+
+        # 3. Score Separation: Minimum evidence score of top-5 must strictly exceed maximum score of distractors
+        min_top_5_score = min(q["evidence_score"] for q in ranked[:5])
+        max_distractor_score = max(q["evidence_score"] for q in ranked[5:])
+        print(f"[Independent Ranking Evaluation] Min Top-5 Evidence: {min_top_5_score:.3f}, Max Distractor Evidence: {max_distractor_score:.3f}")
+        self.assertGreater(min_top_5_score, max_distractor_score, "Evidenced syllabus questions must score strictly higher than distractors")
+
+        # 4. Model Confidence Isolation: Ranking by evidence_score must not overwrite confidence
+        for q in ranked:
+            self.assertIsNone(q.get("confidence"), "Question confidence must remain None during evidence ranking")
+            self.assertIsNotNone(q.get("evidence_score"), "Question evidence_score must be populated")
+            self.assertTrue(0.0 <= q["evidence_score"] <= 1.0, "evidence_score must be normalized in [0.0, 1.0]")
+
+        # 5. Dynamic Past-Paper Boost: Supplying past papers mentioning specific topics actively increases evidence score
+        past_paper_fixture = [
+            "Parul University Examination: Discuss Graph Algorithms with focus on Dijkstra shortest paths."
+        ]
+        boosted_result = ranker.rank_questions(all_candidates, syllabus_text, past_papers=past_paper_fixture)
+        graph_q_unboosted = next(q for q in ranked if q["id"] == 4)
+        graph_q_boosted = next(q for q in boosted_result["top_25"] if q["id"] == 4)
+        dp_q_unboosted = next(q for q in ranked if q["id"] == 3)
+        dp_q_boosted = next(q for q in boosted_result["top_25"] if q["id"] == 3)
+
+        self.assertGreater(
+            graph_q_boosted["evidence_score"],
+            graph_q_unboosted["evidence_score"],
+            "Past paper presence must actively boost evidence score for matching topics"
+        )
+        self.assertAlmostEqual(
+            graph_q_boosted["evidence_score"] - graph_q_unboosted["evidence_score"],
+            0.20,
+            places=2,
+            msg="History overlap weight (0.20) must be reflected in boost"
+        )
+        self.assertEqual(
+            dp_q_boosted["evidence_score"],
+            dp_q_unboosted["evidence_score"],
+            "Unrelated topics must not receive a past paper boost"
+        )
 
     def test_database_systems_held_out_paper(self):
         """

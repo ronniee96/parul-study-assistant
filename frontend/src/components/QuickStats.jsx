@@ -1,4 +1,5 @@
 import React from 'react';
+import { formatConfidencePercent } from '../utils/confidenceFormatter';
 
 export default function QuickStats({ stats }) {
   return (
@@ -15,7 +16,9 @@ export default function QuickStats({ stats }) {
       </div>
       <div className="flex items-center gap-2">
         <span className="text-xl">🎯</span>
-        <span className="font-semibold text-gray-700 dark:text-gray-300">{stats.confidence}%</span>
+        <span className="font-semibold text-gray-700 dark:text-gray-300">
+          {formatConfidencePercent(stats?.confidence)}
+        </span>
         <span className="hidden md:inline text-gray-500 dark:text-gray-400">Confidence</span>
       </div>
       <div className="flex items-center gap-2">

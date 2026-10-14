@@ -309,10 +309,11 @@ export function generateDynamicQuestions(extractedText = '', filename = '') {
       ascii: `[ Step 1: Input Identification ] -> [ Step 2: Parameter Verification ] -> [ Step 3: Application ] -> [ Step 4: Review ]`
     };
 
-    // Calculate evidence-grounded confidence based on occurrences and definition detail
+    // Calculate evidence score based on occurrences and definition detail (0.0 to 1.0 scale)
     const occurrenceBonus = Math.min(12, (concept.occurrences || 1) * 3);
     const detailBonus = cleanDef.length > 50 ? 6 : 2;
-    const groundedConfidence = Math.min(94, Math.max(68, 70 + occurrenceBonus + detailBonus));
+    const rawEvidenceScore = Math.min(94, Math.max(68, 70 + occurrenceBonus + detailBonus));
+    const normalizedEvidenceScore = Math.round(rawEvidenceScore) / 100;
 
     // Generate templates for this concept
     const templatesToGenerate = QUESTION_TEMPLATES.length;
@@ -328,7 +329,10 @@ export function generateDynamicQuestions(extractedText = '', filename = '') {
         category: template.category,
         marks: template.marks,
         difficulty: template.difficulty,
-        confidence: groundedConfidence,
+        confidence: null,
+        evidence_score: normalizedEvidenceScore,
+        is_ai_generated: false,
+        generation_method: 'client_syllabus_extraction',
         topic: cleanTerm,
         question: built.question,
         options: built.options,
@@ -344,6 +348,6 @@ export function generateDynamicQuestions(extractedText = '', filename = '') {
     }
   }
 
-  questions.sort((a, b) => b.confidence - a.confidence);
+  questions.sort((a, b) => (b.evidence_score || 0) - (a.evidence_score || 0));
   return questions;
 }

@@ -2,6 +2,7 @@ import React, { useRef, useState, useEffect } from 'react';
 import { startScreenCapture, captureFrame, stopCapture, setupAutoCapture, isFrameDifferent } from '../utils/screenCapture';
 import { createPDFFromImages } from '../utils/pdfGenerator';
 import MarkdownViewer from './MarkdownViewer';
+import { apiFetch } from '../utils/apiClient';
 
 export default function ScreenCaptureTab({ appState, setAppState, setActiveTab, apiKeys, openApiKeyModal }) {
   const videoRef = useRef(null);
@@ -123,7 +124,7 @@ export default function ScreenCaptureTab({ appState, setAppState, setActiveTab, 
       if (oai) storedKeys.openai = oai;
       if (cla) storedKeys.claude = cla;
 
-      const res = await fetch('/api/v1/process-captured-slides', {
+      const res = await apiFetch('/api/v1/process-captured-slides', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -141,18 +142,27 @@ export default function ScreenCaptureTab({ appState, setAppState, setActiveTab, 
       if (data.success) {
         setAnalysisResult(data);
         
+        // Calculate average confidence only from valid model scores
+        const qs = data.questions || [];
+        const validConfs = qs
+          .map(q => q.confidence)
+          .filter(c => typeof c === 'number' && !isNaN(c) && c >= 0.0 && c <= 1.0);
+        const avgConfidence = validConfs.length > 0
+          ? Math.round((validConfs.reduce((acc, c) => acc + c, 0) / validConfs.length) * 1000) / 1000
+          : null;
+
         // Update appState with generated notes and questions
         setAppState(prev => ({
           ...prev,
           extractedText: data.notes || prev.extractedText || "Extracted from lecture slides",
           summary: data.notes,
-          questions: data.questions || [],
-          rankedQuestions: data.questions || [],
+          questions: qs,
+          rankedQuestions: qs,
           stats: {
             ...prev.stats,
             pdfCount: (prev.stats?.pdfCount || 0) + 1,
-            questionCount: (data.questions || []).length,
-            confidence: Math.round(((data.questions || []).reduce((acc, q) => acc + (q.confidence || 0.8), 0) / Math.max(1, (data.questions || []).length)) * 100)
+            questionCount: qs.length,
+            confidence: avgConfidence
           }
         }));
 
@@ -162,7 +172,7 @@ export default function ScreenCaptureTab({ appState, setAppState, setActiveTab, 
       }
     } catch (err) {
       console.error("Slide analysis failed:", err);
-      // Fallback local synthesis
+      // Fallback local synthesis without invented confidence
       const fallbackQuestions = captures.map((_, i) => ({
         id: i + 1,
         type: i % 2 === 0 ? 'multiple_choice' : 'short_answer',
@@ -173,7 +183,9 @@ export default function ScreenCaptureTab({ appState, setAppState, setActiveTab, 
         topic: `Slide ${i + 1} Content`,
         difficulty: i % 3 === 0 ? 'hard' : 'medium',
         marks: i % 2 === 0 ? 2 : 5,
-        confidence: 0.90
+        confidence: null,
+        is_ai_generated: false,
+        generation_method: 'local_slide_frame_fallback'
       }));
 
       const mockData = {
@@ -192,7 +204,7 @@ export default function ScreenCaptureTab({ appState, setAppState, setActiveTab, 
         stats: {
           ...prev.stats,
           questionCount: fallbackQuestions.length,
-          confidence: 88
+          confidence: null
         }
       }));
       setAnalysisStatus(`✓ Generated ${fallbackQuestions.length} practice questions from slides!`);

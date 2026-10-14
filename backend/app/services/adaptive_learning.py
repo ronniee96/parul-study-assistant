@@ -19,11 +19,11 @@ class AdaptiveLearningService:
     improving understanding rather than predicting exam questions.
     """
 
-    def __init__(self, user_id: str = None, storage_path: str = "./user_data"):
+    def __init__(self, user_id: str = None, storage_path: str = None):
         raw_id = str(user_id or "default_user").strip()
         self.user_id = re.sub(r'[^a-zA-Z0-9_\-]', '_', raw_id) or "default_user"
-        self.storage_path = storage_path
-        self.profiles_dir = os.path.join(storage_path, "profiles")
+        self.storage_path = storage_path or os.getenv("ADAPTIVE_STORAGE_PATH", "/tmp/parul_user_data")
+        self.profiles_dir = os.path.join(self.storage_path, "profiles")
         os.makedirs(self.profiles_dir, exist_ok=True)
         self.learning_profile = self._load_learning_profile()
         self.consent_given = bool(self.learning_profile.get("consent", {}).get("given", False))

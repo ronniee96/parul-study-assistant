@@ -2,6 +2,8 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { createQuestionPaperPDF, createAnswerGuidePDF } from '../utils/pdfGenerator';
 import { generateDynamicQuestions } from '../utils/questionGenerator';
+import { apiFetch } from '../utils/apiClient';
+import { formatModelConfidenceBadge } from '../utils/confidenceFormatter';
 
 export default function QuestionEngineTab({ appState = {}, setAppState, setActiveTab, apiKeys, primaryPriority, openApiKeyModal }) {
   const [generating, setGenerating] = useState(false);
@@ -26,6 +28,13 @@ export default function QuestionEngineTab({ appState = {}, setAppState, setActiv
 
       // Update questions if empty or if document content changed
       if (!appState.questions || appState.questions.length === 0 || appState.questions[0]?.topic !== dynamicQs[0]?.topic) {
+        const confQs = top25
+          .map(q => q.confidence)
+          .filter(c => typeof c === 'number' && !isNaN(c) && c >= 0);
+        const avgConfidence = confQs.length > 0
+          ? Math.round((confQs.reduce((sum, c) => sum + (c <= 1.0 ? c : c / 100), 0) / confQs.length) * 1000) / 1000
+          : null;
+
         setAppState(prev => ({
           ...prev,
           questions: dynamicQs,
@@ -35,7 +44,7 @@ export default function QuestionEngineTab({ appState = {}, setAppState, setActiv
             ...prev.stats,
             questionCount: dynamicQs.length,
             answerCount: top25.length,
-            confidence: top25.length > 0 ? Math.round(top25.reduce((sum, q) => sum + (q.confidence || 90), 0) / top25.length) : 0
+            confidence: avgConfidence
           }
         }));
         setFunnelStage(4);
@@ -49,7 +58,7 @@ export default function QuestionEngineTab({ appState = {}, setAppState, setActiv
           questions: [],
           rankedQuestions: [],
           answers: [],
-          stats: { ...prev.stats, questionCount: 0, answerCount: 0, confidence: 0 }
+          stats: { ...prev.stats, questionCount: 0, answerCount: 0, confidence: null }
         }));
       }
       setFunnelStage(0);
@@ -72,7 +81,7 @@ export default function QuestionEngineTab({ appState = {}, setAppState, setActiv
     const sourceText = appState.extractedText;
 
     try {
-      const res = await fetch('/api/v1/generate-mega-questions', {
+      const res = await apiFetch('/api/v1/generate-mega-questions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -92,7 +101,8 @@ export default function QuestionEngineTab({ appState = {}, setAppState, setActiv
             question: q.question,
             topic: q.topic || 'Core Concept',
             type: q.type === 'multiple_choice' ? 'MCQ' : (q.type === 'essay' ? 'Essay' : 'Short Answer'),
-            confidence: Math.round((q.confidence || 0.85) * 100),
+            confidence: q.confidence != null && !isNaN(Number(q.confidence)) ? (Number(q.confidence) <= 1.0 ? Number(q.confidence) : Number(q.confidence) / 100) : null,
+            evidence_score: q.evidence_score != null ? Number(q.evidence_score) : null,
             difficulty: q.difficulty === 'hard' ? 5 : (q.difficulty === 'easy' ? 2 : 4),
             marks: q.marks || (q.type === 'multiple_choice' ? 2 : (q.type === 'essay' ? 12 : 5)),
             options: q.options || null,
@@ -106,6 +116,9 @@ export default function QuestionEngineTab({ appState = {}, setAppState, setActiv
           }
 
           const top25 = formatted.slice(0, 25);
+          const top25Conf = top25.map(q => q.confidence).filter(c => typeof c === 'number' && !isNaN(c) && c >= 0);
+          const avgConf = top25Conf.length > 0 ? Math.round((top25Conf.reduce((sum, c) => sum + (c <= 1.0 ? c : c / 100), 0) / top25Conf.length) * 1000) / 1000 : null;
+
           setAppState(prev => ({
             ...prev,
             questions: formatted,
@@ -115,7 +128,7 @@ export default function QuestionEngineTab({ appState = {}, setAppState, setActiv
               ...prev.stats,
               questionCount: formatted.length,
               answerCount: top25.length,
-              confidence: Math.round(top25.reduce((sum, q) => sum + (q.confidence || 90), 0) / top25.length)
+              confidence: avgConf
             }
           }));
 
@@ -145,9 +158,10 @@ export default function QuestionEngineTab({ appState = {}, setAppState, setActiv
         ...prev.stats,
         questionCount: dynamicQs.length,
         answerCount: top25.length,
-        confidence: dynamicQs.length > 0
-          ? Math.round(dynamicQs.reduce((sum, q) => sum + (q.confidence || 75), 0) / dynamicQs.length)
-          : 85
+        confidence: (() => {
+          const confList = dynamicQs.map(q => q.confidence).filter(c => typeof c === 'number' && !isNaN(c) && c >= 0);
+          return confList.length > 0 ? Math.round((confList.reduce((sum, c) => sum + (c <= 1.0 ? c : c / 100), 0) / confList.length) * 1000) / 1000 : null;
+        })()
       }
     }));
     setEngineUsed('Dynamic Academic NLP Engine');
@@ -166,8 +180,14 @@ export default function QuestionEngineTab({ appState = {}, setAppState, setActiv
       setActiveTier(25);
 
       if (appState.questions && appState.questions.length > 0) {
-        const allQs = [...appState.questions].sort((a, b) => (b.confidence || 90) - (a.confidence || 90));
+        const allQs = [...appState.questions].sort((a, b) => {
+          const scoreB = typeof b.evidence_score === 'number' && !isNaN(b.evidence_score) ? b.evidence_score : 0;
+          const scoreA = typeof a.evidence_score === 'number' && !isNaN(a.evidence_score) ? a.evidence_score : 0;
+          return scoreB - scoreA;
+        });
         const top25 = allQs.slice(0, 25);
+        const top25ConfList = top25.map(q => q.confidence).filter(c => typeof c === 'number' && !isNaN(c) && c >= 0);
+        const top25Avg = top25ConfList.length > 0 ? Math.round((top25ConfList.reduce((sum, c) => sum + (c <= 1.0 ? c : c / 100), 0) / top25ConfList.length) * 1000) / 1000 : null;
 
         setAppState(prev => ({
           ...prev,
@@ -176,7 +196,7 @@ export default function QuestionEngineTab({ appState = {}, setAppState, setActiv
           answers: top25,
           stats: {
             ...prev.stats,
-            confidence: Math.round(top25.reduce((sum, q) => sum + q.confidence, 0) / top25.length),
+            confidence: top25Avg,
             answerCount: 25
           }
         }));
@@ -439,7 +459,7 @@ export default function QuestionEngineTab({ appState = {}, setAppState, setActiv
 
                   <span className="px-2 py-0.5 rounded-md bg-rose-100 dark:bg-rose-900/40 text-rose-700 dark:text-rose-300 text-xs font-bold flex items-center gap-1 border border-rose-200 dark:border-rose-800">
                     <span>🎯</span>
-                    <span>{q.confidence}% Likelihood</span>
+                    <span>{formatModelConfidenceBadge(q.confidence, q.evidence_score)}</span>
                   </span>
 
                   <span className="px-2 py-0.5 rounded-md bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 text-xs font-semibold">

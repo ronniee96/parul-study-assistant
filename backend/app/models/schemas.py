@@ -36,7 +36,7 @@ class QuestionItem(BaseModel):
     explanation: str = ""
     topic: str = "General"
     subtopic: Optional[str] = None
-    confidence: float = Field(default=0.0, ge=0.0, le=1.0)
+    confidence: Optional[float] = Field(default=None, ge=0.0, le=1.0)
     difficulty: str = "medium"
     bloom_level: Optional[str] = "understanding"
     marks: int = 2
@@ -210,7 +210,7 @@ class ExamPredictionResponse(BaseModel):
     subject_name: str
     total_marks: int
     time_hours: float = 3.0
-    overall_confidence: float
+    overall_confidence: Optional[float] = None
     topic_heatmap: dict
     sections: List[ExamSection]
 

@@ -18,6 +18,15 @@ import AkiDashboardCompanion from './components/AkiDashboardCompanion';
 import PrivacyPolicy from './components/PrivacyPolicy';
 import TermsAndConditions from './components/TermsAndConditions';
 import { motion, AnimatePresence } from 'framer-motion';
+import {
+  createNewSession,
+  deleteSession,
+  getActiveSessionId,
+  getSessionCapability,
+  apiFetch,
+  loadSessionState,
+  saveSessionState
+} from './utils/apiClient';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('upload');
@@ -64,12 +73,102 @@ export default function App() {
     stats: {
       pdfCount: 0,
       questionCount: 0,
-      confidence: 0,
+      confidence: null,
       answerCount: 0
     }
   }));
 
   const [lastSaved, setLastSaved] = useState(null);
+  const [isHydrating, setIsHydrating] = useState(true);
+
+  // Mount effect: Rehydrate active session state from backend or offline cache
+  useEffect(() => {
+    let isMounted = true;
+
+    async function rehydrateSession() {
+      const activeSessionId = getActiveSessionId();
+      const capability = getSessionCapability(activeSessionId);
+
+      // If no session capability exists, start cleanly
+      if (!activeSessionId || !capability) {
+        if (isMounted) setIsHydrating(false);
+        return;
+      }
+
+      try {
+        // Attempt cloud rehydration from backend using stored session capability
+        const data = await apiFetch(`/api/v1/session/${encodeURIComponent(activeSessionId)}`);
+        if (!isMounted) return;
+
+        const session = data?.session || data;
+        if (session && (session.extracted_text || (session.documents && session.documents.length > 0) || (session.questions && session.questions.length > 0))) {
+          setAppState(prev => ({
+            ...prev,
+            uploadedFiles: session.documents || [],
+            uploadedFile: session.documents?.[0] || null,
+            extractedText: session.extracted_text || '',
+            questions: session.questions || [],
+            rankedQuestions: session.ranked_questions || [],
+            answers: session.answers || [],
+            summaryData: session.summary || null,
+            predictedPaper: session.predicted_paper || null,
+            captures: session.captures || [],
+            stats: session.stats || {
+              pdfCount: session.documents?.length || 0,
+              questionCount: session.questions?.length || 0,
+              confidence: session.stats?.confidence ?? null,
+              answerCount: session.answers?.length || 0
+            }
+          }));
+          setLastSaved("Restored from cloud session");
+          if (isMounted) setIsHydrating(false);
+          return;
+        }
+      } catch (err) {
+        // If 401 or 403 or 404, capability is invalid/rotated or session deleted; rotate to fresh session
+        if (err.status === 401 || err.status === 403 || err.status === 404) {
+          console.info(`Active session ${activeSessionId} unavailable (${err.status}); rotating session.`);
+          createNewSession();
+        } else {
+          // If offline/network failure, attempt offline fallback from local storage cache
+          try {
+            const cached = loadSessionState(activeSessionId);
+            if (cached && (cached.extractedText || (cached.uploadedFiles && cached.uploadedFiles.length > 0) || (cached.questions && cached.questions.length > 0))) {
+              setAppState(prev => ({ ...prev, ...cached }));
+              setLastSaved("Restored from offline cache");
+              if (isMounted) setIsHydrating(false);
+              return;
+            }
+          } catch (cacheErr) {
+            console.warn("Failed to read offline session cache:", cacheErr);
+          }
+        }
+      }
+
+      if (isMounted) setIsHydrating(false);
+    }
+
+    rehydrateSession();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  // Persist session state changes to local storage when not hydrating
+  useEffect(() => {
+    if (isHydrating) return;
+    const hasData = Boolean(
+      appState.uploadedFile ||
+      (appState.uploadedFiles && appState.uploadedFiles.length > 0) ||
+      appState.extractedText ||
+      (appState.questions && appState.questions.length > 0)
+    );
+    if (hasData) {
+      const activeSessionId = getActiveSessionId();
+      saveSessionState(activeSessionId, appState);
+    }
+  }, [appState, isHydrating]);
 
   const handleResetWorkspace = (showPrompt = false) => {
     if (!showPrompt || window.confirm("Start a fresh study session? This will clear all uploaded PDFs, questions, and notes. (Your API keys will remain saved)")) {
@@ -84,9 +183,18 @@ export default function App() {
         predictedPaper: null,
         answers: [],
         captures: [],
-        stats: { pdfCount: 0, questionCount: 0, confidence: 0, answerCount: 0 }
+        stats: { pdfCount: 0, questionCount: 0, confidence: null, answerCount: 0 }
       };
       setAppState(emptyState);
+
+      // Rotate active session ID for strict session isolation
+      try {
+        const oldSid = getActiveSessionId();
+        deleteSession(oldSid);
+        createNewSession();
+      } catch (e) {
+        console.warn("Error creating new session:", e);
+      }
 
       // Purge all possible workspace cache keys
       try {

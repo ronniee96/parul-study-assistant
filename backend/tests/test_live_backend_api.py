@@ -7,7 +7,16 @@ BASE_URL = "http://127.0.0.1:8000"
 class LiveBackendAPITests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.client = httpx.Client(base_url=BASE_URL, timeout=10.0)
+        try:
+            probe = httpx.get(f"{BASE_URL}/api/v1/health", timeout=1.0)
+            if probe.status_code == 200:
+                cls.client = httpx.Client(base_url=BASE_URL, timeout=10.0)
+                return
+        except Exception:
+            pass
+        from fastapi.testclient import TestClient
+        from main import app
+        cls.client = TestClient(app)
 
     @classmethod
     def tearDownClass(cls):
@@ -147,35 +156,53 @@ Virtual Memory: Paging and Segmentation memory management schemes.
         res_a = self.client.post("/api/v1/sessions")
         self.assertEqual(res_a.status_code, 200)
         session_a_id = res_a.json()["session_id"]
+        session_a_cap = res_a.json()["session_capability"]
 
         # 2. Create Session B
         res_b = self.client.post("/api/v1/sessions")
         self.assertEqual(res_b.status_code, 200)
         session_b_id = res_b.json()["session_id"]
+        session_b_cap = res_b.json()["session_capability"]
 
         self.assertNotEqual(session_a_id, session_b_id)
+        self.assertNotEqual(session_a_cap, session_b_cap)
 
-        # 3. Retrieve Session A
-        get_a = self.client.get(f"/api/v1/sessions/{session_a_id}")
+        # 3. Retrieve Session A with its capability
+        get_a = self.client.get(
+            f"/api/v1/sessions/{session_a_id}",
+            headers={"X-Session-Capability": session_a_cap},
+        )
         self.assertEqual(get_a.status_code, 200)
         self.assertEqual(get_a.json()["session"]["session_id"], session_a_id)
 
-        # 4. Delete Session A
-        del_a = self.client.delete(f"/api/v1/sessions/{session_a_id}")
+        # 4. Delete Session A with its capability
+        del_a = self.client.delete(
+            f"/api/v1/sessions/{session_a_id}",
+            headers={"X-Session-Capability": session_a_cap},
+        )
         self.assertEqual(del_a.status_code, 200)
         self.assertTrue(del_a.json()["success"])
 
         # 5. Verify Session A is deleted
-        get_deleted_a = self.client.get(f"/api/v1/sessions/{session_a_id}")
+        get_deleted_a = self.client.get(
+            f"/api/v1/sessions/{session_a_id}",
+            headers={"X-Session-Capability": session_a_cap},
+        )
         self.assertEqual(get_deleted_a.status_code, 404)
 
         # 6. Verify Session B remains unaffected
-        get_b = self.client.get(f"/api/v1/sessions/{session_b_id}")
+        get_b = self.client.get(
+            f"/api/v1/sessions/{session_b_id}",
+            headers={"X-Session-Capability": session_b_cap},
+        )
         self.assertEqual(get_b.status_code, 200)
         self.assertEqual(get_b.json()["session"]["session_id"], session_b_id)
 
         # Clean up Session B
-        self.client.delete(f"/api/v1/sessions/{session_b_id}")
+        self.client.delete(
+            f"/api/v1/sessions/{session_b_id}",
+            headers={"X-Session-Capability": session_b_cap},
+        )
         print("✓ Session lifecycle and cross-session isolation verified (Session A deletion did not affect Session B).")
 
 if __name__ == "__main__":

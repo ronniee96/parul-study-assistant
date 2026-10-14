@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import Confetti from 'react-confetti';
+import { toPercentagePoints } from '../utils/confidenceFormatter';
 
 export default function AdaptiveTab({ appState = {}, setActiveTab }) {
   // Mode selection: 'flashcards' | 'flowsheets' | 'diagnostic' | 'analytics'
@@ -88,7 +89,12 @@ export default function AdaptiveTab({ appState = {}, setActiveTab }) {
         : ['Essential syllabus milestone', 'Scoring criterion for university examination'],
       category: q.topic || 'Core Concept',
       topicTitle: q.topic || 'Document Review',
-      examTip: `High-yield ${q.marks || 5}-mark item predicted with ${q.confidence || 90}% likelihood in Parul University examination.`,
+      examTip: (() => {
+        const evPct = toPercentagePoints(q.evidence_score);
+        const confPct = toPercentagePoints(q.confidence);
+        const metricStr = evPct != null ? `evidence score ${evPct}%` : (confPct != null ? `model confidence ${confPct}%` : 'evidence uncalibrated');
+        return `High-yield ${q.marks || 5}-mark item (${metricStr}) in Parul University examination.`;
+      })(),
       source: 'Uploaded Document'
     }));
   }, [hasDocuments, appState.questions]);

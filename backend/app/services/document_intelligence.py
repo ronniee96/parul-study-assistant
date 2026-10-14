@@ -1,23 +1,25 @@
 """
 Document Intelligence Service
-Deep extraction and normalization of academic documents (PDF, PPTX, DOCX, Images/OCR, TXT).
+Deep extraction and normalization of academic documents (PDF, PPTX, DOCX, TXT, and Images when OCR is installed).
 Extracts headings, modules, definitions, concepts, formulas, processes, tables, comparisons,
-and maintains exact source provenance (document_id, page_number, section, element_type, snippet).
+and maintains exact source provenance (document_id, content_hash, page_number, section, element_type, snippet).
 """
 
 import io
 import os
 import re
 import uuid
+import shutil
+import hashlib
 import logging
 from typing import Dict, List, Any, Optional
 
 logger = logging.getLogger(__name__)
 
-class DocumentIntelligence:
-    """Extracts granular academic elements and provenance from course materials"""
 
-    # Academic element regex patterns
+class DocumentIntelligence:
+    """Extracts granular academic elements and provenance from course materials."""
+
     DEFINITION_PATTERNS = [
         re.compile(r'\b([A-Z][A-Za-z0-9\s\-]{2,50})\s+(?:is defined as|refers to|means|is described as|is the process of|is designated as)\s+([^.\n]{15,300}\.?)', re.IGNORECASE),
         re.compile(r'^\s*(?:Definition\s*[:\-]\s*)?([A-Z][A-Za-z0-9\s\-\(\)]{2,45})\s*:\s*([^.\n]{15,300}\.?)', re.MULTILINE),
@@ -45,40 +47,58 @@ class DocumentIntelligence:
     ]
 
     @classmethod
-    def extract_rich_document(cls, file_content: bytes, filename: str, document_id: Optional[str] = None) -> Dict[str, Any]:
+    def extract_rich_document(
+        cls,
+        file_content: bytes,
+        filename: str,
+        document_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
         """
         Parses document into pages/slides, extracts structured elements,
         and constructs a NormalizedAcademicDocument dictionary with provenance.
         """
         doc_id = document_id or f"doc_{uuid.uuid4().hex[:8]}"
+        content_hash = hashlib.sha256(file_content).hexdigest()
         ext = os.path.splitext(filename)[1].lower()
         if not ext:
             ext = ".txt"
         pages_content = []
 
-        if ext not in {'.pdf', '.ppt', '.pptx', '.doc', '.docx', '.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.txt'}:
+        if ext in {".doc", ".ppt"}:
             return {
-                "success": False, "document_id": doc_id, "filename": filename,
-                "file_type": ext, "total_pages": 0, "word_count": 0,
+                "success": False, "document_id": doc_id, "content_hash": content_hash,
+                "filename": filename, "file_type": ext, "total_pages": 0, "word_count": 0,
+                "character_count": 0, "headings": [], "topics": [],
+                "definitions": [], "formulas": [], "elements": [],
+                "full_text": "", "pages": [],
+                "error": f"Legacy binary '{ext}' format is not supported; please convert to '{ext}x' or PDF."
+            }
+
+        if ext not in {'.pdf', '.pptx', '.docx', '.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.txt'}:
+            return {
+                "success": False, "document_id": doc_id, "content_hash": content_hash,
+                "filename": filename, "file_type": ext, "total_pages": 0, "word_count": 0,
                 "character_count": 0, "headings": [], "topics": [],
                 "definitions": [], "formulas": [], "elements": [],
                 "full_text": "", "pages": [],
                 "error": f"Unsupported file type: {ext or '(no extension)'}"
             }
 
+        extraction_error = None
         try:
             if ext == '.pdf':
-                pages_content = cls._extract_pages_pdf(file_content)
-            elif ext in ['.ppt', '.pptx']:
+                pages_content, extraction_error = cls._extract_pages_pdf(file_content)
+            elif ext == '.pptx':
                 pages_content = cls._extract_pages_pptx(file_content)
-            elif ext in ['.doc', '.docx']:
+            elif ext == '.docx':
                 pages_content = cls._extract_pages_docx(file_content)
             elif ext in ['.jpg', '.jpeg', '.png', '.bmp', '.tiff']:
-                pages_content = cls._extract_pages_image(file_content)
+                pages_content, extraction_error = cls._extract_pages_image(file_content)
             else:
                 pages_content = cls._extract_pages_txt(file_content)
         except Exception as e:
             logger.error(f"Error extracting pages for {filename}: {e}")
+            extraction_error = str(e)
             pages_content = []
 
         pages_content = [page for page in pages_content if page.get("text", "").strip()]
@@ -86,6 +106,7 @@ class DocumentIntelligence:
             return {
                 "success": False,
                 "document_id": doc_id,
+                "content_hash": content_hash,
                 "filename": filename,
                 "file_type": ext,
                 "total_pages": 0,
@@ -98,10 +119,9 @@ class DocumentIntelligence:
                 "elements": [],
                 "full_text": "",
                 "pages": [],
-                "error": "No readable text was extracted from this document."
+                "error": extraction_error or "No readable text was extracted from this document."
             }
 
-        # Analyze pages and extract structured academic elements
         full_text_parts = []
         all_elements = []
         headings = []
@@ -114,36 +134,29 @@ class DocumentIntelligence:
             p_text = p["text"]
             full_text_parts.append(f"--- [Page/Slide {p_num}] ---\n{p_text}")
 
-            # 1. Heading detection
             page_headings = cls._detect_headings(p_text)
             headings.extend(page_headings)
             for h in page_headings:
                 topics.add(h)
 
-            # 2. Extract definitions
-            defs = cls._extract_definitions(p_text, doc_id, filename, p_num)
+            defs = cls._extract_definitions(p_text, doc_id, filename, p_num, content_hash)
             definitions.extend(defs)
             all_elements.extend(defs)
 
-            # 3. Extract formulas
-            forms = cls._extract_formulas(p_text, doc_id, filename, p_num)
+            forms = cls._extract_formulas(p_text, doc_id, filename, p_num, content_hash)
             formulas.extend(forms)
             all_elements.extend(forms)
 
-            # 4. Extract processes
-            procs = cls._extract_processes(p_text, doc_id, filename, p_num)
+            procs = cls._extract_processes(p_text, doc_id, filename, p_num, content_hash)
             all_elements.extend(procs)
 
-            # 5. Extract comparisons
-            comps = cls._extract_comparisons(p_text, doc_id, filename, p_num)
+            comps = cls._extract_comparisons(p_text, doc_id, filename, p_num, content_hash)
             all_elements.extend(comps)
 
-            # 6. Extract advantages/disadvantages
-            advs = cls._extract_advantages(p_text, doc_id, filename, p_num)
+            advs = cls._extract_advantages(p_text, doc_id, filename, p_num, content_hash)
             all_elements.extend(advs)
 
-            # 7. Extract general key concept paragraphs
-            concepts = cls._extract_concepts(p_text, doc_id, filename, p_num)
+            concepts = cls._extract_concepts(p_text, doc_id, filename, p_num, content_hash)
             all_elements.extend(concepts)
 
         combined_text = "\n\n".join(full_text_parts)
@@ -152,6 +165,7 @@ class DocumentIntelligence:
         return {
             "success": True,
             "document_id": doc_id,
+            "content_hash": content_hash,
             "filename": filename,
             "file_type": ext,
             "total_pages": len(pages_content),
@@ -171,13 +185,12 @@ class DocumentIntelligence:
     # ── Page-Level Readers ─────────────────────────────────────────────
 
     @classmethod
-    def _extract_pages_pdf(cls, content: bytes) -> List[Dict[str, Any]]:
+    def _extract_pages_pdf(cls, content: bytes):
         if b"%PDF-" not in content[:1024]:
             logger.warning("PDF header was not found near the start of the document")
-            return []
+            return [], "Malformed PDF file: missing %PDF- header."
 
         pages = []
-        # Try PyPDF2
         try:
             import PyPDF2
             reader = PyPDF2.PdfReader(io.BytesIO(content))
@@ -188,7 +201,6 @@ class DocumentIntelligence:
         except Exception as e:
             logger.warning(f"PyPDF2 failed: {e}")
 
-        # If pages empty or failed, try pdfplumber or OCR
         if not pages:
             try:
                 import pdfplumber
@@ -200,33 +212,35 @@ class DocumentIntelligence:
             except Exception as e:
                 logger.warning(f"pdfplumber failed: {e}")
 
-        # If still empty (e.g. scanned PDF), try OCR on images if available
         if not pages:
-            pages = cls._ocr_pdf_pages(content)
+            pages, ocr_err = cls._ocr_pdf_pages(content)
+            return pages, ocr_err
 
-        return pages
+        return pages, None
 
     @classmethod
-    def _ocr_pdf_pages(cls, content: bytes) -> List[Dict[str, Any]]:
-        """Fallback OCR for scanned PDFs"""
+    def _ocr_pdf_pages(cls, content: bytes):
+        """Fallback OCR for scanned PDFs when tesseract and pdftoppm binaries are installed."""
+        if not shutil.which("tesseract") or not shutil.which("pdftoppm"):
+            return [], (
+                "No selectable text found in PDF, and local OCR binaries (tesseract/pdftoppm) "
+                "are not installed in this environment."
+            )
         try:
-            from PIL import Image
             import pytesseract
-            # If pdf2image is available
-            try:
-                from pdf2image import convert_from_bytes
-                images = convert_from_bytes(content, first_page=1, last_page=5)
-                pages = []
-                for idx, img in enumerate(images):
-                    txt = pytesseract.image_to_string(img)
+            from pdf2image import convert_from_bytes
+            images = convert_from_bytes(content, first_page=1, last_page=5)
+            pages = []
+            for idx, img in enumerate(images):
+                txt = pytesseract.image_to_string(img, timeout=3)
+                if txt.strip():
                     pages.append({"page_number": idx + 1, "text": txt.strip()})
-                if pages:
-                    return pages
-            except Exception:
-                pass
+            if pages:
+                return pages, None
         except Exception as e:
             logger.warning(f"OCR failed: {e}")
-        return []
+            return [], f"Scanned PDF OCR failed: {e}"
+        return [], "No readable text could be extracted from scanned PDF."
 
     @classmethod
     def _extract_pages_pptx(cls, content: bytes) -> List[Dict[str, Any]]:
@@ -252,27 +266,31 @@ class DocumentIntelligence:
         try:
             import docx
             doc = docx.Document(io.BytesIO(content))
-            # Approximate pages by paragraph chunks (every 6 paragraphs ~ 1 page)
             paras = [p.text.strip() for p in doc.paragraphs if p.text.strip()]
             chunk_size = 6
             for i in range(0, max(len(paras), 1), chunk_size):
                 chunk = paras[i:i + chunk_size]
-                pages.append({"page_number": (i // chunk_size) + 1, "text": "\n".join(chunk)})
+                if chunk:
+                    pages.append({"page_number": (i // chunk_size) + 1, "text": "\n".join(chunk)})
         except Exception as e:
             logger.error(f"DOCX extraction error: {e}")
         return pages
 
     @classmethod
-    def _extract_pages_image(cls, content: bytes) -> List[Dict[str, Any]]:
+    def _extract_pages_image(cls, content: bytes):
+        if not shutil.which("tesseract"):
+            return [], "Image OCR is unavailable because the 'tesseract' binary is not installed."
         try:
             from PIL import Image
             import pytesseract
             img = Image.open(io.BytesIO(content))
-            txt = pytesseract.image_to_string(img)
-            return [{"page_number": 1, "text": txt.strip()}] if txt.strip() else []
+            txt = pytesseract.image_to_string(img, timeout=3)
+            if txt.strip():
+                return [{"page_number": 1, "text": txt.strip()}], None
+            return [], "Image contained no OCR-readable text."
         except Exception as e:
             logger.warning(f"Image OCR error: {e}")
-            return []
+            return [], f"Image OCR error: {e}"
 
     @classmethod
     def _extract_pages_txt(cls, content: bytes) -> List[Dict[str, Any]]:
@@ -295,19 +313,16 @@ class DocumentIntelligence:
         headings = []
         lines = [l.strip() for l in text.split("\n") if l.strip()]
         for line in lines:
-            # All caps heading
             if line.isupper() and 4 < len(line) < 60:
                 headings.append(line.title())
-            # Numbered headings e.g. "1. Introduction to Marginal Costing" or "Unit-2: Budgetary Control"
             elif re.match(r'^(?:Unit|Module|Chapter|\d+\.|\d+\.\d+)\s+([A-Za-z0-9\s\-:]{3,60})', line, re.IGNORECASE):
                 headings.append(line)
-            # Short lines ending with colon
             elif line.endswith(':') and len(line) < 50:
                 headings.append(line[:-1].strip())
         return headings
 
     @classmethod
-    def _extract_definitions(cls, text: str, doc_id: str, filename: str, page_num: int) -> List[Dict[str, Any]]:
+    def _extract_definitions(cls, text: str, doc_id: str, filename: str, page_num: int, content_hash: str) -> List[Dict[str, Any]]:
         defs = []
         for pat in cls.DEFINITION_PATTERNS:
             for match in pat.finditer(text):
@@ -329,9 +344,11 @@ class DocumentIntelligence:
                         "content": f"{term} is defined as {meaning}",
                         "page_number": page_num,
                         "document_id": doc_id,
+                        "content_hash": content_hash,
                         "filename": filename,
                         "provenance": {
                             "document_id": doc_id,
+                            "content_hash": content_hash,
                             "filename": filename,
                             "page_number": page_num,
                             "section_heading": term,
@@ -342,7 +359,7 @@ class DocumentIntelligence:
         return defs
 
     @classmethod
-    def _extract_formulas(cls, text: str, doc_id: str, filename: str, page_num: int) -> List[Dict[str, Any]]:
+    def _extract_formulas(cls, text: str, doc_id: str, filename: str, page_num: int, content_hash: str) -> List[Dict[str, Any]]:
         forms = []
         for pat in cls.FORMULA_PATTERNS:
             for match in pat.finditer(text):
@@ -356,9 +373,11 @@ class DocumentIntelligence:
                         "content": matched_str,
                         "page_number": page_num,
                         "document_id": doc_id,
+                        "content_hash": content_hash,
                         "filename": filename,
                         "provenance": {
                             "document_id": doc_id,
+                            "content_hash": content_hash,
                             "filename": filename,
                             "page_number": page_num,
                             "section_heading": title[:40],
@@ -369,7 +388,7 @@ class DocumentIntelligence:
         return forms
 
     @classmethod
-    def _extract_processes(cls, text: str, doc_id: str, filename: str, page_num: int) -> List[Dict[str, Any]]:
+    def _extract_processes(cls, text: str, doc_id: str, filename: str, page_num: int, content_hash: str) -> List[Dict[str, Any]]:
         elements = []
         paras = text.split("\n\n")
         for para in paras:
@@ -384,9 +403,11 @@ class DocumentIntelligence:
                     "content": para.strip(),
                     "page_number": page_num,
                     "document_id": doc_id,
+                    "content_hash": content_hash,
                     "filename": filename,
                     "provenance": {
                         "document_id": doc_id,
+                        "content_hash": content_hash,
                         "filename": filename,
                         "page_number": page_num,
                         "section_heading": first_line[:40],
@@ -397,7 +418,7 @@ class DocumentIntelligence:
         return elements
 
     @classmethod
-    def _extract_comparisons(cls, text: str, doc_id: str, filename: str, page_num: int) -> List[Dict[str, Any]]:
+    def _extract_comparisons(cls, text: str, doc_id: str, filename: str, page_num: int, content_hash: str) -> List[Dict[str, Any]]:
         elements = []
         paras = text.split("\n\n")
         for para in paras:
@@ -411,9 +432,11 @@ class DocumentIntelligence:
                     "content": para.strip(),
                     "page_number": page_num,
                     "document_id": doc_id,
+                    "content_hash": content_hash,
                     "filename": filename,
                     "provenance": {
                         "document_id": doc_id,
+                        "content_hash": content_hash,
                         "filename": filename,
                         "page_number": page_num,
                         "section_heading": first_line,
@@ -424,7 +447,7 @@ class DocumentIntelligence:
         return elements
 
     @classmethod
-    def _extract_advantages(cls, text: str, doc_id: str, filename: str, page_num: int) -> List[Dict[str, Any]]:
+    def _extract_advantages(cls, text: str, doc_id: str, filename: str, page_num: int, content_hash: str) -> List[Dict[str, Any]]:
         elements = []
         paras = text.split("\n\n")
         for para in paras:
@@ -438,9 +461,11 @@ class DocumentIntelligence:
                     "content": para.strip(),
                     "page_number": page_num,
                     "document_id": doc_id,
+                    "content_hash": content_hash,
                     "filename": filename,
                     "provenance": {
                         "document_id": doc_id,
+                        "content_hash": content_hash,
                         "filename": filename,
                         "page_number": page_num,
                         "section_heading": first_line,
@@ -451,7 +476,7 @@ class DocumentIntelligence:
         return elements
 
     @classmethod
-    def _extract_concepts(cls, text: str, doc_id: str, filename: str, page_num: int) -> List[Dict[str, Any]]:
+    def _extract_concepts(cls, text: str, doc_id: str, filename: str, page_num: int, content_hash: str) -> List[Dict[str, Any]]:
         elements = []
         paras = [p.strip() for p in re.split(r'\n{2,}', text) if len(p.strip()) > 60]
         for p in paras:
@@ -464,12 +489,14 @@ class DocumentIntelligence:
                     "content": p,
                     "page_number": page_num,
                     "document_id": doc_id,
+                    "content_hash": content_hash,
                     "filename": filename,
                     "provenance": {
                         "document_id": doc_id,
+                        "content_hash": content_hash,
                         "filename": filename,
                         "page_number": page_num,
-                        "section_heading": first_sent[:40],
+                        "section_heading": first_line if (first_line := first_sent[:40]) else "Concept",
                         "content_type": "concept",
                         "snippet": p[:120]
                     }

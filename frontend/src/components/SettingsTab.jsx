@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ANIME_CHEER_QUOTES } from '../utils/animeQuotes';
+import { apiFetch } from '../utils/apiClient';
 
 const DEFAULT_FEEDBACK = [
   {
@@ -286,7 +287,7 @@ export default function SettingsTab({
     setAkiActionState('jumping');
 
     try {
-      const res = await fetch('/api/v1/aki/chat', {
+      const res = await apiFetch('/api/v1/aki/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

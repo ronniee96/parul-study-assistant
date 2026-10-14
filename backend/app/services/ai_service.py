@@ -8,6 +8,7 @@ Falls back to Enhanced Parul University Academic Syllabus Engine directly ground
 import os
 import re
 import json
+import time
 import logging
 import random
 from typing import Dict, List, Any, Optional
@@ -43,7 +44,11 @@ class AIService:
                 logger.warning(f'Anthropic init failed: {e}')
         
         # Try Gemini from env
-        self.gemini_key = os.getenv('GEMINI_API_KEY')
+        gemini_k = os.getenv('GEMINI_API_KEY')
+        if gemini_k and gemini_k.strip() and 'your-key-here' not in gemini_k.lower() and 'example' not in gemini_k.lower():
+            self.gemini_key = gemini_k.strip()
+        else:
+            self.gemini_key = None
 
     # ─── API Key Verification & Testing ────────────────────────
 
@@ -216,10 +221,18 @@ class AIService:
                 failover_log.append(msg)
                 continue
 
+        # Fallback to source-grounded extractive summary when no external LLM keys are configured
+        sentences = [s.strip() for s in re.split(r'(?<=[.!?])\s+', sample) if len(s.strip()) > 15]
+        summary_sentences = sentences[:6] if len(sentences) >= 6 else sentences
+        summary_text = " ".join(summary_sentences) if summary_sentences else sample[:300]
+        key_pts = self._extract_key_points(sample)
         return {
-            'success': False,
-            'error': 'No configured AI provider completed the summary.',
-            'failover_log': failover_log,
+            'success': True,
+            'summary': summary_text,
+            'key_points': key_pts,
+            'word_count': len(summary_text.split()),
+            'method': 'Extractive Document Summary (Source Grounded)',
+            'failover_log': failover_log
         }
 
     def _call_gemini_api(self, prompt: str, api_key: str, max_tokens: int = 3000, 
@@ -397,114 +410,35 @@ Study Material:
 
     def _academic_deep_summarize(self, text: str, max_length: int, style: str) -> Dict:
         """
-        Deep Academic NLP Engine
-        Generates exhaustive, multi-section university study notes directly from document content.
+        Extractive Source-Grounded Summary Engine.
+        Summarizes only concepts and passages explicitly present in `text`.
         """
         raw_paras = [p.strip() for p in re.split(r'\n{2,}|---\s*Slide\s*\d+\s*---', text) if len(p.strip()) > 20]
         sentences = [s.strip() for s in re.split(r'(?<=[.!?])\s+', text) if len(s.strip()) > 15]
+        summary_sentences = sentences[:8] if len(sentences) >= 8 else sentences
+        summary_body = " ".join(summary_sentences) if summary_sentences else text[:400].strip()
+        key_points = self._extract_key_points(text)
 
-        words = re.findall(r'\b[A-Za-z]{4,}\b', text)
-        word_counts = {}
-        stop_words = {'this', 'that', 'with', 'from', 'have', 'were', 'which', 'their', 'there', 'about', 'these', 'would', 'could'}
-        for w in words:
-            wl = w.lower()
-            if wl not in stop_words:
-                word_counts[wl] = word_counts.get(wl, 0) + 1
-        
-        top_keywords = sorted(word_counts.items(), key=lambda x: x[1], reverse=True)[:15]
-        top_terms = [k.capitalize() for k, v in top_keywords]
-
-        concepts = []
-        for p in raw_paras:
-            p_clean = re.sub(r'^[•\-\*\d\.\)]+\s*', '', p).strip()
-            first_sent = p_clean.split('.')[0]
-            if 15 < len(first_sent) < 90:
-                concepts.append((first_sent, p))
-            if len(concepts) >= 6:
-                break
-
-        if not concepts and raw_paras:
-            for i, p in enumerate(raw_paras[:4]):
-                concepts.append((f"Core Topic {i+1}", p))
-
-        sections = []
-        sections.append("# Comprehensive Academic Syllabus & Exam Study Notes")
-        
-        intro_text = (
-            f"This study unit delivers an in-depth exploration of core architectural paradigms, "
-            f"structural models, and engineering methodologies. Key focus areas include "
-            f"{', '.join(top_terms[:4]) if len(top_terms) >= 4 else 'foundational concepts and implementation practices'}. "
-            f"Mastery of these concepts is essential for both conceptual examination questions and practical problem-solving."
-        )
-        sections.append("## 1. Executive Summary & Core Objective")
-        sections.append(intro_text)
-
-        sections.append("## 2. Comprehensive Concept Deep Dive")
-        for idx, (title, body) in enumerate(concepts[:5]):
-            sections.append(f"### 2.{idx+1} {title}")
-            sections.append(
-                f"{body}\n\n"
-                f"**Key Analytical Insights:**\n"
-                f"• Theoretical Foundation: Directly connects with {top_terms[idx % len(top_terms)] if top_terms else 'Core Engineering'}.\n"
-                f"• Implementation Significance: Eliminates systemic bottlenecks and enforces decoupled interfaces.\n"
-                f"• Empirical Assessment: Validated through continuous monitoring, benchmarking, and error-budget tracking."
-            )
-
-        sections.append("## 3. Core Theoretical Frameworks & Models")
-        sections.append(
-            "| Framework / Dimension | Primary Principle | Academic & Practical Significance |\n"
-            "|---|---|---|\n"
-            "| **Single Responsibility & Cohesion** | Each module owns one reason to change | Drastically reduces regression risks and coupling |\n"
-            "| **Interface Segregation** | Clients depend only on methods they execute | Prevents bloated abstractions and rigid dependencies |\n"
-            "| **Iterative Verification Cycles** | Continuous automated feedback loops | Accelerates defect discovery and ensures compliance |\n"
-            "| **Architectural Tradeoff Analysis** | Balance between throughput, latency, and cost | Informs production-grade architectural decisions |"
-        )
-
-        sections.append("## 4. Real-World Case Studies & Industry Applications")
-        sections.append(
-            "**Case Example 1: Large-Scale Distributed Architecture Migration**\n"
-            "Organizations transitioning legacy codebases adopt domain-driven boundary separation. "
-            "By establishing explicit contracts, regression defects dropped by over 40%, and deployment frequency accelerated.\n\n"
-            "**Case Example 2: Continuous Quality & Defect Prevention**\n"
-            "By implementing strict automated regression gates and architectural linters, engineering teams prevented catastrophic runtime failures, ensuring 99.99% availability SLAs."
-        )
-
-        sections.append("## 5. Critical Exam Traps & Examiner Expectations")
-        sections.append(
-            "• **Trap 1: Surface Definitions Without Mechanisms.** Examiners penalize candidates who merely quote definitions. Always detail *how* the framework operates and provide a concrete example.\n"
-            "• **Trap 2: Confusing Principles with Implementations.** Remember that patterns and guidelines are architectural philosophies; specific libraries and tools are just tactical implementations.\n"
-            "• **Trap 3: Neglecting Tradeoffs.** Full marks require acknowledging limitations (e.g., increased initial abstraction overhead versus long-term maintainability gains)."
-        )
-
-        sections.append("## 6. Essential Terminology & Glossary")
-        for idx, term in enumerate(top_terms[:6]):
-            sections.append(f"• **{term}**: A primary operational construct in this study unit, signifying systematic governance of structural components and processes.")
+        sections = [
+            "# Extracted Study Material Summary",
+            summary_body,
+        ]
+        if raw_paras:
+            sections.append("## Extracted Passages")
+            for idx, para in enumerate(raw_paras[:5]):
+                sections.append(f"### Passage {idx + 1}\n{para}")
 
         full_markdown = "\n\n".join(sections)
         word_count = len(full_markdown.split())
 
-        takeaways = [
-            f"Foundational role of {top_terms[0] if top_terms else 'Architecture'} in system reliability",
-            "Decoupling of components to isolate regression blast radiuses",
-            "Continuous automated verification over late-stage manual inspection",
-            "Balancing architectural purity with business and performance tradeoffs",
-            "Rigorous adherence to modular boundaries and clean interfaces",
-            "Comprehensive error handling and fault tolerance patterns",
-            "Measurable metrics (latency, throughput, MTTR) as definitive quality signals",
-            "Designing for testability from initial specification onwards",
-            "Documentation of architectural decision records (ADRs) to preserve context",
-            "Exam strategy: Pair every theoretical claim with a functional diagram or code example"
-        ]
-
         return {
             'success': True,
             'summary': full_markdown,
-            'executive_summary': intro_text,
-            'key_points': takeaways,
+            'executive_summary': summary_body,
+            'key_points': key_points,
             'word_count': word_count,
-            'reading_time': f"{max(3, round(word_count / 200))} mins",
-            'method': 'academic_nlp_engine',
-            'note': 'Generated by Deep Academic Note Engine — connect live Gemini/OpenAI key for cloud model notes.'
+            'reading_time': f"{max(1, round(word_count / 200))} mins",
+            'method': 'Extractive Document Summary (Source Grounded)',
         }
 
     def adversarial_review_questions(
@@ -661,11 +595,16 @@ Study Material:
                     logger.info("Attempting question generation with Google Gemini...")
                     questions = self._generate_questions_gemini(text, num_questions, question_types, k)
                     if questions:
+                        for q in questions:
+                            q['is_ai_generated'] = True
+                            q['generation_method'] = 'ai_model'
                         return {
                             'success': True,
                             'questions': questions,
                             'count': len(questions),
                             'engine_used': 'Google Gemini 1.5 Flash',
+                            'is_ai_generated': True,
+                            'generation_method': 'ai_model',
                             'failover_log': failover_log
                         }
                 elif p == 'openai':
@@ -673,11 +612,16 @@ Study Material:
                     custom_k = k if k != 'env' else None
                     questions = self._generate_questions_openai(text, num_questions, question_types, custom_k)
                     if questions:
+                        for q in questions:
+                            q['is_ai_generated'] = True
+                            q['generation_method'] = 'ai_model'
                         return {
                             'success': True,
                             'questions': questions,
                             'count': len(questions),
                             'engine_used': 'OpenAI ChatGPT (GPT-4o Mini)',
+                            'is_ai_generated': True,
+                            'generation_method': 'ai_model',
                             'failover_log': failover_log
                         }
                 elif p in ['anthropic', 'claude']:
@@ -685,22 +629,32 @@ Study Material:
                     custom_k = k if k != 'env' else None
                     questions = self._generate_questions_anthropic(text, num_questions, question_types, custom_k)
                     if questions:
+                        for q in questions:
+                            q['is_ai_generated'] = True
+                            q['generation_method'] = 'ai_model'
                         return {
                             'success': True,
                             'questions': questions,
                             'count': len(questions),
                             'engine_used': 'Anthropic Claude',
+                            'is_ai_generated': True,
+                            'generation_method': 'ai_model',
                             'failover_log': failover_log
                         }
                 elif p in ['perplexity', 'pplx']:
                     logger.info("Attempting question generation with Perplexity AI...")
                     questions = self._generate_questions_perplexity(text, num_questions, question_types, k)
                     if questions:
+                        for q in questions:
+                            q['is_ai_generated'] = True
+                            q['generation_method'] = 'ai_model'
                         return {
                             'success': True,
                             'questions': questions,
                             'count': len(questions),
                             'engine_used': 'Perplexity AI (Sonar)',
+                            'is_ai_generated': True,
+                            'generation_method': 'ai_model',
                             'failover_log': failover_log
                         }
             except Exception as e:
@@ -717,9 +671,11 @@ Study Material:
             'success': True,
             'questions': fallback_questions,
             'count': len(fallback_questions),
-            'engine_used': 'Enhanced Parul University Academic Syllabus Engine',
+            'engine_used': 'Deterministic Syllabus Extractor (Grounded)',
+            'is_ai_generated': False,
+            'generation_method': 'deterministic_syllabus_extraction',
             'failover_log': failover_log,
-            'note': 'Questions directly extracted from uploaded slides. Connect a Gemini or ChatGPT key to enable live cloud models.'
+            'note': 'Questions directly extracted from uploaded slides using deterministic syllabus extraction. Connect an AI key to enable live cloud models.'
         }
 
     def generate_questions(self, text: str, num_questions: int = 10,
@@ -732,13 +688,24 @@ Study Material:
     def generate_mega_questions(self, text: str, num_questions: int = 300,
                                 question_types: Optional[List[str]] = None,
                                 api_keys: Optional[Dict[str, str]] = None,
-                                preferred_order: Optional[List[str]] = None) -> Dict:
+                                preferred_order: Optional[List[str]] = None,
+                                timeout_seconds: Optional[float] = None) -> Dict:
         """
         Generate comprehensive question bank (up to 300 questions) by processing text in chunks
-        using the auto-failover engine.
+        using the auto-failover engine with strict deadline protection.
         """
         if not question_types:
             question_types = ['multiple_choice', 'short_answer', 'essay']
+
+        # Determine deadline budget (default: 7.5s in serverless/Vercel to fit within 10s ceiling)
+        if timeout_seconds is None:
+            if os.getenv("VERCEL") or os.getenv("VERCEL_ENV"):
+                timeout_seconds = float(os.getenv("AI_GENERATION_TIMEOUT_SECONDS", "7.5"))
+            else:
+                timeout_seconds = float(os.getenv("AI_GENERATION_TIMEOUT_SECONDS", "30.0"))
+
+        start_time = time.time()
+        deadline = (start_time + timeout_seconds) if (timeout_seconds and timeout_seconds > 0) else None
 
         chunks = self._split_into_chunks(text, chunk_size=3000)
         if not chunks:
@@ -747,10 +714,18 @@ Study Material:
         all_questions = []
         engine_used = 'Enhanced Academic Engine'
         failover_log = []
+        timed_out = False
 
         # Generate from chunks
         questions_per_chunk = max(num_questions // len(chunks), 8)
         for i, chunk in enumerate(chunks):
+            if deadline and time.time() >= deadline:
+                timed_out = True
+                log_msg = f"AI generation reached execution deadline ({timeout_seconds:.1f}s) after chunk {i} of {len(chunks)}."
+                logger.warning(log_msg)
+                failover_log.append(log_msg)
+                break
+
             res = self.generate_questions_with_failover(
                 chunk, questions_per_chunk, question_types, api_keys, preferred_order
             )
@@ -771,13 +746,21 @@ Study Material:
         for i, q in enumerate(final):
             q['id'] = i + 1
 
+        is_incomplete = timed_out or (len(final) < num_questions)
+
+        error_message = None
+        if not final:
+            error_message = 'AI generation timed out before any questions could be returned.' if timed_out else 'No configured AI provider returned source-based questions.'
+
         return {
             'success': bool(final),
             'questions': final,
             'total_generated': len(final),
-            'engine_used': engine_used,
+            'engine_used': engine_used if final else None,
             'failover_log': list(set(failover_log)),
-            **({'error': 'No configured AI provider returned source-based questions.'} if not final else {}),
+            'timed_out': timed_out,
+            'incomplete': is_incomplete,
+            **({'error': error_message} if error_message else {}),
         }
 
     # ─── Individual Provider Implementations ───────────────────
@@ -967,28 +950,35 @@ Text:
             return []
 
         questions = []
-        for i in range(num):
-            cat_idx = i % 10
+        max_candidates = min(num, len(extracted_topics) * 10)
+        for i in range(max_candidates):
+            cat_idx = i // len(extracted_topics) if len(extracted_topics) > 1 else i
+            cat_idx = cat_idx % 10
             topic_item = extracted_topics[i % len(extracted_topics)]
             topic_title = topic_item['title']
             content = topic_item['content']
             sents = topic_item['sentences']
+            base_conf = None
 
             clean_term = re.sub(r'^(the|a|an|explain|define|what is|overview of)\s+', '', topic_title, flags=re.IGNORECASE).strip()
             clean_term = re.sub(r'["\':;]', '', clean_term).strip()
 
-            if cat_idx == 0 or types == ['multiple_choice']:
-                # Exam MCQ (4 options)
+            other_topics = [
+                t for t in extracted_topics
+                if t['title'].lower() != topic_title.lower()
+            ]
+
+            if (cat_idx == 0 or types == ['multiple_choice']) and len(other_topics) >= 3:
                 correct_def = sents[0] if sents else content[:120]
-                distractor_1 = f"Deals exclusively with unmanaged legacy logs and ignores standardized controls."
-                distractor_2 = f"Operates as a purely hypothetical construct with zero empirical validity in industry."
-                distractor_3 = f"Discards all variable cost parameters and computes arbitrary allocations."
+                d1 = (other_topics[0]['sentences'][0] if other_topics[0]['sentences'] else other_topics[0]['content'])[:90].strip()
+                d2 = (other_topics[1]['sentences'][0] if other_topics[1]['sentences'] else other_topics[1]['content'])[:90].strip()
+                d3 = (other_topics[2]['sentences'][0] if other_topics[2]['sentences'] else other_topics[2]['content'])[:90].strip()
 
                 options = [
-                    f"A) {correct_def[:85]}...",
-                    f"B) {distractor_1[:85]}",
-                    f"C) {distractor_2[:85]}",
-                    f"D) {distractor_3[:85]}"
+                    f"A) {correct_def[:85]}",
+                    f"B) {d1[:85]}",
+                    f"C) {d2[:85]}",
+                    f"D) {d3[:85]}"
                 ]
 
                 questions.append({
@@ -1001,17 +991,43 @@ Text:
                     'key_points': [
                         f"Core academic definition of {clean_term}",
                         "Standard university curriculum grounding",
-                        "Direct differentiation from invalid legacy distractors"
+                        "Differentiated against related syllabus concepts"
                     ],
                     'explanation': f"Directly grounded in unit lecture slides for {clean_term}.",
+                    'source_evidence': content[:160],
                     'topic': clean_term[:50],
                     'difficulty': 'medium',
                     'marks': 2,
-                    'confidence': round(random.uniform(0.92, 0.98), 2)
+                    'confidence': None,
+                    'is_ai_generated': False,
+                    'generation_method': 'deterministic_syllabus_extraction',
+                })
+
+            elif cat_idx == 0 or types == ['multiple_choice']:
+                # Fewer than 3 distinct topics in material: do not fabricate fake distractors.
+                # Emit a grounded 2-mark syllabus definition question instead.
+                questions.append({
+                    'id': i + 1,
+                    'type': 'short_answer',
+                    'category': '1-2 Mark Definitions',
+                    'question': f"Define '{clean_term}' and state its primary role according to the syllabus. [2 Marks]",
+                    'options': None,
+                    'correct_answer': f"📌 Direct Syllabus Definition (2 Marks):\n\"{clean_term} is defined as {sents[0] if sents else content[:110]}\"\n\n💡 Writing Rule: Exactly 2 lines, crisp academic wording.",
+                    'key_points': [
+                        f"2-line precise definition of {clean_term}",
+                        "Directly writable in Section A"
+                    ],
+                    'explanation': f"Compulsory Section A definition for {clean_term}.",
+                    'source_evidence': content[:160],
+                    'topic': clean_term[:50],
+                    'difficulty': 'easy',
+                    'marks': 2,
+                    'confidence': None,
+                    'is_ai_generated': False,
+                    'generation_method': 'deterministic_syllabus_extraction',
                 })
 
             elif cat_idx == 1:
-                # 1-2M Very Short Definition
                 questions.append({
                     'id': i + 1,
                     'type': 'short_answer',
@@ -1023,15 +1039,15 @@ Text:
                         f"2-line precise definition of {clean_term}",
                         "Zero fluff, directly writable in Section A"
                     ],
-                    'explanation': f"High-yield compulsory Section A question.",
+                    'explanation': "High-yield compulsory Section A question.",
+                    'source_evidence': content[:160],
                     'topic': clean_term[:50],
                     'difficulty': 'easy',
                     'marks': 2,
-                    'confidence': round(random.uniform(0.94, 0.99), 2)
+                    'confidence': base_conf
                 })
 
             elif cat_idx == 2:
-                # 2-5M Elaborated Definition
                 questions.append({
                     'id': i + 1,
                     'type': 'short_answer',
@@ -1041,24 +1057,24 @@ Text:
                     'correct_answer': (
                         f"📝 Elaborated Concept & Definition (Standard University Level):\n\n"
                         f"1. Meaning & Foundational Premise:\n{content[:180]}\n\n"
-                        f"2. Core Operational Objectives:\n"
-                        f"• Systematic Data Capture: Standardizes records for administrative planning.\n"
-                        f"• Variance Prevention: Eliminates arbitrary classification distortions.\n"
-                        f"• Decision Support: Informs tactical make-or-buy and budgetary targets."
+                        f"2. Core Conceptual Objectives:\n"
+                        f"• Comprehensive Understanding: Establishes foundational principles of {clean_term}.\n"
+                        f"• Systematic Application: Structures theoretical concepts into actionable academic knowledge.\n"
+                        f"• Analytical Evaluation: Enables critical assessment and problem solving."
                     ),
                     'key_points': [
                         "Structured definition with 3 operational objectives",
                         "Standard university notes format"
                     ],
-                    'explanation': f"University standard notes for 3-5 marks.",
+                    'explanation': "University standard notes for 3-5 marks.",
+                    'source_evidence': content[:160],
                     'topic': clean_term[:50],
                     'difficulty': 'medium',
                     'marks': 3,
-                    'confidence': round(random.uniform(0.91, 0.97), 2)
+                    'confidence': base_conf
                 })
 
             elif cat_idx == 3:
-                # 5-Mark Structured Answer
                 questions.append({
                     'id': i + 1,
                     'type': 'short_answer',
@@ -1068,28 +1084,28 @@ Text:
                     'correct_answer': (
                         f"📋 Model 5-Mark Examination Answer:\n\n"
                         f"1. Definition & Core Meaning:\n{content[:150]}\n\n"
-                        f"2. Key Components & Working:\n"
-                        f"• Parameter Allocation: Governs direct and indirect elements systematically.\n"
-                        f"• Analytical Focus: Isolates controllable costs from external environmental factors.\n\n"
+                        f"2. Key Academic Components:\n"
+                        f"• Conceptual Framework: Establishes primary principles and structural properties.\n"
+                        f"• Methodological Scope: Defines scope, relationships, and operational boundaries.\n\n"
                         f"3. Major Advantages in Examinations:\n"
-                        f"• Eliminates distortions across multi-line operations.\n"
-                        f"• Enhances accuracy in managerial decision making.\n"
-                        f"• Enables early detection of operational inefficiencies.\n\n"
+                        f"• Provides precise conceptual clarity and theoretical grounding.\n"
+                        f"• Demonstrates structured academic understanding to examiners.\n"
+                        f"• Directly addresses standard university marking rubrics.\n\n"
                         f"💡 Scoring Tip: Present using explicit headings and bullet points for full marks."
                     ),
                     'key_points': [
                         "Definition + 2 key components",
                         "3 clear advantages for full 5-mark allotment"
                     ],
-                    'explanation': f"Exam-oriented 5-mark answer.",
+                    'explanation': "Exam-oriented 5-mark answer.",
+                    'source_evidence': content[:160],
                     'topic': clean_term[:50],
                     'difficulty': 'medium',
                     'marks': 5,
-                    'confidence': round(random.uniform(0.93, 0.98), 2)
+                    'confidence': base_conf
                 })
 
             elif cat_idx == 4:
-                # 10-Mark Detailed Answer with Diagram
                 questions.append({
                     'id': i + 1,
                     'type': 'essay',
@@ -1100,33 +1116,33 @@ Text:
                         f"🏛️ Comprehensive 10-Mark Model Examination Answer:\n\n"
                         f"1. Introduction & Theoretical Foundation:\n{content}\n\n"
                         f"2. Detailed Structural Breakdown:\n"
-                        f"• Step 1: Input Identification & Classification into fixed and incremental components.\n"
-                        f"• Step 2: Methodological Derivation and standard benchmarking.\n"
-                        f"• Step 3: Managerial Review and continuous feedback loop.\n\n"
+                        f"• Step 1: Input Identification & Classification into core structural elements.\n"
+                        f"• Step 2: Methodological Derivation and standard conceptual benchmarking.\n"
+                        f"• Step 3: Analytical Review and continuous feedback loop.\n\n"
                         f"3. [DIAGRAM TO DRAW IN EXAM BOOKLET]:\n"
                         f"Diagram Name: \"Structural Architecture of {clean_term}\"\n\n"
-                        f"[ Input Parameters ] ➔ [ Operational Analysis Gate ] ➔ [ Variance Control ] ➔ [ Strategic Output ]\n\n"
+                        f"[ Input Parameters ] ➔ [ Analytical Processing ] ➔ [ Evaluation Gate ] ➔ [ Synthesized Output ]\n\n"
                         f"What to write below the diagram:\n"
-                        f"\"Draw the 4-stage sequential flowchart. Label intermediate verification gates and feedback loops.\"\n\n"
+                        f"\"Draw the sequential flowchart illustrating core stages and relationships in {clean_term}.\"\n\n"
                         f"4. Key Examiner Scoring Points:\n"
                         f"• Precise definition and assumptions stated in opening box.\n"
-                        f"• Clear step-by-step mathematical or procedural derivation.\n"
-                        f"• Conclusive managerial recommendation.\n\n"
+                        f"• Clear step-by-step conceptual or procedural derivation.\n"
+                        f"• Conclusive academic and practical recommendation.\n\n"
                         f"5. Conclusion:\nMastery of {clean_term} provides an empirically grounded framework for university examination success."
                     ),
                     'key_points': [
                         "5-part essay structure (Intro, Breakdown, Diagram, Examiner Points, Conclusion)",
                         "Includes explicit [DIAGRAM TO DRAW] box with sketch and caption text"
                     ],
-                    'explanation': f"10-12 mark comprehensive essay question.",
+                    'explanation': "10-12 mark comprehensive essay question.",
+                    'source_evidence': content[:160],
                     'topic': clean_term[:50],
                     'difficulty': 'hard',
                     'marks': 10,
-                    'confidence': round(random.uniform(0.95, 0.99), 2)
+                    'confidence': base_conf
                 })
 
             elif cat_idx == 5:
-                # Diagram & Step-by-Step Breakdown
                 questions.append({
                     'id': i + 1,
                     'type': 'short_answer',
@@ -1148,15 +1164,15 @@ Text:
                         "Clear diagram name and schematic box layout",
                         "Exact 3-step explanation to write below the figure"
                     ],
-                    'explanation': f"High-yield diagrammatic scoring question.",
+                    'explanation': "High-yield diagrammatic scoring question.",
+                    'source_evidence': content[:160],
                     'topic': clean_term[:50],
                     'difficulty': 'medium',
                     'marks': 5,
-                    'confidence': round(random.uniform(0.92, 0.97), 2)
+                    'confidence': base_conf
                 })
 
             elif cat_idx == 6:
-                # Flowchart & Process
                 questions.append({
                     'id': i + 1,
                     'type': 'short_answer',
@@ -1169,23 +1185,23 @@ Text:
                         f"[ Step 1: Input Collection ] ➔ [ Step 2: Classification ] ➔ [ Step 3: Computation ] ➔ [ Step 4: Decision Review ]\n\n"
                         f"Step-by-Step Logic:\n"
                         f"• Step 1: Capture raw transaction variables and boundary constraints.\n"
-                        f"• Step 2: Segregate data into controllable versus fixed factors.\n"
-                        f"• Step 3: Apply standard algorithms to compute variances.\n"
-                        f"• Step 4: Deliver executive findings to decision-makers."
+                        f"• Step 2: Segregate data into core versus supporting factors.\n"
+                        f"• Step 3: Apply standard analytical algorithms to compute outcomes.\n"
+                        f"• Step 4: Deliver structured findings to decision-makers."
                     ),
                     'key_points': [
                         "Flowchart in logical step order",
                         "Exam-friendly concise explanation per node"
                     ],
-                    'explanation': f"Process and operations question.",
+                    'explanation': "Process and operations question.",
+                    'source_evidence': content[:160],
                     'topic': clean_term[:50],
                     'difficulty': 'medium',
                     'marks': 5,
-                    'confidence': round(random.uniform(0.91, 0.96), 2)
+                    'confidence': base_conf
                 })
 
             elif cat_idx == 7:
-                # Mind Map & Hierarchy
                 questions.append({
                     'id': i + 1,
                     'type': 'short_answer',
@@ -1194,10 +1210,10 @@ Text:
                     'options': None,
                     'correct_answer': (
                         f"🧠 Text-Based Mind Map & Revision Hierarchy:\n\n"
-                        f"📂 [ {clean_term.toUpperCase()} ]\n"
+                        f"📂 [ {clean_term.upper()} ]\n"
                         f"   ├── 🔹 1. Foundations & Scope (Meaning, Baseline, Assumptions)\n"
-                        f"   ├── 🔹 2. Analytical Mechanics (Formulas, Variables, Allocations)\n"
-                        f"   ├── 🔹 3. Strategic Decisions (Planning, Control, Make-or-Buy)\n"
+                        f"   ├── 🔹 2. Analytical Mechanics (Principles, Variables, Interactions)\n"
+                        f"   ├── 🔹 3. Core Applications (Planning, Evaluation, Implementation)\n"
                         f"   └── 🔹 4. Exam Traps (State assumptions first, label all diagram nodes)\n\n"
                         f"💡 Use this hierarchy for 2-minute rapid recall before the exam."
                     ),
@@ -1205,15 +1221,15 @@ Text:
                         "4-branch compact text hierarchy",
                         "Main Headings ➔ Subtopics ➔ Keywords"
                     ],
-                    'explanation': f"Mind map and revision hierarchy.",
+                    'explanation': "Mind map and revision hierarchy.",
+                    'source_evidence': content[:160],
                     'topic': clean_term[:50],
                     'difficulty': 'easy',
                     'marks': 3,
-                    'confidence': round(random.uniform(0.94, 0.98), 2)
+                    'confidence': base_conf
                 })
 
             elif cat_idx == 8:
-                # Last-Day Revision Notes
                 questions.append({
                     'id': i + 1,
                     'type': 'short_answer',
@@ -1224,24 +1240,24 @@ Text:
                         f"⏱️ 5-Minute Last-Day Revision Sheet for '{clean_term}':\n\n"
                         f"⚡ 1-Line Core Definition:\n{sents[0] if sents else content[:120]}\n\n"
                         f"📌 4 Bullet Points to Remember:\n"
-                        f"• Separates controllable activity costs from fixed structural overheads.\n"
-                        f"• Tracks efficiency variances between budgeted standards and actuals.\n"
-                        f"• Incremental/Relevant costs matter for decisions; sunk costs do not.\n"
+                        f"• Separates core functional concepts from secondary structural aspects.\n"
+                        f"• Evaluates primary mechanisms and verified operational outcomes.\n"
+                        f"• Grounded in empirical course concepts directly relevant to examination topics.\n"
                         f"• Always draw and label the schematic flow diagram for 5+ mark questions."
                     ),
                     'key_points': [
                         "Ultra-dense 1-page revision format",
                         "Zero filler — contains only formulas, definitions, and rules"
                     ],
-                    'explanation': f"Last-day 30-45 min revision sheet.",
+                    'explanation': "Last-day 30-45 min revision sheet.",
+                    'source_evidence': content[:160],
                     'topic': clean_term[:50],
                     'difficulty': 'easy',
                     'marks': 5,
-                    'confidence': round(random.uniform(0.95, 0.99), 2)
+                    'confidence': base_conf
                 })
 
             else:
-                # Common Mistakes & Tips
                 questions.append({
                     'id': i + 1,
                     'type': 'short_answer',
@@ -1252,25 +1268,32 @@ Text:
                         f"⚠️ Common Mistakes & Examiner Writing Secrets for '{clean_term}':\n\n"
                         f"❌ Where Students Frequently Lose Marks:\n"
                         f"1. Giving vague definitions without quoting technical terms or exact formulas.\n"
-                        f"2. Mixing up fixed and variable elements, or treating sunk costs as relevant in decisions.\n"
+                        f"2. Mixing up core definitions and secondary features, or leaving key terms undefined.\n"
                         f"3. Drawing unlabelled diagrams or forgetting to write explanatory bullet points underneath.\n\n"
                         f"✅ Examiner Writing Secrets for Full Marks:\n"
                         f"1. Begin with an underlined 2-line standard definition immediately below the question heading.\n"
-                        f"2. State all calculation assumptions clearly in box format before showing numerical workings.\n"
-                        f"3. Conclude with a 2-line 'Managerial Significance' or 'Practical Takeaway' paragraph."
+                        f"2. State all foundational assumptions clearly in box format before showing detailed workings.\n"
+                        f"3. Conclude with a 2-line 'Core Significance' or 'Practical Takeaway' paragraph."
                     ),
                     'key_points': [
                         "Identifies top 3 marks-loss traps in university exams",
                         "Provides 3 actionable writing strategies for scoring full marks"
                     ],
-                    'explanation': f"Common mistakes and examiner writing secrets.",
+                    'explanation': "Common mistakes and examiner writing secrets.",
+                    'source_evidence': content[:160],
                     'topic': clean_term[:50],
                     'difficulty': 'easy',
                     'marks': 2,
-                    'confidence': round(random.uniform(0.96, 0.99), 2)
+                    'confidence': base_conf
                 })
 
-        return questions
+        deduped = self._deduplicate_questions(questions)
+        for idx, q in enumerate(deduped):
+            q['id'] = idx + 1
+            q['is_ai_generated'] = False
+            q['generation_method'] = 'deterministic_syllabus_extraction'
+            q['confidence'] = None
+        return deduped[:num]
 
     # ─── Utility Helpers ───────────────────────────────────────
 
@@ -1291,6 +1314,16 @@ Text:
                     if not marks:
                         marks = 2 if q_type == 'multiple_choice' else (12 if q_type == 'essay' else 5)
 
+                    raw_conf = q.get('confidence')
+                    parsed_conf = None
+                    if raw_conf is not None:
+                        try:
+                            conf_val = float(raw_conf)
+                            if 0.0 <= conf_val <= 1.0:
+                                parsed_conf = round(conf_val, 3)
+                        except (ValueError, TypeError):
+                            parsed_conf = None
+
                     questions.append({
                         'id': i + 1,
                         'type': q_type,
@@ -1300,7 +1333,7 @@ Text:
                         'key_points': q.get('key_points', []),
                         'explanation': q.get('explanation', ''),
                         'topic': q.get('topic', 'Core Concept'),
-                        'confidence': round(float(q.get('confidence', random.uniform(0.90, 0.98))), 2),
+                        'confidence': parsed_conf,
                         'difficulty': q.get('difficulty', 'medium'),
                         'marks': marks
                     })
@@ -1344,7 +1377,7 @@ Text:
                 'key_points': ['Core syllabus definition', 'Practical architectural application'],
                 'explanation': 'Extracted from unit material.',
                 'topic': 'Unit Concept',
-                'confidence': round(random.uniform(0.88, 0.96), 2),
+                'confidence': None,
                 'difficulty': 'medium',
                 'marks': 2 if q_type == 'multiple_choice' else (12 if q_type == 'essay' else 5)
             })
@@ -1556,7 +1589,16 @@ Return ONLY a valid JSON object matching this schema:
                                     for question in questions:
                                         if not isinstance(question, dict):
                                             continue
-                                        question["confidence"] = 0.0
+                                        raw_c = question.get("confidence")
+                                        parsed_c = None
+                                        if raw_c is not None:
+                                            try:
+                                                c_val = float(raw_c)
+                                                if 0.0 <= c_val <= 1.0:
+                                                    parsed_c = round(c_val, 3)
+                                            except (ValueError, TypeError):
+                                                parsed_c = None
+                                        question["confidence"] = parsed_c
                                     return {
                                         "success": True,
                                         "method": "gemini_multimodal_vision",

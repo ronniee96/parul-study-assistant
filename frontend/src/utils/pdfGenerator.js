@@ -1,4 +1,5 @@
 import { jsPDF } from 'jspdf';
+import { formatConfidencePDF } from './confidenceFormatter';
 
 export function createPDFFromImages(images, title = 'Captured Slides') {
   if (!images || images.length === 0) {
@@ -536,8 +537,8 @@ export function createQuestionPaperPDF(questions, metadata = {}) {
 
     pdf.setFont('helvetica', 'bold');
     pdf.setFontSize(10);
-    pdf.setTextColor(15, 23, 42);
-    const qHeader = `Q${i + 1}. [${q.marks || 2} Marks] [Confidence: ${q.confidence || 90}%]`;
+    const confText = formatConfidencePDF(q.confidence, q.evidence_score);
+    const qHeader = `Q${i + 1}. [${q.marks || 2} Marks] ${confText}`;
     pdf.text(qHeader, 15, y);
     y += 5;
 

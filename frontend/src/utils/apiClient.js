@@ -5,8 +5,10 @@
 
 const USER_ID_KEY = 'study_assistant_user_id';
 const ACTIVE_SESSION_ID_KEY = 'study_assistant_active_session_id';
+const ACTIVE_SESSION_CAPABILITY_KEY = 'study_assistant_active_session_capability';
 const SESSIONS_INDEX_KEY = 'study_assistant_sessions_index';
 const SESSION_PREFIX = 'study_assistant_session_data_';
+const SESSION_CAPABILITY_PREFIX = 'study_assistant_session_cap_';
 
 function createId(prefix) {
   const value = globalThis.crypto?.randomUUID?.();
@@ -18,7 +20,7 @@ function createId(prefix) {
 }
 
 /**
- * Get or create a persistent anonymous user UUID for strict tenant isolation
+ * Get or create a persistent client identifier (non-authoritative; server capabilities enforce access)
  */
 export function getUserId() {
   try {
@@ -30,6 +32,41 @@ export function getUserId() {
     return uid;
   } catch {
     return 'usr_guest_default';
+  }
+}
+
+/**
+ * Get the stored server-issued capability token for a session
+ */
+export function getSessionCapability(sessionId = null) {
+  try {
+    const activeSid = localStorage.getItem(ACTIVE_SESSION_ID_KEY);
+    const sid = sessionId || activeSid;
+    if (sid) {
+      const scoped = localStorage.getItem(SESSION_CAPABILITY_PREFIX + sid);
+      if (scoped) return scoped;
+    }
+    if (!sessionId || sessionId === activeSid) {
+      return localStorage.getItem(ACTIVE_SESSION_CAPABILITY_KEY) || '';
+    }
+    return '';
+  } catch {
+    return '';
+  }
+}
+
+/**
+ * Save the server-issued capability token for a session
+ */
+export function setSessionCapability(sessionId, capability) {
+  if (!capability) return;
+  try {
+    if (sessionId) {
+      localStorage.setItem(SESSION_CAPABILITY_PREFIX + sessionId, capability);
+    }
+    localStorage.setItem(ACTIVE_SESSION_CAPABILITY_KEY, capability);
+  } catch (e) {
+    console.warn('Failed to store session capability:', e);
   }
 }
 
@@ -57,6 +94,12 @@ export function getActiveSessionId() {
 export function setActiveSessionId(sessionId) {
   try {
     localStorage.setItem(ACTIVE_SESSION_ID_KEY, sessionId);
+    const cap = localStorage.getItem(SESSION_CAPABILITY_PREFIX + sessionId);
+    if (cap) {
+      localStorage.setItem(ACTIVE_SESSION_CAPABILITY_KEY, cap);
+    } else {
+      localStorage.removeItem(ACTIVE_SESSION_CAPABILITY_KEY);
+    }
   } catch (e) {
     console.warn('Failed to set active session ID:', e);
   }
@@ -86,7 +129,7 @@ export function registerSession(sessionId, name = 'Study Session', stats = null)
       id: sessionId,
       name: name || `Session ${sessions.length + 1}`,
       updatedAt: Date.now(),
-      stats: stats || { pdfCount: 0, questionCount: 0, confidence: 0, answerCount: 0 }
+      stats: stats || { pdfCount: 0, questionCount: 0, confidence: null, answerCount: 0 }
     };
 
     if (existingIndex >= 0) {
@@ -141,7 +184,7 @@ export function saveSessionState(sessionId, state) {
       answers: state.answers || [],
       captures: (state.captures || []).slice(0, 15), // keep thumbnail captures
       paperPattern: state.paperPattern || null,
-      stats: state.stats || { pdfCount: 0, questionCount: 0, confidence: 0, answerCount: 0 }
+      stats: state.stats || { pdfCount: 0, questionCount: 0, confidence: null, answerCount: 0 }
     };
     localStorage.setItem(key, JSON.stringify(toSave));
 
@@ -200,6 +243,10 @@ export function loadSessionState(sessionId) {
 export function deleteSession(sessionId) {
   try {
     localStorage.removeItem(SESSION_PREFIX + sessionId);
+    localStorage.removeItem(SESSION_CAPABILITY_PREFIX + sessionId);
+    if (localStorage.getItem(ACTIVE_SESSION_ID_KEY) === sessionId) {
+      localStorage.removeItem(ACTIVE_SESSION_CAPABILITY_KEY);
+    }
     const sessions = listSessions().filter(s => s.id !== sessionId);
     localStorage.setItem(SESSIONS_INDEX_KEY, JSON.stringify(sessions));
     return sessions;
@@ -214,6 +261,11 @@ export function deleteSession(sessionId) {
  */
 export function createNewSession(name = 'New Study Session') {
   const newId = createId('sess');
+  try {
+    localStorage.removeItem(ACTIVE_SESSION_CAPABILITY_KEY);
+  } catch {
+    // ignore
+  }
   setActiveSessionId(newId);
   registerSession(newId, name);
   return newId;
@@ -221,11 +273,12 @@ export function createNewSession(name = 'New Study Session') {
 
 /**
  * Authenticated API Fetch wrapper that automatically attaches
- * X-User-ID and X-Session-ID headers and normalizes error envelopes.
+ * X-Session-ID and X-Session-Capability headers and captures newly issued capabilities.
  */
 export async function apiFetch(url, options = {}) {
   const userId = getUserId();
   const sessionId = getActiveSessionId();
+  const capability = getSessionCapability(sessionId);
   const apiBase = (import.meta.env.VITE_API_URL || '').replace(/\/+$/, '');
   const requestUrl = apiBase.endsWith('/api/v1') && url.startsWith('/api/v1/')
     ? `${apiBase}${url.slice('/api/v1'.length)}`
@@ -234,6 +287,9 @@ export async function apiFetch(url, options = {}) {
   const headers = new Headers(options.headers || {});
   headers.set('X-User-ID', userId);
   headers.set('X-Session-ID', sessionId);
+  if (capability && !headers.has('X-Session-Capability')) {
+    headers.set('X-Session-Capability', capability);
+  }
 
   // Default content-type to application/json if sending JSON string body and not already set
   if (options.body && typeof options.body === 'string' && !headers.has('Content-Type')) {
@@ -249,6 +305,13 @@ export async function apiFetch(url, options = {}) {
     ...options,
     headers
   });
+
+  // If local storage had a stale session ID without its capability token and server returned 401,
+  // rotate to a clean session ID and retry once so the browser UI recovers seamlessly.
+  if (response.status === 401 && !capability && !options._retried) {
+    createNewSession();
+    return apiFetch(url, { ...options, _retried: true });
+  }
 
   // Handle non-OK responses gracefully
   if (!response.ok) {
@@ -270,10 +333,20 @@ export async function apiFetch(url, options = {}) {
     throw err;
   }
 
-  // Parse JSON response
+  // Parse JSON response and persist any server-issued capability token
   const contentType = response.headers.get('content-type') || '';
   if (contentType.includes('application/json')) {
-    return await response.json();
+    const data = await response.json();
+    if (data && typeof data === 'object') {
+      const respSessionId = data.session_id || sessionId;
+      if (data.session_capability) {
+        if (data.session_id && data.session_id !== sessionId) {
+          setActiveSessionId(data.session_id);
+        }
+        setSessionCapability(respSessionId, data.session_capability);
+      }
+    }
+    return data;
   }
   return response;
 }

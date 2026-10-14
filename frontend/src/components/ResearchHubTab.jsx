@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
+import { apiFetch } from '../utils/apiClient';
 
 const PRESET_QUERIES = [
   'Database Normalization BCNF',
@@ -31,7 +32,7 @@ export default function ResearchHubTab({ appState = {}, setAppState, setActiveTa
     try {
       if (source === 'perplexity') {
         const pKey = localStorage.getItem('parul_perplexity_key') || apiKeys?.perplexity;
-        const res = await fetch('/api/v1/research/ask-perplexity', {
+        const res = await apiFetch('/api/v1/research/ask-perplexity', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -44,7 +45,7 @@ export default function ResearchHubTab({ appState = {}, setAppState, setActiveTa
         setPerplexityAnswer(data);
         setResults(null);
       } else {
-        const res = await fetch('/api/v1/research/search', {
+        const res = await apiFetch('/api/v1/research/search', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

@@ -112,8 +112,6 @@ class PDFService:
             
             for q in section.get('questions', []):
                 q_text = q.get('question', f'Question {q_num}')
-                confidence = q.get('confidence', 0.5)
-                conf_pct = int(confidence * 100)
                 story.append(Paragraph(f'{q_num}. {q_text} [{mks} marks]', q_style))
                 
                 # MCQ options

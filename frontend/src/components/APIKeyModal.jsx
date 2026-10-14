@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { apiFetch } from '../utils/apiClient';
 
 export const ALL_PROVIDERS = [
   {
@@ -196,7 +197,7 @@ export default function APIKeyModal({ isOpen, onClose, apiKeys, onSaveApiKeys })
     setTestStatus(prev => ({ ...prev, [providerId]: null }));
 
     try {
-      const res = await fetch('/api/v1/test-key', {
+      const res = await apiFetch('/api/v1/test-key', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ provider: providerId, key: key })

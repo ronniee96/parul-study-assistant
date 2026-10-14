@@ -10,7 +10,6 @@ import json
 import logging
 import re
 from typing import Dict, List, Any, Optional
-from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
@@ -19,6 +18,11 @@ CACHE_DIR = os.getenv(
     "/tmp/parul_pyq" if os.getenv("VERCEL") else os.path.join(os.path.dirname(__file__), "..", "..", "data", "parul_pyq"),
 )
 CACHE_FILE = os.path.join(CACHE_DIR, "index.json")
+
+GENERIC_SUBJECT_NAMES = {
+    "", "subject", "general", "general course", "unknown", "course", "academic document", "uploaded file"
+}
+
 
 class ParulRepositoryHarvester:
     """OAI-PMH & OpenSearch client for Parul University Digital Repository"""
@@ -47,8 +51,10 @@ class ParulRepositoryHarvester:
                             paper["url"] = url.replace("http://localhost:8080", self.BASE_URL)
                         elif not url and handle:
                             paper["url"] = f"{self.BASE_URL}/xmlui/handle/{handle}"
-                        if paper.get("sample_questions"):
-                            paper["questions_source_verified"] = True
+                        # Never auto-mark seeded sample questions as verified unless a verified
+                        # external source hash (`source_document_sha256`) is explicitly recorded.
+                        if not paper.get("source_document_sha256"):
+                            paper["questions_source_verified"] = False
                         if paper.get("url", "").startswith(self.BASE_URL + "/") or paper.get("handle"):
                             loaded.append(paper)
                     return loaded
@@ -70,35 +76,48 @@ class ParulRepositoryHarvester:
         """
         results = []
 
-        # 1. Search local cached index first
-        q_clean = query.lower().strip()
+        q_clean = (query or "").lower().strip()
         code_clean = (subject_code or "").lower().strip()
 
+        if q_clean in GENERIC_SUBJECT_NAMES:
+            q_clean = ""
+
         for paper in self.cached_papers:
-            matches_code = code_clean and (code_clean in paper.get("subject_code", "").lower())
-            matches_subject = q_clean and (q_clean in paper.get("subject", "").lower() or q_clean in paper.get("title", "").lower())
+            p_code = str(paper.get("subject_code") or "").lower().strip()
+            p_subj = str(paper.get("subject") or "").lower().strip()
+            p_title = str(paper.get("title") or "").lower().strip()
+
+            matches_code = bool(code_clean and len(code_clean) >= 3 and code_clean == p_code)
+            matches_subject = bool(
+                q_clean
+                and len(q_clean) >= 3
+                and (
+                    re.search(rf"\b{re.escape(q_clean)}\b", p_subj)
+                    or re.search(rf"\b{re.escape(q_clean)}\b", p_title)
+                )
+            )
             if matches_code or matches_subject:
                 results.append(paper)
 
-        # 2. Try live query to Parul DSpace XMLUI OpenSearch Atom feed
-        try:
-            import httpx
-            search_term = subject_code if subject_code else query
-            url = f"{self.BASE_URL}/xmlui/open-search/?query={search_term}&format=atom"
-            async with httpx.AsyncClient(timeout=10.0) as client:
-                resp = await client.get(
-                    f"{self.BASE_URL}/xmlui/open-search/",
-                    params={"query": search_term, "format": "atom"}
-                )
-                if resp.status_code == 200 and "<entry>" in resp.text:
-                    live_papers = self._parse_atom_entries(resp.text)
-                    for lp in live_papers:
-                        if not any(r.get("id") == lp.get("id") for r in results):
-                            results.append(lp)
-                            self.cached_papers.append(lp)
-                    self._save_cache(self.cached_papers)
-        except Exception as e:
-            logger.info(f"Parul live repository query bypassed: {e}")
+        # Try live query to Parul DSpace XMLUI OpenSearch Atom feed when a specific query is supplied
+        search_term = code_clean or q_clean
+        if search_term:
+            try:
+                import httpx
+                async with httpx.AsyncClient(timeout=10.0) as client:
+                    resp = await client.get(
+                        f"{self.BASE_URL}/xmlui/open-search/",
+                        params={"query": search_term, "format": "atom"}
+                    )
+                    if resp.status_code == 200 and "<entry>" in resp.text:
+                        live_papers = self._parse_atom_entries(resp.text)
+                        for lp in live_papers:
+                            if not any(r.get("id") == lp.get("id") for r in results):
+                                results.append(lp)
+                                self.cached_papers.append(lp)
+                        self._save_cache(self.cached_papers)
+            except Exception as e:
+                logger.info(f"Parul live repository query bypassed: {e}")
 
         return results
 
@@ -115,7 +134,6 @@ class ParulRepositoryHarvester:
                 updated = entry.findtext('atom:updated', default='', namespaces=ns)
                 year = updated[:4] if updated else None
 
-                # Extract handle
                 handle_match = re.search(r'handle/(123456789/\d+)', href)
                 handle = handle_match.group(1) if handle_match else "123456789/unknown"
 
@@ -127,7 +145,8 @@ class ParulRepositoryHarvester:
                     "subject_code": "",
                     "exam_type": "Institutional repository record",
                     "year": year,
-                    "url": href
+                    "url": href,
+                    "questions_source_verified": False,
                 })
         except Exception as e:
             logger.warning(f"Error parsing atom XML: {e}")
@@ -135,22 +154,45 @@ class ParulRepositoryHarvester:
 
     def get_historical_topics_and_questions(self, subject: str, subject_code: Optional[str] = None) -> Dict[str, Any]:
         """
-        Returns recurring topics and sample questions from historical Parul papers.
+        Returns recurring topics and sample questions from verified historical Parul papers.
+        Prevents empty or generic subject strings from matching unrelated subjects (e.g. Cost Accounting).
         """
-        papers = []
-        s_lower = subject.lower()
-        c_lower = (subject_code or "").lower()
+        s_lower = (subject or "").strip().lower()
+        c_lower = (subject_code or "").strip().lower()
 
+        if s_lower in GENERIC_SUBJECT_NAMES:
+            s_lower = ""
+
+        if not c_lower and len(s_lower) < 3:
+            return {
+                "matched_papers_count": 0,
+                "historical_papers": [],
+                "recurring_questions": [],
+                "topic_frequency": {},
+            }
+
+        papers = []
         for p in self.cached_papers:
-            if (c_lower and c_lower in p.get("subject_code", "").lower()) or (s_lower in p.get("subject", "").lower()):
+            p_code = str(p.get("subject_code") or "").strip().lower()
+            p_subj = str(p.get("subject") or "").strip().lower()
+
+            code_match = bool(c_lower and len(c_lower) >= 3 and c_lower == p_code)
+            subj_match = bool(
+                s_lower
+                and len(s_lower) >= 3
+                and p_subj
+                and re.search(rf"\b{re.escape(s_lower)}\b", p_subj)
+            )
+            if code_match or subj_match:
                 papers.append(p)
 
         # Repository metadata is not a past question paper until its contents
-        # have been retrieved and verified. Metadata records alone carry no
-        # historical question-frequency evidence.
+        # have been retrieved and verified (`questions_source_verified` + `source_document_sha256`).
         papers = [
             paper for paper in papers
-            if paper.get("questions_source_verified") and paper.get("sample_questions")
+            if paper.get("questions_source_verified") is True
+            and paper.get("source_document_sha256")
+            and paper.get("sample_questions")
         ]
 
         recurring_questions = []
