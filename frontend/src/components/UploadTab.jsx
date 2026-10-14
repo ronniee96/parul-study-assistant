@@ -211,8 +211,8 @@ export default function UploadTab({ appState, setAppState, setActiveTab, session
           signal: controller.signal
         });
         clearTimeout(timeoutId);
-        if (res.ok) {
-          backendData = await res.json();
+        if (res && typeof res === 'object') {
+          backendData = res;
           if (backendData.extracted_text && backendData.extracted_text.length > extractedText.length) {
             extractedText = backendData.extracted_text;
             wordCount = backendData.total_word_count || wordCount;
@@ -231,6 +231,7 @@ export default function UploadTab({ appState, setAppState, setActiveTab, session
       setCurrentStageIndex(3);
       setProgressPercent(80);
       const dynamicQs = generateDynamicQuestions(extractedText, files.map(f => f.name).join(' '));
+      const top25 = dynamicQs.slice(0, 25);
 
       // Stage 6: Final Integration
       setCurrentStageIndex(5);

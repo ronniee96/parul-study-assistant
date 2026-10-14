@@ -348,5 +348,16 @@ export async function apiFetch(url, options = {}) {
     }
     return data;
   }
+
+  // If an API route returned HTML (e.g. Vercel SSO challenge or rewrite fallthrough to index.html),
+  // reject with an explicit error rather than passing raw HTML to JSON consumers.
+  if (contentType.includes('text/html') && (url.includes('/api/') || requestUrl.includes('/api/'))) {
+    const err = new Error('Backend API returned HTML instead of expected JSON data. The serverless route may be offline or intercepted by hosting deployment protection.');
+    err.status = response.status;
+    err.isHtmlResponse = true;
+    err.url = requestUrl;
+    throw err;
+  }
+
   return response;
 }

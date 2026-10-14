@@ -80,10 +80,27 @@ export default function App() {
 
   const [lastSaved, setLastSaved] = useState(null);
   const [isHydrating, setIsHydrating] = useState(true);
+  const [backendStatus, setBackendStatus] = useState('checking');
 
-  // Mount effect: Rehydrate active session state from backend or offline cache
+  // Mount effect: Probe backend health and rehydrate active session state from backend or offline cache
   useEffect(() => {
     let isMounted = true;
+
+    async function probeBackend() {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 4000);
+        const health = await apiFetch('/api/v1/health', { signal: controller.signal });
+        clearTimeout(timeoutId);
+        if (isMounted && health && health.status === 'healthy') {
+          setBackendStatus('online');
+        } else if (isMounted) {
+          setBackendStatus('offline');
+        }
+      } catch {
+        if (isMounted) setBackendStatus('offline');
+      }
+    }
 
     async function rehydrateSession() {
       const activeSessionId = getActiveSessionId();
@@ -121,10 +138,12 @@ export default function App() {
             }
           }));
           setLastSaved("Restored from cloud session");
+          setBackendStatus('online');
           if (isMounted) setIsHydrating(false);
           return;
         }
       } catch (err) {
+        setBackendStatus('offline');
         // If 401 or 403 or 404, capability is invalid/rotated or session deleted; rotate to fresh session
         if (err.status === 401 || err.status === 403 || err.status === 404) {
           console.info(`Active session ${activeSessionId} unavailable (${err.status}); rotating session.`);
@@ -148,6 +167,7 @@ export default function App() {
       if (isMounted) setIsHydrating(false);
     }
 
+    probeBackend();
     rehydrateSession();
 
     return () => {
@@ -324,6 +344,19 @@ export default function App() {
           </div>
 
           <div className="flex items-center gap-2.5 shrink-0 flex-nowrap">
+            {backendStatus === 'offline' && (
+              <span className="hidden lg:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-950/60 text-amber-300 text-[10px] font-medium border border-amber-800/60" title="Backend cloud engine is unavailable or intercepted by deployment protection. Running with full in-browser parsing & question engine.">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+                <span>Client Engine Active</span>
+              </span>
+            )}
+            {backendStatus === 'online' && (
+              <span className="hidden lg:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-950/60 text-emerald-300 text-[10px] font-medium border border-emerald-800/60" title="Backend cloud serverless engine verified and responsive.">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                <span>Cloud Engine Online</span>
+              </span>
+            )}
+
             {lastSaved && (
               <span className="hidden xl:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-800 text-[11px] text-slate-300 font-medium border border-slate-700 shrink-0 whitespace-nowrap">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
