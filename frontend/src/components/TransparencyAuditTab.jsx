@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { apiFetch } from '../utils/apiClient';
 
 export default function TransparencyAuditTab({ 
   appState = {}, 
@@ -88,7 +89,7 @@ export default function TransparencyAuditTab({
     }
 
     try {
-      const res = await fetch('/api/v1/research/audit-trail');
+      const res = await apiFetch('/api/v1/research/audit-trail');
       const data = await res.json();
       if (data.success && data.logs) {
         setAuditLogs(data.logs);

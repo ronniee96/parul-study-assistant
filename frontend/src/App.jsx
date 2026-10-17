@@ -15,7 +15,18 @@ import AgentSquadTab from './components/AgentSquadTab';
 import SettingsTab from './components/SettingsTab';
 import APIKeyModal from './components/APIKeyModal';
 import AkiDashboardCompanion from './components/AkiDashboardCompanion';
+import PrivacyPolicy from './components/PrivacyPolicy';
+import TermsAndConditions from './components/TermsAndConditions';
 import { motion, AnimatePresence } from 'framer-motion';
+import {
+  createNewSession,
+  deleteSession,
+  getActiveSessionId,
+  getSessionCapability,
+  apiFetch,
+  loadSessionState,
+  saveSessionState
+} from './utils/apiClient';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('upload');
@@ -23,7 +34,6 @@ export default function App() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [apiKeyModalOpen, setApiKeyModalOpen] = useState(false);
   const [sessionKey, setSessionKey] = useState(1);
-  const [sessionId, setSessionId] = useState(null);
   const [toastMessage, setToastMessage] = useState(null);
 
   // API Keys state with permanent persistence across all sessions
@@ -48,29 +58,6 @@ export default function App() {
     if (priority) localStorage.setItem('study_assistant_primary_priority', priority);
   };
 
-  // Initialize or get session ID from backend
-  useEffect(() => {
-    const initSession = async () => {
-      try {
-        const res = await fetch('/api/v1/session/new', { method: 'POST' });
-        if (res.ok) {
-          const data = await res.json();
-          if (data.session_id) {
-            setSessionId(data.session_id);
-            sessionStorage.setItem('study_assistant_session_id', data.session_id);
-          }
-        }
-      } catch (e) {
-        console.warn("Could not create backend session, using local:", e);
-        // Fallback to local session ID
-        const localSessionId = sessionStorage.getItem('study_assistant_session_id') || crypto.randomUUID();
-        sessionStorage.setItem('study_assistant_session_id', localSessionId);
-        setSessionId(localSessionId);
-      }
-    };
-    initSession();
-  }, []);
-
   // App state initializes clean (0 PDFs, 0 Questions, 0 Answers)
   const [appState, setAppState] = useState(() => ({
     uploadedFile: null,
@@ -86,14 +73,124 @@ export default function App() {
     stats: {
       pdfCount: 0,
       questionCount: 0,
-      confidence: 0,
+      confidence: null,
       answerCount: 0
     }
   }));
 
   const [lastSaved, setLastSaved] = useState(null);
+  const [isHydrating, setIsHydrating] = useState(true);
+  const [backendStatus, setBackendStatus] = useState('checking');
 
-  const handleResetWorkspace = async (showPrompt = false) => {
+  // Mount effect: Probe backend health and rehydrate active session state from backend or offline cache
+  useEffect(() => {
+    let isMounted = true;
+
+    async function probeBackend() {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 4000);
+        const health = await apiFetch('/api/v1/health', { signal: controller.signal });
+        clearTimeout(timeoutId);
+        if (isMounted && health && health.status === 'healthy') {
+          setBackendStatus('online');
+        } else if (isMounted) {
+          setBackendStatus('offline');
+        }
+      } catch {
+        if (isMounted) setBackendStatus('offline');
+      }
+    }
+
+    async function rehydrateSession() {
+      const activeSessionId = getActiveSessionId();
+      const capability = getSessionCapability(activeSessionId);
+
+      // If no session capability exists, start cleanly
+      if (!activeSessionId || !capability) {
+        if (isMounted) setIsHydrating(false);
+        return;
+      }
+
+      try {
+        // Attempt cloud rehydration from backend using stored session capability
+        const data = await apiFetch(`/api/v1/session/${encodeURIComponent(activeSessionId)}`);
+        if (!isMounted) return;
+
+        const session = data?.session || data;
+        if (session && (session.extracted_text || (session.documents && session.documents.length > 0) || (session.questions && session.questions.length > 0))) {
+          setAppState(prev => ({
+            ...prev,
+            uploadedFiles: session.documents || [],
+            uploadedFile: session.documents?.[0] || null,
+            extractedText: session.extracted_text || '',
+            questions: session.questions || [],
+            rankedQuestions: session.ranked_questions || [],
+            answers: session.answers || [],
+            summaryData: session.summary || null,
+            predictedPaper: session.predicted_paper || null,
+            captures: session.captures || [],
+            stats: session.stats || {
+              pdfCount: session.documents?.length || 0,
+              questionCount: session.questions?.length || 0,
+              confidence: session.stats?.confidence ?? null,
+              answerCount: session.answers?.length || 0
+            }
+          }));
+          setLastSaved("Restored from cloud session");
+          setBackendStatus('online');
+          if (isMounted) setIsHydrating(false);
+          return;
+        }
+      } catch (err) {
+        setBackendStatus('offline');
+        // If 401 or 403 or 404, capability is invalid/rotated or session deleted; rotate to fresh session
+        if (err.status === 401 || err.status === 403 || err.status === 404) {
+          console.info(`Active session ${activeSessionId} unavailable (${err.status}); rotating session.`);
+          createNewSession();
+        } else {
+          // If offline/network failure, attempt offline fallback from local storage cache
+          try {
+            const cached = loadSessionState(activeSessionId);
+            if (cached && (cached.extractedText || (cached.uploadedFiles && cached.uploadedFiles.length > 0) || (cached.questions && cached.questions.length > 0))) {
+              setAppState(prev => ({ ...prev, ...cached }));
+              setLastSaved("Restored from offline cache");
+              if (isMounted) setIsHydrating(false);
+              return;
+            }
+          } catch (cacheErr) {
+            console.warn("Failed to read offline session cache:", cacheErr);
+          }
+        }
+      }
+
+      if (isMounted) setIsHydrating(false);
+    }
+
+    probeBackend();
+    rehydrateSession();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  // Persist session state changes to local storage when not hydrating
+  useEffect(() => {
+    if (isHydrating) return;
+    const hasData = Boolean(
+      appState.uploadedFile ||
+      (appState.uploadedFiles && appState.uploadedFiles.length > 0) ||
+      appState.extractedText ||
+      (appState.questions && appState.questions.length > 0)
+    );
+    if (hasData) {
+      const activeSessionId = getActiveSessionId();
+      saveSessionState(activeSessionId, appState);
+    }
+  }, [appState, isHydrating]);
+
+  const handleResetWorkspace = (showPrompt = false) => {
     if (!showPrompt || window.confirm("Start a fresh study session? This will clear all uploaded PDFs, questions, and notes. (Your API keys will remain saved)")) {
       const emptyState = {
         uploadedFile: null,
@@ -106,9 +203,18 @@ export default function App() {
         predictedPaper: null,
         answers: [],
         captures: [],
-        stats: { pdfCount: 0, questionCount: 0, confidence: 0, answerCount: 0 }
+        stats: { pdfCount: 0, questionCount: 0, confidence: null, answerCount: 0 }
       };
       setAppState(emptyState);
+
+      // Rotate active session ID for strict session isolation
+      try {
+        const oldSid = getActiveSessionId();
+        deleteSession(oldSid);
+        createNewSession();
+      } catch (e) {
+        console.warn("Error creating new session:", e);
+      }
 
       // Purge all possible workspace cache keys
       try {
@@ -123,24 +229,6 @@ export default function App() {
         console.warn("Error clearing storage:", e);
       }
 
-      // Create new backend session
-      try {
-        const res = await fetch('/api/v1/session/new', { method: 'POST' });
-        if (res.ok) {
-          const data = await res.json();
-          if (data.session_id) {
-            setSessionId(data.session_id);
-            sessionStorage.setItem('study_assistant_session_id', data.session_id);
-          }
-        }
-      } catch (e) {
-        console.warn("Could not create new backend session:", e);
-        // Fallback to local session ID
-        const localSessionId = crypto.randomUUID();
-        sessionStorage.setItem('study_assistant_session_id', localSessionId);
-        setSessionId(localSessionId);
-      }
-
       setSessionKey(prev => prev + 1);
       setActiveTab('upload');
       setLastSaved(null);
@@ -153,7 +241,7 @@ export default function App() {
 
   const handleRefreshAgents = () => {
     setIsRefreshingAgents(true);
-    
+
     // Purge transient prompt caches & reasoning noise while keeping document corpus and API keys intact
     try {
       sessionStorage.removeItem('study_assistant_transient_prompt_cache');
@@ -186,36 +274,39 @@ export default function App() {
       primaryPriority,
       openApiKeyModal: () => setApiKeyModalOpen(true),
       sessionKey,
-      sessionId,
       startNewSession: () => handleResetWorkspace(false)
     };
 
     switch (activeTab) {
-      case 'upload': 
+      case 'upload':
         return <UploadTab {...tabProps} />;
       case 'squad':
         return <AgentSquadTab {...tabProps} />;
-      case 'capture': 
+      case 'capture':
         return <ScreenCaptureTab {...tabProps} />;
-      case 'summary': 
+      case 'summary':
         return <SummaryTab {...tabProps} />;
       case 'research':
         return <ResearchHubTab {...tabProps} />;
-      case 'questions': 
+      case 'questions':
         return <QuestionEngineTab {...tabProps} />;
-      case 'predictor': 
+      case 'predictor':
         return <ExamPredictorTab {...tabProps} />;
-      case 'answers': 
+      case 'answers':
         return <AnswerBankTab {...tabProps} />;
-      case 'adaptive': 
+      case 'adaptive':
         return <AdaptiveTab {...tabProps} />;
       case 'transparency':
         return <TransparencyAuditTab {...tabProps} />;
-      case 'plan': 
+      case 'plan':
         return <StudyPlanTab {...tabProps} />;
       case 'settings':
         return <SettingsTab {...tabProps} handleSaveApiKeys={handleSaveApiKeys} />;
-      default: 
+      case 'privacy':
+        return <PrivacyPolicy onBack={() => setActiveTab('upload')} />;
+      case 'terms':
+        return <TermsAndConditions onBack={() => setActiveTab('upload')} />;
+      default:
         return <UploadTab {...tabProps} />;
     }
   };
@@ -224,36 +315,57 @@ export default function App() {
   const hasActiveSession = Boolean(appState.uploadedFile || (appState.uploadedFiles && appState.uploadedFiles.length > 0) || appState.extractedText);
 
   return (
-    <div className="flex h-screen overflow-hidden bg-gray-50 dark:bg-gray-950 transition-colors duration-300">
-      <Sidebar 
-        activeTab={activeTab} 
-        setActiveTab={setActiveTab} 
+    <div className="flex h-screen overflow-hidden bg-[#f5f5f7] dark:bg-[#000000] text-[#1d1d1f] dark:text-[#f5f5f7] transition-colors duration-300 relative">
+      {/* Liquid Glass Ambient Refraction Glows */}
+      <div className="pointer-events-none fixed -top-28 -right-28 w-96 h-96 rounded-full bg-gradient-to-br from-blue-400/20 via-cyan-300/15 to-transparent blur-3xl dark:from-blue-600/15 dark:via-cyan-600/10 dark:to-transparent z-0" />
+      <div className="pointer-events-none fixed top-1/3 -left-36 w-80 h-80 rounded-full bg-gradient-to-tr from-emerald-300/15 via-teal-200/15 to-transparent blur-3xl dark:from-emerald-700/10 dark:via-teal-800/10 z-0" />
+      <div className="pointer-events-none fixed -bottom-28 right-1/4 w-96 h-96 rounded-full bg-gradient-to-tr from-amber-300/15 via-orange-200/15 to-transparent blur-3xl dark:from-amber-600/10 dark:via-orange-600/10 z-0" />
+
+      <Sidebar
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
         collapsed={sidebarCollapsed}
         setCollapsed={setSidebarCollapsed}
       />
-      
-      <div className="flex-1 flex flex-col h-full overflow-hidden">
-        <header className="h-16 flex items-center justify-between px-6 bg-gradient-to-r from-primary-500 to-primary-700 animated-gradient-bg text-white shadow-md">
+
+      <div className="flex-1 flex flex-col h-full overflow-hidden relative z-10">
+        <header className="h-14 flex items-center justify-between px-6 bg-white/75 dark:bg-black/75 backdrop-blur-2xl border-b border-black/5 dark:border-white/10 sticky top-0 z-40 transition-colors">
           <div className="flex items-center gap-3">
-            <span className="text-2xl">🎓</span>
+            <div className="w-7 h-7 rounded-[8px] bg-gradient-to-tr from-[#0071e3] to-[#42a5f5] flex items-center justify-center font-bold text-xs text-white shadow-xs">
+              PU
+            </div>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-lg md:text-xl font-bold tracking-tight leading-none">Parul Study Assistant</h1>
-                <span className="px-2 py-0.5 rounded-full bg-white/20 text-[10px] font-semibold text-white/95 border border-white/25 hidden sm:inline-block">
-                  By Rohan Mitra
+                <h1 className="text-sm font-semibold tracking-tight text-[#1d1d1f] dark:text-[#f5f5f7]">Parul Study Assistant</h1>
+                <span className="px-2 py-0.5 rounded-full bg-black/5 dark:bg-white/10 text-[10px] font-medium text-neutral-600 dark:text-neutral-400 border border-black/5 dark:border-white/10 hidden sm:inline-block">
+                  Academic Portal
                 </span>
               </div>
-              <div className="flex items-center gap-1.5 mt-0.5">
-                <span className="text-[10px] text-blue-100 font-medium tracking-wider uppercase">Exam Predictor & Syllabus AI</span>
-                <span className="text-[10px] text-blue-200/80">• Made by Rohan Mitra (AI Architect & Coder)</span>
+              <div className="flex items-center gap-1.5">
+                <span className="text-[10px] text-neutral-400 dark:text-neutral-500 font-normal">Exam Intelligence & Syllabus Analysis</span>
+                <span className="text-[10px] text-neutral-300 dark:text-neutral-600">•</span>
+                <span className="text-[10px] text-neutral-400 dark:text-neutral-500 font-normal">NAAC A++</span>
               </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0 flex-nowrap overflow-x-auto py-1">
+          <div className="flex items-center gap-2 shrink-0 flex-nowrap">
+            {backendStatus === 'offline' && (
+              <span className="hidden lg:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-400 text-[10px] font-medium border border-amber-500/20" title="Backend cloud engine is unavailable or intercepted by deployment protection. Running with full in-browser parsing & question engine.">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                <span>Client Engine Active</span>
+              </span>
+            )}
+            {backendStatus === 'online' && (
+              <span className="hidden lg:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 text-[10px] font-medium border border-emerald-500/20" title="Backend cloud serverless engine verified and responsive.">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                <span>Cloud Engine Online</span>
+              </span>
+            )}
+
             {lastSaved && (
-              <span className="hidden xl:inline-flex h-9 items-center gap-1.5 px-3 rounded-full bg-white/15 text-[11px] text-white/90 font-medium border border-white/20 shrink-0 whitespace-nowrap">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-300"></span>
+              <span className="hidden xl:inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-black/5 dark:bg-white/10 text-[11px] text-neutral-600 dark:text-neutral-300 font-medium border border-black/5 dark:border-white/10 shrink-0 whitespace-nowrap">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
                 <span>Saved {lastSaved}</span>
               </span>
             )}
@@ -261,50 +373,56 @@ export default function App() {
             <button
               onClick={handleRefreshAgents}
               disabled={isRefreshingAgents}
-              className="inline-flex h-9 items-center gap-1.5 px-3.5 rounded-full bg-white/20 hover:bg-white/30 text-xs font-bold transition-all text-white border border-white/30 cursor-pointer shadow-sm shrink-0 whitespace-nowrap active:scale-95"
-              title="Refresh Agent Squad cognitive context & recalibrate AI reasoning (preserves uploaded documents and permanent API keys)"
+              className={`h-8 w-8 rounded-full flex items-center justify-center transition-all cursor-pointer text-xs shrink-0 ${
+                isRefreshingAgents ? 'bg-black/5 dark:bg-white/5 text-neutral-400' : 'bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/15 text-neutral-700 dark:text-neutral-200 border border-black/5 dark:border-white/10 active:scale-95'
+              }`}
+              title="Verify Backend & AI Engine Connectivity"
             >
-              <span className={isRefreshingAgents ? "inline-block animate-spin" : ""}>⚡</span>
-              <span className="hidden sm:inline">{isRefreshingAgents ? 'Recalibrating...' : 'Refresh Agents'}</span>
+              <svg className={`w-3.5 h-3.5 ${isRefreshingAgents ? 'animate-spin' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+              </svg>
             </button>
 
-            <button
-              onClick={() => handleResetWorkspace(false)}
-              className="inline-flex h-9 items-center gap-1.5 px-3.5 rounded-full bg-white/20 hover:bg-white/30 text-xs font-bold transition-all text-white border border-white/30 cursor-pointer shadow-sm shrink-0 whitespace-nowrap"
-              title="Start a completely new study session (clears previous PDFs & questions, keeps API keys)"
-            >
-              <span>🔄</span>
-              <span className="hidden md:inline">New Session</span>
-            </button>
+            {hasActiveSession && (
+              <button
+                onClick={() => handleResetWorkspace(true)}
+                className="h-8 px-3 rounded-full bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/20 text-xs font-medium transition-all cursor-pointer whitespace-nowrap active:scale-95"
+                title="Purge current session data and start fresh"
+              >
+                Reset Session
+              </button>
+            )}
 
             <button
               onClick={() => setApiKeyModalOpen(true)}
-              className="inline-flex h-9 items-center gap-2 px-3.5 rounded-full bg-white/20 hover:bg-white/30 text-xs font-bold transition-all border border-white/30 cursor-pointer shadow-sm shrink-0 whitespace-nowrap"
-              title="Configure Google Gemini, ChatGPT, and Claude API Keys with Auto-Switching"
+              className="h-8 px-3.5 rounded-full bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/15 text-neutral-700 dark:text-neutral-200 border border-black/5 dark:border-white/10 text-xs font-medium transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap active:scale-95"
+              title="Configure AI API Providers"
             >
-              <span>🔑</span>
               <span className="hidden sm:inline">
-                {hasConfiguredKeys ? `AI Engines: Active (${primaryPriority.toUpperCase()})` : 'Connect AI Keys'}
+                {hasConfiguredKeys ? `AI Engines: (${primaryPriority.toUpperCase()})` : 'AI Providers'}
               </span>
-              <span className={`w-2 h-2 rounded-full ${hasConfiguredKeys ? 'bg-emerald-400 animate-pulse' : 'bg-amber-300'}`}></span>
+              <span className={`w-1.5 h-1.5 rounded-full ${hasConfiguredKeys ? 'bg-emerald-500' : 'bg-amber-500'}`}></span>
             </button>
 
             <button
               onClick={() => setActiveTab('settings')}
-              className={`inline-flex h-9 w-9 items-center justify-center rounded-full transition-colors cursor-pointer text-sm shrink-0 ${
-                activeTab === 'settings' ? 'bg-white/30 text-white ring-2 ring-white/50' : 'hover:bg-white/20 text-white/90'
-              }`}
-              title="Study Assistant Settings, Answer Preferences & Agent Help Desk"
+              className={`h-8 w-8 rounded-full flex items-center justify-center transition-all cursor-pointer text-xs shrink-0 ${
+                activeTab === 'settings' ? 'bg-[#0071e3] text-white shadow-xs' : 'bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/15 text-neutral-700 dark:text-neutral-200 border border-black/5 dark:border-white/10'
+              } active:scale-95`}
+              title="Settings & Storage"
             >
-              <span>⚙️</span>
+              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="12" r="3"/>
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+              </svg>
             </button>
 
-            <button 
+            <button
               onClick={() => setDarkMode(!darkMode)}
-              className="inline-flex h-9 px-3 items-center justify-center gap-1.5 rounded-full hover:bg-white/20 border border-white/20 transition-colors cursor-pointer text-xs font-bold shrink-0 whitespace-nowrap"
+              className="h-8 px-3 rounded-full bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/15 text-neutral-700 dark:text-neutral-200 border border-black/5 dark:border-white/10 transition-all cursor-pointer text-xs font-medium shrink-0 whitespace-nowrap active:scale-95"
               title="Toggle Light / Dark mode"
             >
-              {darkMode ? '☀️ Light' : '🌙 Dark'}
+              {darkMode ? 'Light' : 'Dark'}
             </button>
           </div>
         </header>
@@ -313,18 +431,18 @@ export default function App() {
         <AnimatePresence>
           {toastMessage && (
             <motion.div
-              initial={{ opacity: 0, y: -20 }}
+              initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              className="bg-emerald-600 text-white text-xs md:text-sm font-semibold py-2 px-4 shadow-lg text-center flex items-center justify-center gap-2 z-50"
+              exit={{ opacity: 0, y: -10 }}
+              className="fixed top-16 left-1/2 transform -translate-x-1/2 apple-glass bg-emerald-600/90 text-white text-xs font-medium py-2 px-5 rounded-full shadow-lg text-center flex items-center justify-center gap-2 z-50 backdrop-blur-xl"
             >
               <span>{toastMessage}</span>
             </motion.div>
           )}
         </AnimatePresence>
-        
+
         <main className="flex-1 overflow-y-auto p-4 md:p-8">
-          <motion.div 
+          <motion.div
             key={`${activeTab}-${sessionKey}`}
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -334,18 +452,18 @@ export default function App() {
             {renderTab()}
           </motion.div>
         </main>
-        
+
         <QuickStats stats={appState.stats} />
       </div>
 
       {/* Aki Anime Study Companion & Antigravity Assistant (Transparent Screen Dashboard) */}
-      <AkiDashboardCompanion 
+      <AkiDashboardCompanion
         appState={appState}
         setActiveTab={setActiveTab}
         apiKeys={apiKeys}
       />
 
-      <APIKeyModal 
+      <APIKeyModal
         isOpen={apiKeyModalOpen}
         onClose={() => setApiKeyModalOpen(false)}
         apiKeys={apiKeys}

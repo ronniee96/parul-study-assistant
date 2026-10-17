@@ -1,24 +1,39 @@
 // Client-side in-browser Document & PDF Extractor
 // Extracts genuine human-readable text from user-uploaded PDFs, Word docs, PPTs, and text files
 
-// Helper to ensure PDF.js is loaded
-async function ensurePdfJsLoaded() {
+// Helper to ensure PDF.js is loaded with same-origin worker
+export async function ensurePdfJsLoaded() {
   if (typeof window !== 'undefined' && window.pdfjsLib) {
+    if (window.pdfjsLib.GlobalWorkerOptions && !window.pdfjsLib.GlobalWorkerOptions.workerSrc) {
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
+    }
     return window.pdfjsLib;
   }
   
-  // Try loading PDF.js dynamically if not already present
+  // Try loading PDF.js dynamically from same-origin bundle first, then CDN fallback
   if (typeof document !== 'undefined') {
     await new Promise((resolve) => {
       const script = document.createElement('script');
-      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+      script.src = '/pdf.min.js';
       script.onload = () => {
         if (window.pdfjsLib) {
-          window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+          window.pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
         }
         resolve();
       };
-      script.onerror = () => resolve();
+      script.onerror = () => {
+        // Fallback to CDN if local bundle is not reachable
+        const cdnScript = document.createElement('script');
+        cdnScript.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+        cdnScript.onload = () => {
+          if (window.pdfjsLib) {
+            window.pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
+          }
+          resolve();
+        };
+        cdnScript.onerror = () => resolve();
+        document.head.appendChild(cdnScript);
+      };
       document.head.appendChild(script);
     });
   }
@@ -84,7 +99,13 @@ export async function extractTextFromPDF(file) {
     const pdfjs = await ensurePdfJsLoaded();
     if (pdfjs) {
       try {
-        const loadingTask = pdfjs.getDocument({ data: new Uint8Array(arrayBuffer) });
+        if (pdfjs.GlobalWorkerOptions && !pdfjs.GlobalWorkerOptions.workerSrc) {
+          pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
+        }
+        const loadingTask = pdfjs.getDocument({
+          data: new Uint8Array(arrayBuffer),
+          stopAtErrors: false
+        });
         const pdf = await loadingTask.promise;
         let pageTexts = [];
         const maxPages = Math.min(pdf.numPages, 25);
@@ -154,69 +175,12 @@ export async function extractTextFromPDF(file) {
       }
     }
 
-    // 3. Fallback: If document is an image-scan or non-text PDF, build clean academic syllabus from filename
-    const cleanDocTitle = file.name
-      .replace(/\.[^/.]+$/, "")
-      .replace(/[_-]/g, " ")
-      .trim();
-
-    return generateCleanCurriculumText(cleanDocTitle, file.name);
+    throw new Error(`No readable text could be extracted from "${file.name}". The document may be empty, image-only/scanned without OCR, or protected. Please ensure your PDF contains selectable digital text.`);
 
   } catch (err) {
     console.error("Failed to extract PDF in browser:", err);
-    const cleanDocTitle = file.name.replace(/\.[^/.]+$/, "").replace(/[_-]/g, " ");
-    return generateCleanCurriculumText(cleanDocTitle, file.name);
+    throw err;
   }
-}
-
-export function generateCleanCurriculumText(docTitle, filename) {
-  const isAccounting = /mac|cma|cost|account|finan|audit|decision|modul/i.test(docTitle);
-  const isTech = /cs|it|data|algo|prog|soft|code|web|ai|ml/i.test(docTitle);
-  const isManagement = /mgt|manage|market|strat|org|hr/i.test(docTitle);
-
-  let subjects = [];
-  if (isAccounting) {
-    subjects = [
-      "Introduction to Management Accounting & Decision Framework",
-      "Cost Classification, Material Costing and Labor Mechanics",
-      "Overhead Allocation, Apportionment and Activity-Based Costing (ABC)",
-      "Marginal Costing, Cost-Volume-Profit (CVP) Analysis and Break-Even Calculations",
-      "Budgetary Control, Cash Budgets and Flexible Budgeting Systems",
-      "Standard Costing and Material/Labor Variance Analysis",
-      "Managerial Decision Making: Make-or-Buy, Product Mix and Plant Shutdown Decisions",
-      "Responsibility Accounting, Transfer Pricing and Performance Measurement"
-    ];
-  } else if (isTech) {
-    subjects = [
-      "Fundamental Architectures, System Principles and Design Patterns",
-      "Data Structures, Algorithm Efficiency and Optimization Techniques",
-      "Core Implementation Models, State Management and Process Flow",
-      "Testing Methodologies, Error Diagnostics and Reliability Frameworks",
-      "Security Protocols, System Scaling and Operational Best Practices"
-    ];
-  } else if (isManagement) {
-    subjects = [
-      "Strategic Management Principles and Organizational Dynamics",
-      "Operations Planning, Quality Control and Supply Chain Models",
-      "Marketing Strategy, Consumer Behavior and Product Positioning",
-      "Financial Decision-Making, Capital Budgeting and Risk Assessment",
-      "Leadership Frameworks, Human Resource Policies and Performance Metrics"
-    ];
-  } else {
-    subjects = [
-      `Core Theoretical Foundations of ${docTitle}`,
-      `Key Principles, Classification and Methodologies in ${docTitle}`,
-      `Practical Applications, Analytical Problem-Solving and Case Studies`,
-      `Advanced Frameworks, Standard Evaluation Criteria and Optimization`,
-      `Review of Important University Exam Topics and Numerical Problems`
-    ];
-  }
-
-  return `=== [DOCUMENT: ${filename}] ===\nTitle: ${docTitle}\n\n` +
-    `Syllabus Overview & Key Units for ${docTitle}:\n` +
-    subjects.map((s, idx) => `Unit ${idx + 1}: ${s}`).join('\n') +
-    `\n\nDetailed Topics and Learning Outcomes:\n` +
-    subjects.map(s => `${s} encompasses core conceptual frameworks, mathematical formulations, analytical interpretations, and practical exam applications designed for university examination.`).join('\n\n');
 }
 
 export async function extractTextFromSingleDocument(file) {
@@ -229,9 +193,13 @@ export async function extractTextFromSingleDocument(file) {
   if (['txt', 'text', 'csv', 'json', 'md'].includes(ext)) {
     try {
       const text = await file.text();
-      return cleanExtractedText(text);
-    } catch {
-      return generateCleanCurriculumText(file.name.replace(/\.[^/.]+$/, ""), file.name);
+      const cleaned = cleanExtractedText(text);
+      if (cleaned.length < 20) {
+        throw new Error(`Insufficient text extracted from "${file.name}".`);
+      }
+      return cleaned;
+    } catch (err) {
+      throw new Error(`Failed to read "${file.name}": ${err.message}`);
     }
   }
 
@@ -242,41 +210,44 @@ export async function extractMultipleDocuments(files) {
   const results = await Promise.all(
     files.map(async (file) => {
       try {
-        const text = await Promise.race([
-          extractTextFromSingleDocument(file),
-          new Promise(r => setTimeout(() => r(generateCleanCurriculumText(file.name.replace(/\.[^/.]+$/, ""), file.name)), 3000))
-        ]);
+        const text = await extractTextFromSingleDocument(file);
         const wordCount = text.split(/\s+/).filter(Boolean).length;
         return {
           filename: file.name,
           text: text,
           wordCount: wordCount,
-          charCount: text.length
+          charCount: text.length,
+          success: true
         };
       } catch (e) {
-        const fallbackText = generateCleanCurriculumText(file.name.replace(/\.[^/.]+$/, ""), file.name);
+        console.warn(`Extraction failed for ${file.name}:`, e.message);
         return {
           filename: file.name,
-          text: fallbackText,
-          wordCount: fallbackText.split(/\s+/).filter(Boolean).length,
-          charCount: fallbackText.length
+          text: '',
+          wordCount: 0,
+          charCount: 0,
+          success: false,
+          error: e.message
         };
       }
     })
   );
 
-  const combinedText = results.map((r, idx) => 
+  const successfulFiles = results.filter(r => r.success && r.text.length > 0);
+  const combinedText = successfulFiles.map((r, idx) => 
     `=== [DOCUMENT ${idx + 1}: ${r.filename}] ===\n${r.text}`
   ).join('\n\n');
 
-  const totalWords = results.reduce((sum, r) => sum + r.wordCount, 0);
-  const totalChars = results.reduce((sum, r) => sum + r.charCount, 0);
+  const totalWords = successfulFiles.reduce((sum, r) => sum + r.wordCount, 0);
+  const totalChars = successfulFiles.reduce((sum, r) => sum + r.charCount, 0);
 
   return {
     files: results,
+    successfulFiles: successfulFiles,
     combinedText: combinedText,
     totalWords: totalWords,
-    totalChars: totalChars
+    totalChars: totalChars,
+    hasFailures: results.some(r => !r.success)
   };
 }
 

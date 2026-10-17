@@ -71,7 +71,6 @@ class ExamPredictionPipeline:
             )
             q_copy = q.model_copy()
             q_copy.evidence_score = score_data["total_score"]
-            q_copy.confidence = score_data["total_score"]
             q_copy.historical_evidence = score_data["historical_evidence"]
             q_copy.current_material_evidence = score_data["material_evidence"]
             q_copy.university_pattern_evidence = score_data["pattern_evidence"]

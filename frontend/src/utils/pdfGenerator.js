@@ -1,14 +1,42 @@
 import { jsPDF } from 'jspdf';
+import { formatConfidencePDF } from './confidenceFormatter';
 
 export function createPDFFromImages(images, title = 'Captured Slides') {
   if (!images || images.length === 0) {
     alert("No slides captured to export!");
     return;
   }
-  const pdf = new jsPDF('l', 'mm', 'a4'); // landscape
+  const pdf = new jsPDF('l', 'mm', 'a4'); // landscape A4: 297 x 210 mm
+  const pageWidth = 297;
+  const pageHeight = 210;
+  const margin = 8;
+  const maxWidth = pageWidth - (margin * 2); // 281 mm
+  const maxHeight = pageHeight - (margin * 2); // 194 mm
+
   images.forEach((imgData, i) => {
     if (i > 0) pdf.addPage();
-    pdf.addImage(imgData, 'PNG', 5, 5, 287, 200);
+    const format = (typeof imgData === 'string' && imgData.startsWith('data:image/png')) ? 'PNG' : 'JPEG';
+
+    try {
+      const props = pdf.getImageProperties(imgData);
+      const imgRatio = (props && props.width && props.height) ? (props.width / props.height) : (maxWidth / maxHeight);
+      const pageRatio = maxWidth / maxHeight;
+
+      let renderW, renderH;
+      if (imgRatio > pageRatio) {
+        renderW = maxWidth;
+        renderH = maxWidth / imgRatio;
+      } else {
+        renderH = maxHeight;
+        renderW = maxHeight * imgRatio;
+      }
+
+      const x = margin + (maxWidth - renderW) / 2;
+      const y = margin + (maxHeight - renderH) / 2;
+      pdf.addImage(imgData, format, x, y, renderW, renderH);
+    } catch (e) {
+      pdf.addImage(imgData, format, margin, margin, maxWidth, maxHeight);
+    }
   });
   const cleanTitle = (title || 'Captured_Slides').replace(/\s+/g, '_');
   pdf.save(`${cleanTitle}.pdf`);
@@ -536,8 +564,8 @@ export function createQuestionPaperPDF(questions, metadata = {}) {
 
     pdf.setFont('helvetica', 'bold');
     pdf.setFontSize(10);
-    pdf.setTextColor(15, 23, 42);
-    const qHeader = `Q${i + 1}. [${q.marks || 2} Marks] [Confidence: ${q.confidence || 90}%]`;
+    const confText = formatConfidencePDF(q.confidence, q.evidence_score);
+    const qHeader = `Q${i + 1}. [${q.marks || 2} Marks] ${confText}`;
     pdf.text(qHeader, 15, y);
     y += 5;
 

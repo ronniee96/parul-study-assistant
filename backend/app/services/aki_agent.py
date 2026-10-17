@@ -128,13 +128,42 @@ class AkiStudyAgent:
         math_clean = prompt.strip().replace('=', '').strip()
         if re.match(r'^[0-9\.\s\+\-\*\/\(\)\%\^]+$', math_clean) and any(op in math_clean for op in ['+', '-', '*', '/', '%', '^']):
             try:
-                norm_expr = math_clean.replace('^', '**')
-                val = eval(norm_expr, {"__builtins__": {}}, {})
+                import ast
+                import operator
+
+                safe_ops = {
+                    ast.Add: operator.add,
+                    ast.Sub: operator.sub,
+                    ast.Mult: operator.mul,
+                    ast.Div: operator.truediv,
+                    ast.Mod: operator.mod,
+                    ast.Pow: operator.pow,
+                    ast.USub: operator.neg,
+                    ast.UAdd: operator.pos,
+                }
+
+                def _eval_node(node):
+                    if isinstance(node, ast.Expression):
+                        return _eval_node(node.body)
+                    if isinstance(node, ast.Constant) and isinstance(node.value, (int, float)):
+                        return node.value
+                    if isinstance(node, ast.BinOp) and type(node.op) in safe_ops:
+                        left = _eval_node(node.left)
+                        right = _eval_node(node.right)
+                        if isinstance(node.op, ast.Pow) and (abs(right) > 50 or abs(left) > 10000):
+                            raise ValueError("Exponent calculation too large")
+                        return safe_ops[type(node.op)](left, right)
+                    if isinstance(node, ast.UnaryOp) and type(node.op) in safe_ops:
+                        return safe_ops[type(node.op)](_eval_node(node.operand))
+                    raise ValueError("Unsupported expression element")
+
+                parsed_expr = ast.parse(math_clean.replace('^', '**'), mode='eval')
+                val = _eval_node(parsed_expr)
                 if isinstance(val, (int, float)):
                     return {
                         "success": True,
-                        "agent": "Aki (Math & Formula Engine)",
-                        "response": f"🌸 **Aki's Calculation**:\n\n**`{math_clean} = {val}`** ✨\n\nNeed help with any math formulas, probability, standard deviation, or syllabus calculations? Ask Aki anytime! 📐",
+                        "agent": "Academic Formula Engine",
+                        "response": f"**Calculation Result**:\n\n**`{math_clean} = {val}`**\n\nVerified mathematical computation.",
                         "mode": "math_engine"
                     }
             except Exception:

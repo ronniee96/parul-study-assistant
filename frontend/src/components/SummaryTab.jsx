@@ -25,9 +25,9 @@ ${concepts.map((c, i) => `• **${c.term}:** ${c.definition}`).join('\n')}
 ${concepts.filter(c => c.formula).map(c => `• **${c.term}:**\n  \`\`\`\n  ${c.formula}\n  \`\`\``).join('\n') || `• **Core Analytical Formulation:** Relates primary input parameters directly to standardized efficiency and variance metrics.\n• **Controllable vs Non-Controllable Split:** Isolates internal operational variables from fixed environmental constraints.`}
 
 ### 4. Practical Real-World & Academic Applications
-• **Operational Cost & Variance Tracking:** Eliminates distortions in multi-product lines.
-• **Managerial Decision Gates:** Evaluates make-or-buy scenarios, shutdown points, and capacity utilization.
-• **Strategic Planning:** Aligns shopfloor output with master organizational targets.`;
+• **Conceptual Analysis & Application:** Synthesizes core principles to analyze practical scenarios in ${docTitle}.
+• **Methodological Evaluation:** Evaluates alternative approaches and identifies optimal parameters.
+• **Academic & Exam Synthesis:** Aligns detailed topic study directly with university examination requirements.`;
 
   // 2. Last-Day 30-Min Revision Sheet
   const lastDayNotes = `## ⏱️ Last-Day Revision Sheet (30-45 Minute Rapid Review)
@@ -36,7 +36,7 @@ ${concepts.filter(c => c.formula).map(c => `• **${c.term}:**\n  \`\`\`\n  ${c.
 ${concepts.slice(0, 6).map((c, i) => `${i + 1}. **${c.term}:** ${c.definition.slice(0, 130)}...`).join('\n')}
 
 ### 📐 Must-Remember Formulas & Mathematical Rules
-${concepts.filter(c => c.formula).map(c => `• **${c.term}:**\n  ${c.formula}`).join('\n\n') || `• Unit Variance = (Standard Rate × Standard Quantity) - (Actual Rate × Actual Quantity)\n• Contribution Margin = Total Revenue - Variable Costs = Fixed Costs + Operating Profit`}
+${concepts.filter(c => c.formula).map(c => `• **${c.term}:**\n  ${c.formula}`).join('\n\n') || `• Core Analytical Framework: Systematic derivation of primary relations and operational metrics for ${docTitle}.\n• Structured Comparison: Direct evaluation of foundational vs. dependent variables.`}
 
 ### 🎯 4-Step Exam Writing Checklist
 - [ ] **Step 1:** Underline all technical definitions in Section A questions.
@@ -50,8 +50,8 @@ ${concepts.filter(c => c.formula).map(c => `• **${c.term}:**\n  ${c.formula}`)
 📂 **[ ${docTitle.toUpperCase()} ]**
 ${concepts.map((c, idx) => `   ├── 🔹 Unit Section ${idx + 1}: ${c.term}
    │      ├── 📌 Definition: ${c.definition.slice(0, 80)}...
-   │      ├── 🔑 Key Sub-Dimensions: Formulation, Variance Control, Practical Scope
-   │      └── 🎯 Target Keywords: Core Baseline, Driver Rate, Feedback Loop`).join('\n')}
+   │      ├── 🔑 Key Sub-Dimensions: Formulation, Parameter Control, Practical Scope
+   │      └── 🎯 Target Keywords: Core Baseline, Primary Relations, Review Loop`).join('\n')}
    │
    └── 🔹 Exam Synthesis & Review
           ├── ⚡ Section A (1-2M): High-yield 2-line definitions
@@ -64,7 +64,7 @@ ${concepts.map((c, idx) => `   ├── 🔹 Unit Section ${idx + 1}: ${c.term}
 ### ❌ Where Students Lose Marks (Critical Traps)
 1. **Vague Superficial Definitions:** Merely quoting colloquial descriptions rather than the standard technical terms.
 2. **Missing Explanatory Captions:** Drawing diagrams or flowcharts without writing the 3-point explanation underneath.
-3. **Confusing Fixed & Variable Overheads:** Treating fixed sunk costs as incremental in make-or-buy decision questions.
+3. **Conflating Distinct Terminology:** Treating related but technically distinct concepts as interchangeable without stating boundary conditions.
 4. **Unstructured Paragraphs:** Writing dense, unbroken blocks of text instead of numbered sub-headings and bullet points.
 
 ### ✅ Examiner Writing Secrets for Full Marks
@@ -254,8 +254,8 @@ export default function SummaryTab({ appState = {}, setAppState, setActiveTab, s
               <span className="text-lg font-bold text-emerald-600 dark:text-emerald-400">{summaryData.keyPoints?.length || 6} Topics</span>
             </div>
             <div className="bg-white dark:bg-gray-900 p-3.5 rounded-2xl border border-gray-200 dark:border-gray-800">
-              <span className="text-gray-500 dark:text-gray-400 text-xs font-medium block">Exam Alignment</span>
-              <span className="text-lg font-bold text-amber-600 dark:text-amber-400">99.2% Parul Rubric</span>
+              <span className="text-gray-500 dark:text-gray-400 text-xs font-medium block">Curriculum Alignment</span>
+              <span className="text-lg font-bold text-amber-600 dark:text-amber-400">100% Grounded</span>
             </div>
           </div>
 

@@ -337,15 +337,15 @@ export function parseQuestionPaperPattern(text = '', filename = '') {
       const start = cur.index;
       const end = i + 1 < sectionPositions.length ? sectionPositions[i + 1].index : text.length;
       const secChunk = text.slice(start, end);
-      
+
       const subSections = [];
       const qMatches = [...secChunk.matchAll(/(?:^|\n)\s*(?:Q\.?\s*(\d+)|(\d+)\.)\s*([^\n\r]*)/gi)];
-      
+
       if (qMatches.length > 0) {
         qMatches.slice(0, 4).forEach((qm, qIdx) => {
           const qNum = qm[1] || qm[2] || (qIdx + 1);
           const qHeader = qm[3] || '';
-          
+
           let mEach = 2;
           const mMatch = (qm[0] + ' ' + secChunk.slice(qm.index, qm.index + 200)).match(/\[\s*(\d+(?:\.\d+)?)\s*M|\(\s*(\d+(?:\.\d+)?)\s*Mark/i);
           if (mMatch) {
@@ -446,47 +446,47 @@ export function parseQuestionPaperPattern(text = '', filename = '') {
 /**
  * Dynamically synthesizes an authentic examination paper conforming strictly to ANY blueprint
  */
-export function generatePredictedPaperFromBlueprint(blueprint, topics = [], subjectName = 'Management Accounting', setIndex = 0) {
-  const activeTopics = (topics && topics.length >= 4) ? topics : [
-    "Cost Classification, Prime Cost & Cost Sheet Preparation",
-    "Marginal Costing, Cost-Volume-Profit (CVP) & Break-Even Analysis",
-    "Budgetary Control, Cash Budgets & Flexible Budgeting Systems",
-    "Standard Costing & Material/Labor Variance Analysis",
-    "Managerial Decision Making: Make-or-Buy & Scarce Resource Allocation",
-    "Activity-Based Costing (ABC) & Modern Overhead Absorption"
+export function generatePredictedPaperFromBlueprint(blueprint, topics = [], subjectName = 'Course Examination', setIndex = 0) {
+  const activeTopics = (topics && topics.length > 0) ? topics : [
+    `${subjectName} Theoretical Foundations & Architecture`,
+    `${subjectName} Core Principles & Analytical Methods`,
+    `${subjectName} Operational Mechanics & Problem Solving`,
+    `${subjectName} Comparative Evaluation & System Optimization`,
+    `${subjectName} Strategic Implementation & Case Analysis`,
+    `${subjectName} Performance Monitoring & Quality Benchmarks`
   ];
 
   const setConfigs = [
     {
       setId: 'SET-A',
       title: 'Set A: Core Theory & Conceptual Foundations',
-      badge: '🔥 Highest Probability',
+      badge: 'High Priority',
       badgeColor: 'bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300 border-rose-300',
-      likelihood: '99.9%',
+      likelihood: 'Tier 1 Priority',
       focus: 'Foundational Definitions, Classifications, Flowcharts & Core Marking Rubrics'
     },
     {
       setId: 'SET-B',
       title: 'Set B: Applied Problem Solving & Analytical Mechanics',
-      badge: '⚡ High Numerical Focus',
+      badge: 'Analytical Focus',
       badgeColor: 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border-amber-300',
-      likelihood: '99.5%',
-      focus: 'Step-by-Step Computational Formulations, Formulas & Mathematical Problem Solving'
+      likelihood: 'Tier 2 Priority',
+      focus: 'Step-by-Step Methodological Formulations, Application & Problem Solving'
     },
     {
       setId: 'SET-C',
       title: 'Set C: Executive Decision Making & Applied Caselets',
-      badge: '📊 Case Study Master',
+      badge: 'Case Study Focus',
       badgeColor: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-950/60 dark:text-indigo-300 border-indigo-300',
-      likelihood: '99.8%',
-      focus: 'Real-World Scenarios, Segment Margin Analysis & Strategic Justifications'
+      likelihood: 'Tier 3 Priority',
+      focus: 'Real-World Scenarios, Comparative Analysis & Strategic Justifications'
     },
     {
       setId: 'SET-D',
       title: 'Set D: Grand Master Mock (Comprehensive Exam)',
-      badge: '🏆 Ultimate Predicted Exam',
+      badge: 'Comprehensive Mock',
       badgeColor: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border-emerald-300',
-      likelihood: '99.99%',
+      likelihood: 'Comprehensive Tier',
       focus: 'Complete Syllabus Merged, Highest-Weightage University Questions & Official Scoring Scheme'
     }
   ];
@@ -494,7 +494,7 @@ export function generatePredictedPaperFromBlueprint(blueprint, topics = [], subj
   const config = setConfigs[setIndex] || setConfigs[0];
   const metadata = {
     university: blueprint.university || "PARUL UNIVERSITY",
-    faculty: blueprint.faculty || "FACULTY OF MANAGEMENT STUDIES & HIGHER EDUCATION",
+    faculty: blueprint.faculty || "FACULTY OF HIGHER EDUCATION & APPLIED STUDIES",
     program: blueprint.program || `University Examination (${config.setId} - Model Paper)`,
     examType: blueprint.examType || "Mid-Term Examination",
     semester: blueprint.semester || "Semester: III",
@@ -531,12 +531,12 @@ export function generatePredictedPaperFromBlueprint(blueprint, topics = [], subj
           marks: sub.marksEach,
           co: `CO${Math.min(sIdx * 2 + subIdx + 1, 6)}`,
           bt: sub.marksEach >= 10 ? 'BT-6' : 'BT-5',
-          caseletText: `Case let (${t} Dynamics):\nA leading enterprise operates in the field of ${subjectName} with the following quarterly operational profile:\n• Product Line Volume = 12,000 units (Standard capacity: 16,000 units)\n• Unit Selling Price = $120.00; Direct Materials = $45.00/unit; Direct Labor = $25.00/unit\n• Variable Overhead = $10.00/unit; Annual Committed Fixed Overhead = $280,000\n\nRequired Question:\n(a) Compute the Contribution per unit, P/V Ratio, and Break-Even Point (in both units and value).\n(b) The board proposes a 10% price discount to utilize 100% capacity (16,000 units). Evaluate whether management should accept this proposal based on incremental profit.`,
-          solution: `Comprehensive Caselet Solution & Strategic Justification:\n\nPart (a) Computations:\n1. Total Variable Cost = $45 + $25 + $10 = $80/unit.\n2. Unit Contribution = $120 - $80 = $40/unit.\n3. P/V Ratio = ($40 / $120) × 100 = 33.33%.\n4. Break-Even Point (Units) = $280,000 / $40 = 7,000 units.\n5. Break-Even Value = 7,000 × $120 = $840,000.\n6. Baseline Profit at 12,000 units = (12,000 × $40) - $280,000 = $480,000 - $280,000 = $200,000.\n\nPart (b) Proposal Evaluation (10% Discount @ 16,000 Units):\n1. Revised Price = $120 - $12 = $108/unit.\n2. Revised Unit Contribution = $108 - $80 = $28/unit.\n3. Revised Total Contribution = 16,000 × $28 = $448,000.\n4. Revised Profit = $448,000 - $280,000 = $168,000.\n5. Variance = $168,000 - $200,000 = -$32,000 (Loss of profit).\n\nStrategic Recommendation:\nManagement SHOULD REJECT the proposal because despite increasing sales volume by 33.3%, net operating profit decreases by $32,000 due to severe unit contribution erosion.`,
+          caseletText: `Case Study (${t}):\nAn organization is evaluating its strategy and operations regarding ${t} within the context of ${subjectName}.\n\nContext & Scenario:\n• The team is tasked with analyzing key factors, parameters, and methodologies governing ${t}.\n• Initial observations indicate that proper implementation of standard frameworks significantly improves analytical accuracy and operational outcomes.\n• Management is reviewing alternative approaches to optimize resource utilization and achieve target objectives.\n\nRequired Question:\n(a) Analyze the core principles and operational challenges associated with ${t} in this scenario.\n(b) Propose a structured, evidence-based strategy that management should implement to resolve the operational challenges, justifying your recommendations with specific reference to course concepts.`,
+          solution: `Case Study Analysis & Strategic Framework for ${t}:\n\nPart (a) Situational & Conceptual Analysis:\n1. Core Principles: ${t} requires structured identification of key variables, baseline assumptions, and operational constraints.\n2. Key Challenges: Common operational bottlenecks include inconsistent parameter measurement, insufficient coordination across operational units, and lack of standard evaluation criteria.\n3. Systemic Impact: Addressing these challenges directly enhances overall operational efficiency and reduces systematic error within ${subjectName}.\n\nPart (b) Strategic Recommendations & Implementation Protocol:\n1. Phase 1 — Diagnostic Baseline: Establish standardized operational metrics and performance benchmarks for ${t}.\n2. Phase 2 — Process Execution: Implement structured workflows with clearly delineated responsibility centers.\n3. Phase 3 — Continuous Review: Establish regular feedback loops to evaluate actual performance against benchmark criteria.\n\nStrategic Recommendation:\nBy grounding operational execution in established theoretical frameworks for ${t}, the organization achieves sustainable performance improvement aligned with academic and professional standards.`,
           key_points: [
-            `Baseline BEP = 7,000 units ($840,000 value)`,
-            `Baseline profit = $200,000 vs Revised profit = $168,000`,
-            `Executive decision: REJECT proposal to protect bottom-line margins`
+            `Systematic situational analysis of ${t.slice(0, 45)}`,
+            `Identification of key operational variables and performance bottlenecks`,
+            `Actionable 3-phase strategic roadmap tailored to ${subjectName}`
           ]
         };
         renderedSec[`q${qNum}`] = caseletObj;
@@ -545,23 +545,23 @@ export function generatePredictedPaperFromBlueprint(blueprint, topics = [], subj
         // Regular items (Q1, Q2, etc.)
         const items = [];
         const choicesCount = sub.choices || (sub.count > 1 ? sub.count + 1 : 2);
-        
+
         for (let c = 0; c < choicesCount; c++) {
           const curTopic = (c % 2 === 0) ? t : tNext;
           const romanNo = ['i.', 'ii.', 'iii.', 'iv.', 'v.', 'vi.', 'vii.'][c] || `${c+1}.`;
-          
+
           if (sub.marksEach <= 2) {
             items.push({
               id: `${config.setId}-S${sIdx}-Q${qNum}-${c+1}`,
               no: romanNo,
-              question: c === 0 
+              question: c === 0
                 ? `Define "${curTopic}" and state its primary significance in ${subjectName}.`
                 : `State the essential operational distinction governing "${curTopic}".`,
               marks: sub.marksEach,
               co: `CO${sIdx * 2 + 1}`,
               bt: c === 0 ? 'BT-1' : 'BT-2',
-              solution: `Academic Definition & Scope:\n${curTopic} represents the systematic analysis, measurement, and operational control of resources within ${subjectName}.\n\nCore Operational Value:\nIt delivers direct transparency into cost-behavior dynamics, safeguards enterprise profit margins, and provides deterministic data for managerial decision-making.`,
-              key_points: [`Formal academic definition of ${curTopic.slice(0, 45)}`, `Direct operational impact on cost control and margin retention`]
+              solution: `Academic Definition & Scope:\n${curTopic} represents the systematic analysis, measurement, and operational application of concepts within ${subjectName}.\n\nCore Operational Value:\nIt establishes foundational understanding, provides deterministic frameworks for analysis, and ensures rigorous alignment with curriculum outcomes.`,
+              key_points: [`Formal academic definition of ${curTopic.slice(0, 45)}`, `Direct operational impact on analysis and evaluation`]
             });
           } else {
             items.push({
@@ -569,17 +569,17 @@ export function generatePredictedPaperFromBlueprint(blueprint, topics = [], subj
               no: romanNo,
               question: c === 0
                 ? `Explain the fundamental operational mechanics and step-by-step formulation of "${curTopic}". Illustrate with practical application in ${subjectName}.`
-                : (c === 1 
-                    ? `Derive the analytical and mathematical formulations governing "${curTopic}". How do managers utilize it for cost control?`
+                : (c === 1
+                    ? `Derive the analytical and methodological formulations governing "${curTopic}". How do practitioners utilize it for systematic control?`
                     : `Critically evaluate "${curTopic}". Compare its strategic advantages and operational limitations.`),
               marks: sub.marksEach,
               co: `CO${sIdx * 2 + 2}`,
               bt: c === 0 ? 'BT-2' : (c === 1 ? 'BT-3' : 'BT-4'),
-              solution: `Comprehensive Analytical Treatment for ${curTopic}:\n\n1. Operational Mechanics:\nThe system systematically establishes benchmark performance indicators and isolates operational deviations at source.\n\n2. Analytical Formulation:\nTotal Impact = Direct Standard Allocation - Actual Consumption Value. By decomposing variances into rate, volume, and efficiency parameters, management maintains granular fiscal control.\n\n3. Strategic Significance:\nEnables proactive bottleneck elimination, optimizes scarce capital allocation, and ensures 100% adherence to institutional budgetary targets.`,
+              solution: `Comprehensive Analytical Treatment for ${curTopic}:\n\n1. Operational Mechanics:\nThe framework systematically establishes benchmark performance indicators and analyzes deviations at each operational stage.\n\n2. Methodological Formulation:\nCore Relationships = Baseline Parameters Evaluated Against Standardized Operational Benchmarks. By decomposing factors into rate, volume, and efficiency drivers, the methodology delivers actionable insight.\n\n3. Strategic Significance:\nEnables proactive bottleneck elimination, optimizes scarce resource allocation, and ensures 100% adherence to curriculum objectives.`,
               key_points: [
                 `Sequential step-by-step operational mechanics of ${curTopic.slice(0, 40)}`,
-                `Mathematical derivation and decomposition of core variance drivers`,
-                `Actionable managerial protocol for continuous cost optimization`
+                `Systematic derivation and decomposition of core drivers`,
+                `Actionable protocol for continuous optimization`
               ]
             });
           }
@@ -627,9 +627,8 @@ export function generatePredictedPaperFromBlueprint(blueprint, topics = [], subj
 /**
  * Generates all 4 model examination sets based on active blueprint
  */
-export function generateAllPredictedSets(blueprint, topics = [], subjectName = 'Management Accounting') {
+export function generateAllPredictedSets(blueprint, topics = [], subjectName = 'Course Examination') {
   return [0, 1, 2, 3].map(setIndex => {
     return generatePredictedPaperFromBlueprint(blueprint, topics, subjectName, setIndex);
   });
 }
-

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { apiFetch } from '../utils/apiClient';
 
 // Easy, funny, student-friendly Romaji & English greetings
 const FUNNY_AWAKE_GREETINGS = [
@@ -122,7 +123,7 @@ export default function AkiFrontpageHero({ setActiveTab, scrollToUpload }) {
     handleWakeUp();
 
     try {
-      const res = await fetch('/api/v1/aki/chat', {
+      const res = await apiFetch('/api/v1/aki/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prompt: taskInput.trim() })
