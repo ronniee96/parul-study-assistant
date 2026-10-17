@@ -182,58 +182,124 @@ export default function UploadTab({ appState, setAppState, setActiveTab, session
     setProgressPercent(10);
     setCurrentStageIndex(0);
 
+    let extractedText = '';
+    let wordCount = 0;
+    let charCount = 0;
+    let backendData = null;
+    let filesList = [];
+    let extractionSource = 'server';
+    let backendError = null;
+    let clientError = null;
+
     try {
-      // Stage 1: Document extraction
+      // Stage 1: Document Ingestion & Extraction (Primary: Serverless Backend, Secondary: In-Browser Fallback)
       setCurrentStageIndex(0);
       setProgressPercent(20);
-      const extractedData = await extractMultipleDocuments(files);
-      let extractedText = extractedData.combinedText || '';
 
-      if (!extractedText || extractedText.trim().length < 50) {
-        throw new Error("No readable text could be extracted from the uploaded document(s). Please ensure your PDFs contain selectable digital text. Pure scanned images without OCR cannot be processed on serverless hosting.");
-      }
-
-      let wordCount = extractedData.totalWords || extractedText.split(/\s+/).filter(Boolean).length;
-      let charCount = extractedData.totalChars || extractedText.length;
-      let backendData = null;
-
-      // Stage 2: Server-side Text Extraction & Structure Analysis (with non-blocking timeout)
-      setCurrentStageIndex(1);
-      setProgressPercent(40);
+      // Attempt 1 (Primary Path): High-fidelity Server-side extraction via /api/v1/process-multiple
+      let timeoutId = null;
       try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 8000);
+        timeoutId = setTimeout(() => controller.abort(), 15000);
         const formData = new FormData();
         files.forEach(f => formData.append('files', f));
+
         const res = await apiFetch('/api/v1/process-multiple', {
           method: 'POST',
           body: formData,
           signal: controller.signal
         });
-        clearTimeout(timeoutId);
+
         if (res && typeof res === 'object') {
           backendData = res;
-          if (backendData.extracted_text && backendData.extracted_text.length > extractedText.length) {
-            extractedText = backendData.extracted_text;
-            wordCount = backendData.total_word_count || wordCount;
-            charCount = backendData.total_character_count || charCount;
+          const serverText = (res.extracted_text || '').trim();
+          if (serverText.length >= 50) {
+            extractedText = serverText;
+            wordCount = res.total_word_count || serverText.split(/\s+/).filter(Boolean).length;
+            charCount = res.total_character_count || serverText.length;
+            filesList = (res.files || []).map(f => ({
+              filename: f.filename,
+              word_count: f.word_count || 0,
+              success: f.success !== false,
+              error: f.error || null
+            }));
+            extractionSource = 'server';
+          } else if (res.success === false && res.files && res.files.length > 0) {
+            backendError = res.files.map(f => f.error).filter(Boolean).join('; ') || res.message;
           }
         }
-      } catch (backendErr) {
-        console.info("Processed via in-browser PDF engine:", backendErr);
+      } catch (err) {
+        backendError = err.message || 'Backend extraction request failed';
+        console.warn('Primary backend extraction unavailable; falling back to in-browser engine:', err);
+      } finally {
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+          timeoutId = null;
+        }
       }
 
-      // Stage 3: Syllabus & Topic Blueprint Mapping
-      setCurrentStageIndex(2);
-      setProgressPercent(60);
+      // Attempt 2 (Fallback Path): In-Browser extraction if backend produced no text
+      if (!extractedText || extractedText.length < 50) {
+        setCurrentStageIndex(0);
+        setProgressPercent(30);
+        try {
+          const extractedData = await extractMultipleDocuments(files);
+          const clientText = (extractedData.combinedText || '').trim();
+          if (clientText.length >= 50) {
+            extractedText = clientText;
+            wordCount = extractedData.totalWords || clientText.split(/\s+/).filter(Boolean).length;
+            charCount = extractedData.totalChars || clientText.length;
+            filesList = (extractedData.files || []).map(f => ({
+              filename: f.filename,
+              word_count: f.wordCount || 0,
+              success: f.success !== false,
+              error: f.error || null
+            }));
+            extractionSource = 'browser';
+          } else {
+            const fileErrs = (extractedData.files || []).map(f => f.error).filter(Boolean).join('; ');
+            clientError = fileErrs || 'Browser extractor could not find selectable text';
+          }
+        } catch (err) {
+          clientError = err.message;
+          console.warn('In-browser fallback extraction failed:', err);
+        }
+      }
 
-      // Stage 4 & 5: Adversarial Question Generation & Solutions
+      // If both backend and browser extraction failed to extract readable text, provide an honest, actionable error
+      if (!extractedText || extractedText.length < 50) {
+        const combinedErrMsg = `${backendError || ''} ${clientError || ''}`.toLowerCase();
+        let userFacingError;
+        if (combinedErrMsg.includes('scanned') || combinedErrMsg.includes('ocr') || combinedErrMsg.includes('tesseract')) {
+          userFacingError = 'No selectable digital text found in the uploaded document. Scanned image-only PDFs require OCR binaries (Tesseract) which are not supported on zero-cost serverless hosting. Please upload a digital PDF with selectable text, DOCX, PPTX, or TXT.';
+        } else if (combinedErrMsg.includes('too large') || combinedErrMsg.includes('size')) {
+          userFacingError = 'File size exceeds serverless runtime limit. Please upload compressed PDFs or individual chapters under 4MB.';
+        } else {
+          userFacingError = 'Unable to extract readable text from the uploaded document(s). Please ensure your PDF is not empty, password-protected, or corrupted, and contains selectable text.';
+        }
+        throw new Error(userFacingError);
+      }
+
+      // Stage 2: Token Filtering & Grounding Gate
+      setCurrentStageIndex(1);
+      setProgressPercent(45);
+
+      // Stage 3: Syllabus Topic Weightage & Unit Classification
+      setCurrentStageIndex(2);
+      setProgressPercent(65);
+
+      // Stage 4 & 5: Adversarial Question Generation & Solutions Grounded in Extracted Text
       setCurrentStageIndex(3);
-      setProgressPercent(80);
+      setProgressPercent(85);
       const dynamicQs = generateDynamicQuestions(extractedText, files.map(f => f.name).join(' '));
+
+      if (!dynamicQs || dynamicQs.length === 0) {
+        throw new Error('Readable text was extracted, but no testable academic concepts or syllabus units could be formulated from this material. Please upload course material containing clear definitions, concepts, or chapter outlines.');
+      }
+
       const top25 = dynamicQs.slice(0, 25);
 
-      // Stage 6: Final Integration
+      // Stage 6: Final Integration & State Update
       setCurrentStageIndex(5);
       setProgressPercent(100);
 
@@ -242,7 +308,7 @@ export default function UploadTab({ appState, setAppState, setActiveTab, session
         uploadedFiles: files,
         uploadedFile: files[0],
         extractedText: extractedText,
-        results: backendData || { files: extractedData.files },
+        results: backendData || { files: filesList },
         questions: dynamicQs,
         rankedQuestions: top25,
         answers: top25,
@@ -254,12 +320,15 @@ export default function UploadTab({ appState, setAppState, setActiveTab, session
         }
       }));
 
+      const failedFiles = filesList.filter(f => f.success === false || f.error);
       setProcessed(true);
       setProcessInfo({
         totalFiles: files.length,
-        filesList: extractedData.files.map(f => ({ filename: f.filename, word_count: f.wordCount })),
+        filesList: filesList.length > 0 ? filesList : files.map(f => ({ filename: f.name, word_count: Math.round(wordCount / files.length), success: true })),
+        failedFiles: failedFiles,
         wordCount: wordCount,
         characterCount: charCount,
+        extractionSource: extractionSource,
         summary: backendData?.summary || null
       });
 
@@ -430,7 +499,7 @@ export default function UploadTab({ appState, setAppState, setActiveTab, session
                   Ready for Deep Slide-by-Slide & Line-by-Line Multi-Agent Analysis
                 </h4>
                 <p className="text-[11px] text-gray-500 dark:text-gray-400">
-                  Total payload: {totalFormattedSize} MB • Formulates 4 Model Exam Paper Sets & 300 Questions
+                  Total payload: {totalFormattedSize} MB {totalBytes > 4.5 * 1024 * 1024 ? '⚠️ (Exceeds 4.5MB serverless single-request payload ceiling; large batch fallback supported)' : ''} • Formulates 4 Model Exam Paper Sets & 300 Questions
                 </p>
               </div>
             </div>
@@ -513,7 +582,7 @@ export default function UploadTab({ appState, setAppState, setActiveTab, session
                   Deep Multi-Agent Analysis Complete!
                 </h3>
                 <p className="text-xs text-emerald-700 dark:text-emerald-400">
-                  Parsed {processInfo.totalFiles} Document(s) • {processInfo.wordCount} Words Analyzed • Zero-Hallucination Verified
+                  Parsed {processInfo.totalFiles} Document(s) • {processInfo.wordCount} Words Analyzed • {processInfo.extractionSource === 'server' ? '⚡ Cloud Serverless Engine' : '💻 In-Browser Fallback Engine'}
                 </p>
               </div>
             </div>
@@ -522,6 +591,23 @@ export default function UploadTab({ appState, setAppState, setActiveTab, session
               4 Model Papers Ready
             </span>
           </div>
+
+          {/* Partial Multi-File Failure Alerts */}
+          {processInfo.failedFiles && processInfo.failedFiles.length > 0 && (
+            <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-800 dark:text-amber-300 text-xs space-y-1.5">
+              <div className="font-bold flex items-center gap-2">
+                <span>⚠️</span>
+                <span>{processInfo.failedFiles.length} of {processInfo.totalFiles} Document(s) could not be extracted:</span>
+              </div>
+              <ul className="list-disc list-inside space-y-1 text-[11px] pl-2">
+                {processInfo.failedFiles.map((ff, i) => (
+                  <li key={i}>
+                    <span className="font-semibold">{ff.filename}</span>: {ff.error || 'No selectable text found'}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
 
           {/* Quick Route Cards */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-2">

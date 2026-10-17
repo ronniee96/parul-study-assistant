@@ -1,24 +1,39 @@
 // Client-side in-browser Document & PDF Extractor
 // Extracts genuine human-readable text from user-uploaded PDFs, Word docs, PPTs, and text files
 
-// Helper to ensure PDF.js is loaded
+// Helper to ensure PDF.js is loaded with same-origin worker
 async function ensurePdfJsLoaded() {
   if (typeof window !== 'undefined' && window.pdfjsLib) {
+    if (window.pdfjsLib.GlobalWorkerOptions && !window.pdfjsLib.GlobalWorkerOptions.workerSrc) {
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
+    }
     return window.pdfjsLib;
   }
   
-  // Try loading PDF.js dynamically if not already present
+  // Try loading PDF.js dynamically from same-origin bundle first, then CDN fallback
   if (typeof document !== 'undefined') {
     await new Promise((resolve) => {
       const script = document.createElement('script');
-      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+      script.src = '/pdf.min.js';
       script.onload = () => {
         if (window.pdfjsLib) {
-          window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+          window.pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
         }
         resolve();
       };
-      script.onerror = () => resolve();
+      script.onerror = () => {
+        // Fallback to CDN if local bundle is not reachable
+        const cdnScript = document.createElement('script');
+        cdnScript.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+        cdnScript.onload = () => {
+          if (window.pdfjsLib) {
+            window.pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
+          }
+          resolve();
+        };
+        cdnScript.onerror = () => resolve();
+        document.head.appendChild(cdnScript);
+      };
       document.head.appendChild(script);
     });
   }
@@ -84,7 +99,13 @@ export async function extractTextFromPDF(file) {
     const pdfjs = await ensurePdfJsLoaded();
     if (pdfjs) {
       try {
-        const loadingTask = pdfjs.getDocument({ data: new Uint8Array(arrayBuffer) });
+        if (pdfjs.GlobalWorkerOptions && !pdfjs.GlobalWorkerOptions.workerSrc) {
+          pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
+        }
+        const loadingTask = pdfjs.getDocument({
+          data: new Uint8Array(arrayBuffer),
+          stopAtErrors: false
+        });
         const pdf = await loadingTask.promise;
         let pageTexts = [];
         const maxPages = Math.min(pdf.numPages, 25);
@@ -154,7 +175,7 @@ export async function extractTextFromPDF(file) {
       }
     }
 
-    throw new Error(`No readable text could be extracted from "${file.name}". The document may contain scanned images without OCR. Please upload a PDF with selectable text.`);
+    throw new Error(`No readable text could be extracted from "${file.name}". The document may be empty, image-only/scanned without OCR, or protected. Please ensure your PDF contains selectable digital text.`);
 
   } catch (err) {
     console.error("Failed to extract PDF in browser:", err);

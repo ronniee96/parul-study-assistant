@@ -1024,9 +1024,20 @@ async def process_multiple_documents(
     total_chars = 0
     processed_documents = []
 
+    upload_max_mb = int(os.getenv("UPLOAD_MAX_SIZE_MB", 4))
+    max_size = upload_max_mb * 1024 * 1024
+
     for i, file in enumerate(files):
         try:
             contents = await file.read()
+            if len(contents) > max_size:
+                file_summaries.append({
+                    "filename": file.filename,
+                    "error": f"File size too large. Maximum {upload_max_mb}MB allowed for ₹0 serverless runtime.",
+                    "success": False,
+                })
+                continue
+
             res = document_processor.process_file(contents, file.filename)
             if res.get("success"):
                 text = res.get("text", "")
@@ -1041,7 +1052,11 @@ async def process_multiple_documents(
                 doc_id = res.get("document_id") or f"doc_{uuid.uuid4().hex[:10]}"
                 c_hash = res.get("content_hash") or hashlib.sha256(contents).hexdigest()
                 obj_key = s3_service.build_object_key(session.session_id, doc_id, file.filename)
-                s3_meta = s3_service.put_object_bytes(session.session_id, obj_key, contents)
+                try:
+                    s3_meta = s3_service.put_object_bytes(session.session_id, obj_key, contents)
+                except Exception as s3_err:
+                    logger.warning("Optional S3 staging skipped in process-multiple: %s", s3_err)
+                    s3_meta = {"bucket": None, "region": "local", "object_key": obj_key}
 
                 doc_summary = {
                     "document_id": doc_id,

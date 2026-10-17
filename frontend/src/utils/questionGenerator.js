@@ -78,6 +78,7 @@ export function cleanTextLines(rawText) {
     .map(line => line.trim())
     .filter(line => {
       if (line.length < 4) return false;
+      if (/^={2,}\s*\[?DOCUMENT\b.*={2,}$/i.test(line)) return false;
       if (isCodeOrGarbage(line)) return false;
       if (INSTITUTIONAL_BOILERPLATE_REGEX.test(line) && line.length < 90) return false;
       return true;
@@ -86,7 +87,8 @@ export function cleanTextLines(rawText) {
     .replace(/\/Length\s+\d+[\s\S]*?\/Filter\s+\/\w+/gi, '')
     .replace(/\/Type\s*\/\w+/gi, '')
     .replace(/Quartz PDFContext/gi, '')
-    .replace(/\s+/g, ' ')
+    .replace(/[ \t]+/g, ' ')
+    .replace(/\n{3,}/g, '\n\n')
     .trim();
 }
 
@@ -97,7 +99,7 @@ export function extractAcademicConcepts(extractedText = '', filename = '') {
   const isTech = /cs|it|data|algo|prog|soft|code|web|ai|ml|system|database/i.test(filename + ' ' + text);
 
   // 1. Definitory Pattern Matching
-  const sentences = text.split(/(?<=[.!?])\s+/).map(s => s.trim()).filter(s => s.length > 15 && !isCodeOrGarbage(s));
+  const sentences = text.split(/(?<=[.!?])\s+|\n+/).map(s => s.trim()).filter(s => s.length > 15 && !isCodeOrGarbage(s));
   
   for (const s of sentences) {
     const defMatch = s.match(/^([A-Z][A-Za-z0-9\s\-]{2,45})\s+(is defined as|refers to|means|is the process of|is a method of|is a technique of|is used to|represents)\s+(.+)/i);
