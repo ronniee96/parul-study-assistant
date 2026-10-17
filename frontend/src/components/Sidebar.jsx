@@ -101,31 +101,31 @@ export default function Sidebar({ activeTab, setActiveTab, collapsed, setCollaps
   return (
     <motion.div
       animate={{ width: collapsed ? 76 : 250 }}
-      className="hidden md:flex flex-col bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 shadow-xs transition-colors duration-300 z-10"
+      className="hidden md:flex flex-col bg-white/60 dark:bg-black/40 backdrop-blur-2xl border-r border-black/5 dark:border-white/10 shadow-xs transition-colors duration-300 z-10"
     >
-      <div className="flex-1 py-5 flex flex-col gap-1.5 overflow-y-auto px-2.5">
+      <div className="flex-1 py-5 flex flex-col gap-1 overflow-y-auto px-2.5">
         {TABS.map(tab => {
           const isActive = activeTab === tab.id;
           return (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 relative group cursor-pointer
+              className={`flex items-center gap-3 px-3 py-2 rounded-xl transition-all duration-200 relative group cursor-pointer active:scale-[0.98]
                 ${isActive
-                  ? 'bg-primary-50 dark:bg-primary-950/40 text-primary-700 dark:text-primary-300 font-semibold'
-                  : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800/60 hover:text-gray-900 dark:hover:text-gray-200'}`}
+                  ? 'bg-black/5 dark:bg-white/10 text-[#0071e3] dark:text-[#388bfd] font-semibold'
+                  : 'text-neutral-600 dark:text-neutral-400 hover:bg-black/[0.03] dark:hover:bg-white/[0.05] hover:text-[#1d1d1f] dark:hover:text-[#f5f5f7]'}`}
               title={collapsed ? tab.label : ''}
             >
               {isActive && (
                 <motion.div
                   layoutId="activeTabIndicator"
-                  className="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-full bg-primary-600 dark:bg-primary-400"
+                  className="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-full bg-[#0071e3]"
                 />
               )}
-              <div className={`flex items-center justify-center w-8 h-8 rounded-lg shrink-0 transition-colors ${
+              <div className={`flex items-center justify-center w-7 h-7 rounded-[8px] shrink-0 transition-colors ${
                 isActive
-                  ? 'bg-primary-600 text-white'
-                  : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 group-hover:bg-gray-200 dark:group-hover:bg-gray-700 group-hover:text-gray-800 dark:group-hover:text-gray-200'
+                  ? 'bg-[#0071e3] text-white shadow-xs'
+                  : 'bg-black/5 dark:bg-white/5 text-neutral-500 dark:text-neutral-400 group-hover:bg-black/10 dark:group-hover:bg-white/10 group-hover:text-neutral-800 dark:group-hover:text-neutral-200'
               }`}>
                 {SVG_ICONS[tab.iconKey]}
               </div>
@@ -141,27 +141,27 @@ export default function Sidebar({ activeTab, setActiveTab, collapsed, setCollaps
 
       {/* Institutional Legal & Academic Footer */}
       {!collapsed ? (
-        <div className="p-3 mx-2.5 mb-2 rounded-xl bg-gray-50 dark:bg-gray-800/50 border border-gray-200/70 dark:border-gray-800 text-xs">
-          <div className="flex items-center gap-2 mb-1.5">
-            <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-            <span className="font-bold text-gray-900 dark:text-gray-100 text-[11px]">Parul University</span>
+        <div className="p-3 mx-2.5 mb-2 rounded-2xl bg-white/60 dark:bg-white/5 border border-black/5 dark:border-white/10 backdrop-blur-xl text-xs">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+            <span className="font-semibold text-[#1d1d1f] dark:text-[#f5f5f7] text-[11px]">Parul University</span>
           </div>
-          <p className="text-[10px] text-gray-500 dark:text-gray-400 leading-tight mb-2">
+          <p className="text-[10px] text-neutral-500 dark:text-neutral-400 leading-tight mb-2">
             Academic Question & Blueprint Engine
           </p>
-          <div className="flex items-center justify-between text-[10px] pt-1.5 border-t border-gray-200/60 dark:border-gray-700/60">
+          <div className="flex items-center justify-between text-[10px] pt-1.5 border-t border-black/5 dark:border-white/10">
             <button
               onClick={() => setActiveTab('privacy')}
-              className="text-gray-600 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 cursor-pointer"
+              className="text-neutral-500 hover:text-[#0071e3] dark:text-neutral-400 dark:hover:text-[#388bfd] transition-colors cursor-pointer"
             >
-              Privacy Policy
+              Privacy
             </button>
-            <span className="text-gray-300 dark:text-gray-600">|</span>
+            <span className="text-neutral-300 dark:text-neutral-700">•</span>
             <button
               onClick={() => setActiveTab('terms')}
-              className="text-gray-600 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 cursor-pointer"
+              className="text-neutral-500 hover:text-[#0071e3] dark:text-neutral-400 dark:hover:text-[#388bfd] transition-colors cursor-pointer"
             >
-              Terms of Use
+              Terms
             </button>
           </div>
         </div>
@@ -170,7 +170,7 @@ export default function Sidebar({ activeTab, setActiveTab, collapsed, setCollaps
           <button
             onClick={() => setActiveTab('privacy')}
             title="Privacy Policy & Terms"
-            className="w-8 h-8 rounded-lg bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-[10px] font-bold text-gray-500 cursor-pointer"
+            className="w-7 h-7 rounded-[8px] bg-black/5 dark:bg-white/10 flex items-center justify-center text-[10px] font-semibold text-neutral-500 cursor-pointer"
           >
             PU
           </button>
@@ -178,10 +178,10 @@ export default function Sidebar({ activeTab, setActiveTab, collapsed, setCollaps
       )}
 
       {/* Sidebar Collapse Toggle */}
-      <div className="p-2.5 border-t border-gray-200 dark:border-gray-800 flex justify-center">
+      <div className="p-2 border-t border-black/5 dark:border-white/10 flex justify-center">
         <button
           onClick={() => setCollapsed(!collapsed)}
-          className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400 transition-colors cursor-pointer text-xs"
+          className="h-7 w-7 rounded-full hover:bg-black/5 dark:hover:bg-white/10 text-neutral-500 dark:text-neutral-400 transition-colors flex items-center justify-center cursor-pointer text-xs"
           title={collapsed ? "Expand Sidebar" : "Collapse Sidebar"}
         >
           {collapsed ? '→' : '←'}

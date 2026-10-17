@@ -350,51 +350,51 @@ export default function UploadTab({ appState, setAppState, setActiveTab, session
   };
 
   return (
-    <div className="flex flex-col gap-6 h-full p-2 md:p-4 max-w-6xl mx-auto">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+    <div className="flex flex-col gap-8 h-full p-2 md:p-4 max-w-5xl mx-auto">
+      {/* Apple Hero Header */}
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2">
-            <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
-              <span>📎</span> Multi-Document Upload & Deep AI Analysis
+          <div className="flex items-center gap-2.5">
+            <h2 className="text-3xl md:text-4xl font-semibold tracking-tight text-[#1d1d1f] dark:text-[#f5f5f7]">
+              Course Intelligence
             </h2>
-            <span className="px-2.5 py-0.5 rounded-full bg-primary-100 dark:bg-primary-900/50 text-primary-700 dark:text-primary-300 font-bold text-xs border border-primary-200 dark:border-primary-800">
-              Multi-Agent Engine
+            <span className="px-2.5 py-0.5 rounded-full bg-black/5 dark:bg-white/10 text-[#0071e3] dark:text-[#388bfd] font-medium text-xs border border-black/5 dark:border-white/10">
+              6-Agent Squad
             </span>
           </div>
-          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-            Upload single or multiple course PDFs, PPTs, or lecture notes. Our <strong>6-Agent Squad</strong> will parse every page, slide, and line thoroughly to formulate predicted exams.
+          <p className="text-sm text-[#86868b] dark:text-neutral-400 mt-1 max-w-2xl font-normal leading-relaxed">
+            Upload course materials in PDF, PPTX, or DOCX. Autonomous intelligence models analyze syllabus weightage, reconstruct key definitions, and synthesize university-grade exam blueprints.
           </p>
         </div>
 
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-2.5 shrink-0">
           {files.length > 0 && (
-            <span className="px-3 py-1 bg-primary-100 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300 font-bold text-xs rounded-xl border border-primary-200 dark:border-primary-800">
-              📚 {files.length} {files.length === 1 ? 'file' : 'files'} ({totalFormattedSize} MB)
+            <span className="px-3.5 py-1.5 bg-black/5 dark:bg-white/10 text-neutral-700 dark:text-neutral-300 font-medium text-xs rounded-full border border-black/5 dark:border-white/10">
+              {files.length} {files.length === 1 ? 'file' : 'files'} • {totalFormattedSize} MB
             </span>
           )}
 
           {files.length > 0 && (
             <button
               onClick={clearAllFiles}
-              className="px-3 py-1.5 text-xs text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-xl transition-colors font-bold border border-rose-200 dark:border-rose-900/50 cursor-pointer"
+              className="apple-pill-secondary text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 border-rose-500/20"
             >
-              🔄 Start New Session (Clear)
+              Clear Workspace
             </button>
           )}
         </div>
       </div>
 
-      {/* Upload Box */}
+      {/* Apple Glass Dropzone */}
       <div 
         id="file-upload-dropzone"
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
-        className={`p-8 md:p-10 border-2 border-dashed rounded-3xl transition-all duration-200 flex flex-col items-center justify-center text-center cursor-pointer relative overflow-hidden ${
+        className={`p-10 md:p-14 apple-glass-card border-2 border-dashed transition-all duration-300 flex flex-col items-center justify-center text-center cursor-pointer relative overflow-hidden group ${
           isDragging 
-            ? 'border-primary-500 bg-primary-50/50 dark:bg-primary-950/20 scale-[1.01]' 
-            : 'border-gray-300 dark:border-gray-700 hover:border-primary-400 bg-white/70 dark:bg-gray-900/70'
+            ? 'border-[#0071e3] bg-[#0071e3]/5 scale-[1.01]' 
+            : 'border-black/10 dark:border-white/10 hover:border-[#0071e3]/60 dark:hover:border-[#0071e3]/60'
         }`}
         onClick={() => document.getElementById('file-upload-input').click()}
       >
@@ -407,18 +407,18 @@ export default function UploadTab({ appState, setAppState, setActiveTab, session
           accept=".pdf,.pptx,.docx,.txt"
         />
 
-        <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary-500 to-indigo-600 text-white flex items-center justify-center text-3xl shadow-lg mb-4">
-          📁
+        <div className="w-16 h-16 rounded-3xl bg-black/5 dark:bg-white/5 text-[#0071e3] flex items-center justify-center text-3xl mb-4 group-hover:scale-105 transition-transform duration-300 shadow-xs">
+          📄
         </div>
 
-        <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100 mb-1">
-          Drag and drop course materials here (PDF, PPTX, DOCX, TXT)
+        <h3 className="text-xl font-semibold text-[#1d1d1f] dark:text-[#f5f5f7] tracking-tight mb-1">
+          Drag & drop course materials
         </h3>
-        <p className="text-xs text-gray-500 dark:text-gray-400 max-w-md mb-2">
-          Supports text-selectable PDFs, Word (.docx), PowerPoint (.pptx), or text files (up to 4MB each).
+        <p className="text-xs text-[#86868b] dark:text-neutral-400 max-w-md mb-3">
+          Text-selectable PDFs, PowerPoint (.pptx), Word (.docx), or text files (up to 4MB each).
         </p>
-        <p className="text-[11px] text-amber-600 dark:text-amber-400 font-medium max-w-md mb-4 bg-amber-50 dark:bg-amber-950/40 px-3 py-1.5 rounded-lg border border-amber-200/50 dark:border-amber-800/50">
-          ⚠️ Note: Scanned image PDFs without selectable text and image files are not supported on free serverless hosting (OCR binaries unavailable).
+        <p className="text-[11px] text-amber-700 dark:text-amber-400 font-medium max-w-lg mb-5 bg-amber-500/10 px-3.5 py-1.5 rounded-full border border-amber-500/20">
+          Note: Scanned PDFs without selectable text are not supported on free serverless runtime.
         </p>
 
         <button 
@@ -427,23 +427,22 @@ export default function UploadTab({ appState, setAppState, setActiveTab, session
             e.stopPropagation();
             document.getElementById('file-upload-input').click();
           }}
-          className="px-5 py-2.5 bg-gradient-to-r from-primary-600 to-indigo-600 hover:from-primary-700 hover:to-indigo-700 text-white font-bold text-xs rounded-xl shadow-md transition-all cursor-pointer flex items-center gap-2"
+          className="apple-pill-primary"
         >
-          <span>📂</span>
-          <span>Select Digital Text Files (PDF, PPTX, DOCX, TXT)</span>
+          <span>Choose Files</span>
         </button>
       </div>
 
       {/* Queued Files List */}
       {files.length > 0 && (
         <div className="flex flex-col gap-3">
-          <div className="flex items-center justify-between text-xs font-bold text-gray-700 dark:text-gray-300">
-            <span>QUEUED DOCUMENTS ({files.length})</span>
+          <div className="flex items-center justify-between text-xs font-semibold tracking-wide text-neutral-500 dark:text-neutral-400 uppercase">
+            <span>Queued Documents ({files.length})</span>
             <button
               onClick={() => document.getElementById('file-upload-input').click()}
-              className="text-primary-600 dark:text-primary-400 hover:underline cursor-pointer"
+              className="text-[#0071e3] hover:underline font-medium cursor-pointer"
             >
-              + Add more PDFs
+              + Add more
             </button>
           </div>
 
@@ -451,26 +450,26 @@ export default function UploadTab({ appState, setAppState, setActiveTab, session
             {files.map((file, idx) => (
               <div 
                 key={idx}
-                className="p-3.5 rounded-2xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 flex items-center justify-between shadow-xs"
+                className="p-3.5 apple-glass-card flex items-center justify-between"
               >
                 <div className="flex items-center gap-3 overflow-hidden">
                   <span className="text-2xl shrink-0">{getFileIcon(file.name)}</span>
                   <div className="overflow-hidden">
-                    <p className="font-bold text-xs text-gray-800 dark:text-gray-200 truncate">
+                    <p className="font-semibold text-xs text-[#1d1d1f] dark:text-[#f5f5f7] truncate">
                       {file.name}
                     </p>
-                    <p className="text-[10px] text-gray-500 flex items-center gap-1.5 flex-wrap">
+                    <p className="text-[10px] text-[#86868b] flex items-center gap-1.5 flex-wrap">
                       {file.isServerPersisted ? (
                         <>
-                          <span className="text-primary-600 dark:text-primary-400 font-semibold">☁️ Server-Persisted (Neon)</span>
+                          <span className="text-[#0071e3] dark:text-[#388bfd] font-medium">Cloud Persisted</span>
                           <span>•</span>
-                          <span>{file.wordCount || 'Full'} words extracted</span>
+                          <span>{file.wordCount || 'Full'} words</span>
                         </>
                       ) : (
                         <>
                           <span>{(file.size / 1024).toFixed(1)} KB</span>
                           <span>•</span>
-                          <span className="text-emerald-600 dark:text-emerald-400 font-semibold">💻 Browser File Ready</span>
+                          <span className="text-emerald-600 dark:text-emerald-400 font-medium">Ready</span>
                         </>
                       )}
                     </p>
@@ -479,7 +478,7 @@ export default function UploadTab({ appState, setAppState, setActiveTab, session
 
                 <button
                   onClick={(e) => removeFile(idx, e)}
-                  className="w-7 h-7 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400 hover:text-rose-500 flex items-center justify-center text-sm transition-colors cursor-pointer"
+                  className="w-7 h-7 rounded-full hover:bg-black/5 dark:hover:bg-white/10 text-neutral-400 hover:text-rose-500 flex items-center justify-center text-xs transition-colors cursor-pointer"
                   title="Remove document"
                 >
                   ✕
@@ -489,17 +488,17 @@ export default function UploadTab({ appState, setAppState, setActiveTab, session
           </div>
 
           {/* Action Processing Bar */}
-          <div className="p-4 rounded-2xl bg-gradient-to-r from-primary-50 to-indigo-50/50 dark:from-gray-800 dark:to-gray-800/60 border border-primary-200/80 dark:border-gray-700 flex flex-col md:flex-row md:items-center justify-between gap-4 mt-2 shadow-xs">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-primary-600 text-white flex items-center justify-center font-bold text-base shadow-xs">
+          <div className="p-5 apple-glass-card flex flex-col md:flex-row md:items-center justify-between gap-4 mt-2">
+            <div className="flex items-center gap-3.5">
+              <div className="w-10 h-10 rounded-2xl bg-[#0071e3] text-white flex items-center justify-center font-semibold text-sm shadow-xs">
                 {files.length}
               </div>
               <div>
-                <h4 className="font-bold text-xs text-gray-800 dark:text-gray-200">
-                  Ready for Deep Slide-by-Slide & Line-by-Line Multi-Agent Analysis
+                <h4 className="font-semibold text-xs text-[#1d1d1f] dark:text-[#f5f5f7]">
+                  Ready for Multi-Agent Syllabus & Blueprint Formulation
                 </h4>
-                <p className="text-[11px] text-gray-500 dark:text-gray-400">
-                  Total payload: {totalFormattedSize} MB {totalBytes > 4.5 * 1024 * 1024 ? '⚠️ (Exceeds 4.5MB serverless single-request payload ceiling; large batch fallback supported)' : ''} • Formulates 4 Model Exam Paper Sets & 300 Questions
+                <p className="text-[11px] text-[#86868b] dark:text-neutral-400">
+                  Total payload: {totalFormattedSize} MB {totalBytes > 4.5 * 1024 * 1024 ? '⚠️ (Exceeds 4.5MB batch payload)' : ''} • Synthesizes 4 Model Exam Paper Sets & 300 Questions
                 </p>
               </div>
             </div>
@@ -507,19 +506,18 @@ export default function UploadTab({ appState, setAppState, setActiveTab, session
             <button
               onClick={processAllDocuments}
               disabled={loading}
-              className={`px-6 py-3 bg-gradient-to-r from-primary-600 to-indigo-600 hover:from-primary-700 hover:to-indigo-700 text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer shrink-0 ${
-                loading ? 'opacity-80 cursor-wait' : ''
+              className={`apple-pill-primary px-7 py-3 text-xs shrink-0 ${
+                loading ? 'opacity-70 cursor-wait' : ''
               }`}
             >
               {loading ? (
                 <>
-                  <span className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin"></span>
-                  <span>Agents Analyzing ({progressPercent}%)...</span>
+                  <span className="w-3.5 h-3.5 rounded-full border-2 border-white border-t-transparent animate-spin"></span>
+                  <span>Synthesizing ({progressPercent}%)...</span>
                 </>
               ) : (
                 <>
-                  <span>⚡</span>
-                  <span>Deep Analyze with 6 AI Agents & Generate Exams</span>
+                  <span>Deep Analyze with 6 AI Agents</span>
                 </>
               )}
             </button>
@@ -532,36 +530,36 @@ export default function UploadTab({ appState, setAppState, setActiveTab, session
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="p-6 rounded-3xl bg-white dark:bg-gray-900 border border-primary-300 dark:border-primary-800 shadow-xl space-y-4"
+          className="p-6 apple-glass-card space-y-4"
         >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <span className="text-2xl">{PIPELINE_STAGES[currentStageIndex]?.avatar}</span>
               <div>
-                <h4 className="font-bold text-sm text-gray-900 dark:text-gray-100">
+                <h4 className="font-semibold text-sm text-[#1d1d1f] dark:text-[#f5f5f7]">
                   {PIPELINE_STAGES[currentStageIndex]?.stage}
                 </h4>
-                <p className="text-xs text-primary-600 dark:text-primary-400 font-semibold">
+                <p className="text-xs text-[#0071e3] dark:text-[#388bfd] font-medium">
                   Active Agent: {PIPELINE_STAGES[currentStageIndex]?.agent}
                 </p>
               </div>
             </div>
-            <span className="font-mono text-xs font-bold text-primary-600 dark:text-primary-400">
+            <span className="font-mono text-xs font-semibold text-[#0071e3]">
               {progressPercent}%
             </span>
           </div>
 
           {/* Progress Bar */}
-          <div className="w-full bg-gray-100 dark:bg-gray-800 rounded-full h-2.5 overflow-hidden">
+          <div className="w-full bg-black/5 dark:bg-white/10 rounded-full h-2 overflow-hidden">
             <motion.div 
-              className="bg-gradient-to-r from-primary-500 to-indigo-600 h-2.5 rounded-full"
+              className="bg-[#0071e3] h-2 rounded-full"
               initial={{ width: 0 }}
               animate={{ width: `${progressPercent}%` }}
               transition={{ duration: 0.3 }}
             />
           </div>
 
-          <p className="text-xs text-gray-600 dark:text-gray-400 italic">
+          <p className="text-xs text-[#86868b] dark:text-neutral-400 italic">
             "{PIPELINE_STAGES[currentStageIndex]?.detail}"
           </p>
         </motion.div>
@@ -572,22 +570,22 @@ export default function UploadTab({ appState, setAppState, setActiveTab, session
         <motion.div
           initial={{ opacity: 0, scale: 0.98 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="p-6 rounded-3xl bg-gradient-to-br from-emerald-500/10 via-teal-500/5 to-indigo-500/10 border border-emerald-500/30 space-y-4 shadow-sm"
+          className="p-6 apple-glass-card bg-emerald-500/5 dark:bg-emerald-950/20 border-emerald-500/20 space-y-4"
         >
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
             <div className="flex items-center gap-3">
               <span className="text-3xl">🎯</span>
               <div>
-                <h3 className="font-bold text-base text-emerald-900 dark:text-emerald-300">
-                  Deep Multi-Agent Analysis Complete!
+                <h3 className="font-semibold text-base text-emerald-900 dark:text-emerald-300">
+                  Multi-Agent Analysis Complete
                 </h3>
                 <p className="text-xs text-emerald-700 dark:text-emerald-400">
-                  Parsed {processInfo.totalFiles} Document(s) • {processInfo.wordCount} Words Analyzed • {processInfo.extractionSource === 'server' ? '⚡ Cloud Serverless Engine' : '💻 In-Browser Fallback Engine'}
+                  Parsed {processInfo.totalFiles} Document(s) • {processInfo.wordCount} Words Analyzed • {processInfo.extractionSource === 'server' ? 'Cloud Serverless Engine' : 'In-Browser Fallback Engine'}
                 </p>
               </div>
             </div>
 
-            <span className="px-3 py-1 bg-emerald-500 text-white font-bold text-xs rounded-full self-start md:self-auto shadow-xs">
+            <span className="px-3 py-1 bg-emerald-500 text-white font-medium text-xs rounded-full self-start md:self-auto shadow-xs">
               4 Model Papers Ready
             </span>
           </div>
@@ -595,7 +593,7 @@ export default function UploadTab({ appState, setAppState, setActiveTab, session
           {/* Partial Multi-File Failure Alerts */}
           {processInfo.failedFiles && processInfo.failedFiles.length > 0 && (
             <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-800 dark:text-amber-300 text-xs space-y-1.5">
-              <div className="font-bold flex items-center gap-2">
+              <div className="font-semibold flex items-center gap-2">
                 <span>⚠️</span>
                 <span>{processInfo.failedFiles.length} of {processInfo.totalFiles} Document(s) could not be extracted:</span>
               </div>
@@ -613,58 +611,58 @@ export default function UploadTab({ appState, setAppState, setActiveTab, session
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-2">
             <button
               onClick={() => setActiveTab('predictor')}
-              className="p-3.5 bg-white dark:bg-gray-800 hover:bg-gray-50 rounded-2xl border border-emerald-300 dark:border-emerald-800/60 text-left shadow-xs transition-all cursor-pointer flex flex-col justify-between"
+              className="p-4 apple-glass-card hover:bg-white/90 dark:hover:bg-neutral-800/80 text-left transition-all cursor-pointer flex flex-col justify-between group active:scale-[0.98]"
             >
               <div>
                 <span className="text-xl">🎯</span>
-                <h5 className="font-bold text-xs text-gray-900 dark:text-gray-100 mt-1">
-                  4 Model Exam Papers
+                <h5 className="font-semibold text-xs text-[#1d1d1f] dark:text-[#f5f5f7] mt-1">
+                  4 Model Papers
                 </h5>
-                <p className="text-[10px] text-gray-500">Sets A, B, C, D with Full Solutions</p>
+                <p className="text-[10px] text-[#86868b]">Sets A, B, C, D Solutions</p>
               </div>
-              <span className="text-[10px] font-bold text-primary-600 mt-2">Open Predictor →</span>
+              <span className="text-[10px] font-semibold text-[#0071e3] mt-2 group-hover:translate-x-0.5 transition-transform">Open Predictor →</span>
             </button>
 
             <button
               onClick={() => setActiveTab('questions')}
-              className="p-3.5 bg-white dark:bg-gray-800 hover:bg-gray-50 rounded-2xl border border-emerald-300 dark:border-emerald-800/60 text-left shadow-xs transition-all cursor-pointer flex flex-col justify-between"
+              className="p-4 apple-glass-card hover:bg-white/90 dark:hover:bg-neutral-800/80 text-left transition-all cursor-pointer flex flex-col justify-between group active:scale-[0.98]"
             >
               <div>
                 <span className="text-xl">❓</span>
-                <h5 className="font-bold text-xs text-gray-900 dark:text-gray-100 mt-1">
+                <h5 className="font-semibold text-xs text-[#1d1d1f] dark:text-[#f5f5f7] mt-1">
                   300 Question Bank
                 </h5>
-                <p className="text-[10px] text-gray-500">Tiered Funnel (Top 25, 100, 200)</p>
+                <p className="text-[10px] text-[#86868b]">Funnel (Top 25, 100, 200)</p>
               </div>
-              <span className="text-[10px] font-bold text-primary-600 mt-2">Open Bank →</span>
+              <span className="text-[10px] font-semibold text-[#0071e3] mt-2 group-hover:translate-x-0.5 transition-transform">Open Bank →</span>
             </button>
 
             <button
               onClick={() => setActiveTab('answers')}
-              className="p-3.5 bg-white dark:bg-gray-800 hover:bg-gray-50 rounded-2xl border border-emerald-300 dark:border-emerald-800/60 text-left shadow-xs transition-all cursor-pointer flex flex-col justify-between"
+              className="p-4 apple-glass-card hover:bg-white/90 dark:hover:bg-neutral-800/80 text-left transition-all cursor-pointer flex flex-col justify-between group active:scale-[0.98]"
             >
               <div>
                 <span className="text-xl">✅</span>
-                <h5 className="font-bold text-xs text-gray-900 dark:text-gray-100 mt-1">
-                  Answer Bank (Top 25)
+                <h5 className="font-semibold text-xs text-[#1d1d1f] dark:text-[#f5f5f7] mt-1">
+                  Model Answers
                 </h5>
-                <p className="text-[10px] text-gray-500">Scoring Rubrics & Key Bullet Points</p>
+                <p className="text-[10px] text-[#86868b]">Scoring Rubrics & Key Points</p>
               </div>
-              <span className="text-[10px] font-bold text-primary-600 mt-2">Open Answers →</span>
+              <span className="text-[10px] font-semibold text-[#0071e3] mt-2 group-hover:translate-x-0.5 transition-transform">Open Answers →</span>
             </button>
 
             <button
               onClick={() => setActiveTab('squad')}
-              className="p-3.5 bg-white dark:bg-gray-800 hover:bg-gray-50 rounded-2xl border border-emerald-300 dark:border-emerald-800/60 text-left shadow-xs transition-all cursor-pointer flex flex-col justify-between"
+              className="p-4 apple-glass-card hover:bg-white/90 dark:hover:bg-neutral-800/80 text-left transition-all cursor-pointer flex flex-col justify-between group active:scale-[0.98]"
             >
               <div>
                 <span className="text-xl">🤖</span>
-                <h5 className="font-bold text-xs text-gray-900 dark:text-gray-100 mt-1">
+                <h5 className="font-semibold text-xs text-[#1d1d1f] dark:text-[#f5f5f7] mt-1">
                   AI Agent Squad
                 </h5>
-                <p className="text-[10px] text-gray-500">Multi-Model Deliberation Council</p>
+                <p className="text-[10px] text-[#86868b]">Deliberation Council</p>
               </div>
-              <span className="text-[10px] font-bold text-primary-600 mt-2">Open Squad →</span>
+              <span className="text-[10px] font-semibold text-[#0071e3] mt-2 group-hover:translate-x-0.5 transition-transform">Open Squad →</span>
             </button>
           </div>
         </motion.div>

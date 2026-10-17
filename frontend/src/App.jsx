@@ -315,7 +315,7 @@ export default function App() {
   const hasActiveSession = Boolean(appState.uploadedFile || (appState.uploadedFiles && appState.uploadedFiles.length > 0) || appState.extractedText);
 
   return (
-    <div className="flex h-screen overflow-hidden bg-gray-50 dark:bg-gray-950 transition-colors duration-300">
+    <div className="flex h-screen overflow-hidden bg-[#f5f5f7] dark:bg-[#000000] text-[#1d1d1f] dark:text-[#f5f5f7] transition-colors duration-300">
       <Sidebar
         activeTab={activeTab}
         setActiveTab={setActiveTab}
@@ -324,42 +324,43 @@ export default function App() {
       />
 
       <div className="flex-1 flex flex-col h-full overflow-hidden">
-        <header className="h-16 flex items-center justify-between px-6 bg-slate-900 text-white shadow-xs border-b border-slate-800">
+        <header className="h-14 flex items-center justify-between px-6 bg-white/75 dark:bg-black/75 backdrop-blur-2xl border-b border-black/5 dark:border-white/10 sticky top-0 z-40 transition-colors">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-primary-600 flex items-center justify-center font-bold text-xs text-white">
+            <div className="w-7 h-7 rounded-[8px] bg-gradient-to-tr from-[#0071e3] to-[#42a5f5] flex items-center justify-center font-bold text-xs text-white shadow-xs">
               PU
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-base md:text-lg font-bold tracking-tight leading-none text-white">Parul Study Assistant</h1>
-                <span className="px-2 py-0.5 rounded-full bg-slate-800 text-[10px] font-semibold text-slate-300 border border-slate-700 hidden sm:inline-block">
+                <h1 className="text-sm font-semibold tracking-tight text-[#1d1d1f] dark:text-[#f5f5f7]">Parul Study Assistant</h1>
+                <span className="px-2 py-0.5 rounded-full bg-black/5 dark:bg-white/10 text-[10px] font-medium text-neutral-600 dark:text-neutral-400 border border-black/5 dark:border-white/10 hidden sm:inline-block">
                   Academic Portal
                 </span>
               </div>
-              <div className="flex items-center gap-1.5 mt-0.5">
-                <span className="text-[10px] text-slate-400 font-medium tracking-wider uppercase">Exam Intelligence & Syllabus Analysis</span>
-                <span className="text-[10px] text-slate-500">• NAAC Grade A++ Standard</span>
+              <div className="flex items-center gap-1.5">
+                <span className="text-[10px] text-neutral-400 dark:text-neutral-500 font-normal">Exam Intelligence & Syllabus Analysis</span>
+                <span className="text-[10px] text-neutral-300 dark:text-neutral-600">•</span>
+                <span className="text-[10px] text-neutral-400 dark:text-neutral-500 font-normal">NAAC A++</span>
               </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-2.5 shrink-0 flex-nowrap">
+          <div className="flex items-center gap-2 shrink-0 flex-nowrap">
             {backendStatus === 'offline' && (
-              <span className="hidden lg:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-950/60 text-amber-300 text-[10px] font-medium border border-amber-800/60" title="Backend cloud engine is unavailable or intercepted by deployment protection. Running with full in-browser parsing & question engine.">
-                <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+              <span className="hidden lg:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-400 text-[10px] font-medium border border-amber-500/20" title="Backend cloud engine is unavailable or intercepted by deployment protection. Running with full in-browser parsing & question engine.">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
                 <span>Client Engine Active</span>
               </span>
             )}
             {backendStatus === 'online' && (
-              <span className="hidden lg:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-950/60 text-emerald-300 text-[10px] font-medium border border-emerald-800/60" title="Backend cloud serverless engine verified and responsive.">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+              <span className="hidden lg:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 text-[10px] font-medium border border-emerald-500/20" title="Backend cloud serverless engine verified and responsive.">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
                 <span>Cloud Engine Online</span>
               </span>
             )}
 
             {lastSaved && (
-              <span className="hidden xl:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-800 text-[11px] text-slate-300 font-medium border border-slate-700 shrink-0 whitespace-nowrap">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+              <span className="hidden xl:inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-black/5 dark:bg-white/10 text-[11px] text-neutral-600 dark:text-neutral-300 font-medium border border-black/5 dark:border-white/10 shrink-0 whitespace-nowrap">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
                 <span>Saved {lastSaved}</span>
               </span>
             )}
@@ -367,12 +368,12 @@ export default function App() {
             <button
               onClick={handleRefreshAgents}
               disabled={isRefreshingAgents}
-              className={`p-2 rounded-lg transition-colors cursor-pointer text-xs shrink-0 ${
-                isRefreshingAgents ? 'bg-slate-800 text-slate-400' : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700'
+              className={`h-8 w-8 rounded-full flex items-center justify-center transition-all cursor-pointer text-xs shrink-0 ${
+                isRefreshingAgents ? 'bg-black/5 dark:bg-white/5 text-neutral-400' : 'bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/15 text-neutral-700 dark:text-neutral-200 border border-black/5 dark:border-white/10 active:scale-95'
               }`}
               title="Verify Backend & AI Engine Connectivity"
             >
-              <svg className={`w-4 h-4 ${isRefreshingAgents ? 'animate-spin' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <svg className={`w-3.5 h-3.5 ${isRefreshingAgents ? 'animate-spin' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
               </svg>
             </button>
@@ -380,7 +381,7 @@ export default function App() {
             {hasActiveSession && (
               <button
                 onClick={() => handleResetWorkspace(true)}
-                className="px-3 py-1.5 rounded-lg bg-rose-950/40 hover:bg-rose-900/60 text-rose-300 border border-rose-800/60 text-xs font-semibold transition-all cursor-pointer whitespace-nowrap"
+                className="h-8 px-3 rounded-full bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/20 text-xs font-medium transition-all cursor-pointer whitespace-nowrap active:scale-95"
                 title="Purge current session data and start fresh"
               >
                 Reset Session
@@ -389,23 +390,23 @@ export default function App() {
 
             <button
               onClick={() => setApiKeyModalOpen(true)}
-              className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-semibold transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap"
+              className="h-8 px-3.5 rounded-full bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/15 text-neutral-700 dark:text-neutral-200 border border-black/5 dark:border-white/10 text-xs font-medium transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap active:scale-95"
               title="Configure AI API Providers"
             >
               <span className="hidden sm:inline">
                 {hasConfiguredKeys ? `AI Engines: (${primaryPriority.toUpperCase()})` : 'AI Providers'}
               </span>
-              <span className={`w-2 h-2 rounded-full ${hasConfiguredKeys ? 'bg-emerald-400' : 'bg-amber-400'}`}></span>
+              <span className={`w-1.5 h-1.5 rounded-full ${hasConfiguredKeys ? 'bg-emerald-500' : 'bg-amber-500'}`}></span>
             </button>
 
             <button
               onClick={() => setActiveTab('settings')}
-              className={`p-2 rounded-lg transition-colors cursor-pointer text-xs shrink-0 ${
-                activeTab === 'settings' ? 'bg-primary-600 text-white' : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700'
-              }`}
+              className={`h-8 w-8 rounded-full flex items-center justify-center transition-all cursor-pointer text-xs shrink-0 ${
+                activeTab === 'settings' ? 'bg-[#0071e3] text-white shadow-xs' : 'bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/15 text-neutral-700 dark:text-neutral-200 border border-black/5 dark:border-white/10'
+              } active:scale-95`}
               title="Settings & Storage"
             >
-              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <circle cx="12" cy="12" r="3"/>
                 <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
               </svg>
@@ -413,10 +414,10 @@ export default function App() {
 
             <button
               onClick={() => setDarkMode(!darkMode)}
-              className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-colors cursor-pointer text-xs shrink-0 whitespace-nowrap"
+              className="h-8 px-3 rounded-full bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/15 text-neutral-700 dark:text-neutral-200 border border-black/5 dark:border-white/10 transition-all cursor-pointer text-xs font-medium shrink-0 whitespace-nowrap active:scale-95"
               title="Toggle Light / Dark mode"
             >
-              {darkMode ? 'Light Mode' : 'Dark Mode'}
+              {darkMode ? 'Light' : 'Dark'}
             </button>
           </div>
         </header>
@@ -425,10 +426,10 @@ export default function App() {
         <AnimatePresence>
           {toastMessage && (
             <motion.div
-              initial={{ opacity: 0, y: -20 }}
+              initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              className="bg-emerald-600 text-white text-xs md:text-sm font-semibold py-2 px-4 shadow-lg text-center flex items-center justify-center gap-2 z-50"
+              exit={{ opacity: 0, y: -10 }}
+              className="fixed top-16 left-1/2 transform -translate-x-1/2 apple-glass bg-emerald-600/90 text-white text-xs font-medium py-2 px-5 rounded-full shadow-lg text-center flex items-center justify-center gap-2 z-50 backdrop-blur-xl"
             >
               <span>{toastMessage}</span>
             </motion.div>

@@ -33,16 +33,28 @@
 
 @layer utilities {
   .glass-card {
-    @apply bg-white/80 dark:bg-gray-800/80 backdrop-blur-md border border-white/20 dark:border-gray-700/50 shadow-lg rounded-[16px];
+    @apply bg-white/70 dark:bg-neutral-900/70 backdrop-blur-xl border border-white/40 dark:border-white/10 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.3)] rounded-2xl;
+  }
+  .apple-glass {
+    @apply bg-white/70 dark:bg-black/60 backdrop-blur-2xl border border-black/5 dark:border-white/10 shadow-sm;
+  }
+  .apple-glass-card {
+    @apply bg-white/80 dark:bg-neutral-900/70 backdrop-blur-2xl border border-black/5 dark:border-white/10 shadow-[0_4px_24px_rgba(0,0,0,0.04)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.35)] rounded-3xl;
+  }
+  .apple-pill-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-full px-6 py-2.5 bg-[#0071e3] hover:bg-[#0077ed] text-white font-medium text-xs tracking-tight shadow-sm hover:shadow-md active:scale-[0.98] transition-all duration-200 cursor-pointer;
+  }
+  .apple-pill-secondary {
+    @apply inline-flex items-center justify-center gap-2 rounded-full px-4 py-2 bg-neutral-100 dark:bg-neutral-800/80 hover:bg-neutral-200/80 dark:hover:bg-neutral-700/80 text-neutral-800 dark:text-neutral-200 text-xs font-medium border border-black/5 dark:border-white/10 backdrop-blur-md active:scale-[0.98] transition-all duration-200 cursor-pointer;
   }
   .confidence-high {
-    @apply bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400 border border-green-200 dark:border-green-800;
+    @apply bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20 rounded-full px-2.5 py-0.5 text-xs font-medium;
   }
   .confidence-medium {
-    @apply bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400 border border-amber-200 dark:border-amber-800;
+    @apply bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20 rounded-full px-2.5 py-0.5 text-xs font-medium;
   }
   .confidence-low {
-    @apply bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400 border border-red-200 dark:border-red-800;
+    @apply bg-rose-500/10 text-rose-700 dark:text-rose-400 border border-rose-500/20 rounded-full px-2.5 py-0.5 text-xs font-medium;
   }
   .funnel-bar {
     @apply transition-all duration-1000 ease-out;
@@ -54,5 +66,8 @@
 }
 
 body {
-  @apply bg-gray-50 text-gray-900 dark:bg-gray-950 dark:text-gray-100 transition-colors duration-300;
-}/* cache-bust: v2.1.2 */
+  @apply bg-[#f5f5f7] text-[#1d1d1f] dark:bg-[#000000] dark:text-[#f5f5f7] transition-colors duration-300;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
