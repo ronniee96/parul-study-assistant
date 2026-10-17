@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { generateDynamicQuestions } from '../utils/questionGenerator';
 import { extractMultipleDocuments } from '../utils/clientDocExtractor';
 import { apiFetch } from '../utils/apiClient';
@@ -62,6 +62,9 @@ export default function UploadTab({ appState, setAppState, setActiveTab, session
   
   const [processed, setProcessed] = useState(Boolean(appState.extractedText));
   const [processInfo, setProcessInfo] = useState(null);
+  const [expandedAnswerId, setExpandedAnswerId] = useState(1);
+  const [expandAllAnswers, setExpandAllAnswers] = useState(false);
+  const [copiedAnswerId, setCopiedAnswerId] = useState(null);
 
   useEffect(() => {
     if (!appState.extractedText && !appState.uploadedFile && (!appState.uploadedFiles || appState.uploadedFiles.length === 0)) {
@@ -127,7 +130,7 @@ export default function UploadTab({ appState, setAppState, setActiveTab, session
         legacyCount++;
         continue;
       }
-      if (f.size > 4 * 1024 * 1024) {
+      if (f.size > 50 * 1024 * 1024) {
         oversizedCount++;
         continue;
       }
@@ -144,7 +147,7 @@ export default function UploadTab({ appState, setAppState, setActiveTab, session
       alert(`${legacyCount} legacy file(s) (.doc/.ppt) skipped: Please convert to modern OpenXML (.docx/.pptx) or PDF.`);
     }
     if (oversizedCount > 0) {
-      alert(`${oversizedCount} file(s) exceeded the 4MB limit for zero-cost serverless runtime and were skipped. Please upload compressed PDFs or individual chapters.`);
+      alert(`${oversizedCount} file(s) exceeded the 50MB limit and were skipped. Please upload PDFs under 50MB.`);
     }
 
     if (validFiles.length > 0) {
@@ -196,52 +199,58 @@ export default function UploadTab({ appState, setAppState, setActiveTab, session
       setCurrentStageIndex(0);
       setProgressPercent(20);
 
-      // Attempt 1 (Primary Path): High-fidelity Server-side extraction via /api/v1/process-multiple
-      let timeoutId = null;
-      try {
-        const controller = new AbortController();
-        timeoutId = setTimeout(() => controller.abort(), 15000);
-        const formData = new FormData();
-        files.forEach(f => formData.append('files', f));
+      const hasLargeFiles = files.some(f => (f.size || 0) > 4 * 1024 * 1024);
 
-        const res = await apiFetch('/api/v1/process-multiple', {
-          method: 'POST',
-          body: formData,
-          signal: controller.signal
-        });
+      if (!hasLargeFiles) {
+        // Attempt 1 (Primary Path): High-fidelity Server-side extraction via /api/v1/process-multiple
+        let timeoutId = null;
+        try {
+          const controller = new AbortController();
+          timeoutId = setTimeout(() => controller.abort(), 25000);
+          const formData = new FormData();
+          files.forEach(f => formData.append('files', f));
 
-        if (res && typeof res === 'object') {
-          backendData = res;
-          const serverText = (res.extracted_text || '').trim();
-          if (serverText.length >= 50) {
-            extractedText = serverText;
-            wordCount = res.total_word_count || serverText.split(/\s+/).filter(Boolean).length;
-            charCount = res.total_character_count || serverText.length;
-            filesList = (res.files || []).map(f => ({
-              filename: f.filename,
-              word_count: f.word_count || 0,
-              success: f.success !== false,
-              error: f.error || null
-            }));
-            extractionSource = 'server';
-          } else if (res.success === false && res.files && res.files.length > 0) {
-            backendError = res.files.map(f => f.error).filter(Boolean).join('; ') || res.message;
+          const res = await apiFetch('/api/v1/process-multiple', {
+            method: 'POST',
+            body: formData,
+            signal: controller.signal
+          });
+
+          if (res && typeof res === 'object') {
+            backendData = res;
+            const serverText = (res.extracted_text || '').trim();
+            if (serverText.length >= 50) {
+              extractedText = serverText;
+              wordCount = res.total_word_count || serverText.split(/\s+/).filter(Boolean).length;
+              charCount = res.total_character_count || serverText.length;
+              filesList = (res.files || []).map(f => ({
+                filename: f.filename,
+                word_count: f.word_count || 0,
+                success: f.success !== false,
+                error: f.error || null
+              }));
+              extractionSource = 'server';
+            } else if (res.success === false && res.files && res.files.length > 0) {
+              backendError = res.files.map(f => f.error).filter(Boolean).join('; ') || res.message;
+            }
+          }
+        } catch (err) {
+          backendError = err.message || 'Backend extraction request failed';
+          console.warn('Primary backend extraction unavailable; falling back to in-browser engine:', err);
+        } finally {
+          if (timeoutId) {
+            clearTimeout(timeoutId);
+            timeoutId = null;
           }
         }
-      } catch (err) {
-        backendError = err.message || 'Backend extraction request failed';
-        console.warn('Primary backend extraction unavailable; falling back to in-browser engine:', err);
-      } finally {
-        if (timeoutId) {
-          clearTimeout(timeoutId);
-          timeoutId = null;
-        }
+      } else {
+        console.log("Files exceed 4MB serverless payload limit; routing directly to in-browser PDF.js engine.");
       }
 
-      // Attempt 2 (Fallback Path): In-Browser extraction if backend produced no text
+      // Attempt 2 (Fallback / Large Files Path): In-Browser extraction if backend produced no text
       if (!extractedText || extractedText.length < 50) {
         setCurrentStageIndex(0);
-        setProgressPercent(30);
+        setProgressPercent(35);
         try {
           const extractedData = await extractMultipleDocuments(files);
           const clientText = (extractedData.combinedText || '').trim();
@@ -272,8 +281,6 @@ export default function UploadTab({ appState, setAppState, setActiveTab, session
         let userFacingError;
         if (combinedErrMsg.includes('scanned') || combinedErrMsg.includes('ocr') || combinedErrMsg.includes('tesseract')) {
           userFacingError = 'No selectable digital text found in the uploaded document. Scanned image-only PDFs require OCR binaries (Tesseract) which are not supported on zero-cost serverless hosting. Please upload a digital PDF with selectable text, DOCX, PPTX, or TXT.';
-        } else if (combinedErrMsg.includes('too large') || combinedErrMsg.includes('size')) {
-          userFacingError = 'File size exceeds serverless runtime limit. Please upload compressed PDFs or individual chapters under 4MB.';
         } else {
           userFacingError = 'Unable to extract readable text from the uploaded document(s). Please ensure your PDF is not empty, password-protected, or corrupted, and contains selectable text.';
         }
@@ -415,7 +422,7 @@ export default function UploadTab({ appState, setAppState, setActiveTab, session
           Drag & drop course materials
         </h3>
         <p className="text-xs text-[#86868b] dark:text-neutral-400 max-w-md mb-3">
-          Text-selectable PDFs, PowerPoint (.pptx), Word (.docx), or text files (up to 4MB each).
+          Text-selectable PDFs, PowerPoint (.pptx), Word (.docx), or text files (up to 50MB each).
         </p>
         <p className="text-[11px] text-amber-700 dark:text-amber-400 font-medium max-w-lg mb-5 bg-amber-500/10 px-3.5 py-1.5 rounded-full border border-amber-500/20">
           Note: Scanned PDFs without selectable text are not supported on free serverless runtime.
@@ -719,6 +726,146 @@ export default function UploadTab({ appState, setAppState, setActiveTab, session
               </div>
               <span className="text-[10px] font-semibold text-[#0071e3] mt-2 group-hover:translate-x-0.5 transition-transform">Open Squad →</span>
             </button>
+          </div>
+        </motion.div>
+      )}
+
+      {/* Instant Model Solutions & High-Yield Answers Preview Grounded in Material */}
+      {processed && appState.answers && appState.answers.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 15 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="apple-glass-card p-6 border-black/10 dark:border-white/10 space-y-5"
+        >
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-black/5 dark:border-white/10">
+            <div className="flex items-center gap-3">
+              <span className="text-3xl">🎓</span>
+              <div>
+                <h3 className="font-bold text-base md:text-lg text-[#1d1d1f] dark:text-[#f5f5f7] tracking-tight">
+                  Instant Model Answers & Solutions Grounded in Material
+                </h3>
+                <p className="text-xs text-[#86868b] dark:text-neutral-400">
+                  Top {Math.min(25, appState.answers.length)} university-pattern exam solutions synthesized from your uploaded syllabus
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setExpandAllAnswers(!expandAllAnswers)}
+                className="apple-pill-secondary text-xs px-3.5 py-1.5 cursor-pointer"
+              >
+                <span>{expandAllAnswers ? 'Collapse All' : 'Expand All Answers'}</span>
+              </button>
+              <button
+                onClick={() => setActiveTab('answers')}
+                className="apple-pill-primary text-xs px-4 py-1.5 cursor-pointer"
+              >
+                <span>Open Master Answer Bank →</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Answers Grid */}
+          <div className="flex flex-col gap-3">
+            {appState.answers.slice(0, 15).map((item, idx) => {
+              const isExpanded = expandAllAnswers || expandedAnswerId === (item.id || idx + 1);
+              return (
+                <div
+                  key={item.id || idx}
+                  className="p-4 apple-glass-card border border-black/5 dark:border-white/10 rounded-2xl transition-all"
+                >
+                  <div
+                    onClick={() => setExpandedAnswerId(isExpanded && !expandAllAnswers ? null : (item.id || idx + 1))}
+                    className="flex items-start justify-between gap-4 cursor-pointer"
+                  >
+                    <div className="flex items-start gap-3">
+                      <span className="px-2.5 py-1 bg-[#0071e3]/10 text-[#0071e3] font-bold rounded-xl text-xs shrink-0 mt-0.5">
+                        Q{idx + 1}
+                      </span>
+                      <div>
+                        <h4 className="font-semibold text-xs md:text-sm text-[#1d1d1f] dark:text-[#f5f5f7]">
+                          {item.question}
+                        </h4>
+                        <div className="flex flex-wrap items-center gap-2 mt-2">
+                          <span className="text-[10px] px-2 py-0.5 bg-black/5 dark:bg-white/10 text-neutral-700 dark:text-neutral-300 rounded-md font-medium">
+                            📂 {item.topic || 'Core Concept'}
+                          </span>
+                          <span className="text-[10px] px-2 py-0.5 bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 rounded-md font-medium">
+                            {item.type || 'Model Solution'}
+                          </span>
+                          {item.marks && (
+                            <span className="text-[10px] px-2 py-0.5 bg-amber-500/10 text-amber-700 dark:text-amber-300 rounded-md font-medium">
+                              🏅 {item.marks} Marks
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    <span className={`text-neutral-400 text-xs transform transition-transform ${isExpanded ? 'rotate-180' : ''}`}>
+                      ▼
+                    </span>
+                  </div>
+
+                  {/* Collapsed Snippet */}
+                  {!isExpanded && item.answer && (
+                    <p className="text-xs text-[#86868b] dark:text-neutral-400 mt-2.5 line-clamp-2 pl-9 font-normal italic">
+                      Ans: {item.answer.replace(/\[.*?\]/g, '').trim()}
+                    </p>
+                  )}
+
+                  {/* Expanded Full Answer */}
+                  {isExpanded && (
+                    <div className="mt-4 pt-3 border-t border-black/5 dark:border-white/10 pl-9 space-y-3">
+                      {item.options && (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 my-2">
+                          {item.options.map((opt, oIdx) => (
+                            <div key={oIdx} className="p-2 rounded-xl bg-black/5 dark:bg-white/5 text-xs text-neutral-700 dark:text-neutral-300">
+                              {opt}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      <div className="p-3.5 rounded-2xl bg-black/5 dark:bg-white/5 text-xs md:text-sm text-[#1d1d1f] dark:text-[#f5f5f7] whitespace-pre-wrap leading-relaxed font-sans">
+                        <div className="font-semibold text-emerald-600 dark:text-emerald-400 mb-1">
+                          Model Solution & Marking Guide:
+                        </div>
+                        {item.answer}
+                      </div>
+
+                      {item.key_points && item.key_points.length > 0 && (
+                        <div className="space-y-1">
+                          <span className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider">
+                            Key Points for Evaluator Full Marks:
+                          </span>
+                          <ul className="list-disc list-inside space-y-0.5 text-xs text-neutral-600 dark:text-neutral-400 pl-1">
+                            {item.key_points.map((kp, kpIdx) => (
+                              <li key={kpIdx}>{kp}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      <div className="flex items-center justify-end gap-2 pt-1">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigator.clipboard.writeText(`Q: ${item.question}\n\nAnswer:\n${item.answer}`);
+                            setCopiedAnswerId(item.id || idx + 1);
+                            setTimeout(() => setCopiedAnswerId(null), 2000);
+                          }}
+                          className="apple-pill-secondary text-xs px-3 py-1 cursor-pointer"
+                        >
+                          <span>{copiedAnswerId === (item.id || idx + 1) ? '✓ Copied' : '📋 Copy Solution'}</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </motion.div>
       )}

@@ -19,8 +19,9 @@ const MASTER_CATEGORIES = [
   { id: 'mcqs', label: '🎯 University MCQs', icon: '🎯' }
 ];
 
-export default function AnswerBankTab({ appState, setAppState, setActiveTab, apiKeys, openApiKeyModal, sessionKey }) {
+export default function AnswerBankTab({ appState, setAppState, setActiveTab, apiKeys: _apiKeys, openApiKeyModal: _openApiKeyModal, sessionKey: _sessionKey }) {
   const [expandedId, setExpandedId] = useState(1);
+  const [expandAll, setExpandAll] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [generating, setGenerating] = useState(false);
@@ -56,25 +57,35 @@ export default function AnswerBankTab({ appState, setAppState, setActiveTab, api
 
     if (selectedCategory !== 'all') {
       if (selectedCategory === '1-2m') {
-        pool = pool.filter(a => a.category === "1-2 Mark Definitions" || a.type?.includes("1-2M"));
+        const matches = pool.filter(a => a.category?.includes("1-2") || a.type?.includes("1-2M") || a.type?.includes("Very Short") || (a.marks || 2) <= 2);
+        pool = matches.length > 0 ? matches : pool.filter(a => (a.marks || 2) <= 2);
       } else if (selectedCategory === '2-5m') {
-        pool = pool.filter(a => a.category === "2-5 Mark Definitions" || a.type?.includes("2-5M"));
+        const matches = pool.filter(a => a.category?.includes("2-5") || a.type?.includes("2-5M") || a.marks === 2 || a.marks === 3);
+        pool = matches.length > 0 ? matches : pool;
       } else if (selectedCategory === '5m') {
-        pool = pool.filter(a => a.category === "5-Mark Answers" || (a.marks === 5 && !a.type?.includes("Diagram")));
+        const matches = pool.filter(a => a.category?.includes("5-Mark") || a.type?.includes("Descriptive") || a.marks === 5);
+        pool = matches.length > 0 ? matches : pool.filter(a => a.marks === 5);
       } else if (selectedCategory === '10m') {
-        pool = pool.filter(a => a.category === "10-Mark Answers" || a.marks >= 10);
+        const matches = pool.filter(a => a.category?.includes("10") || a.category?.includes("Essay") || a.type?.includes("Essay") || (a.marks || 0) >= 10);
+        pool = matches.length > 0 ? matches : pool.filter(a => (a.marks || 0) >= 10);
       } else if (selectedCategory === 'diagrams') {
-        pool = pool.filter(a => a.category === "Important Diagrams" || a.type?.includes("Diagram") || a.answer?.includes("[DRAW"));
+        const matches = pool.filter(a => a.category?.includes("Diagram") || a.type?.includes("Diagram") || a.answer?.includes("[DRAW") || a.answer?.includes("Diagram") || a.answer?.includes("Framework:"));
+        pool = matches.length > 0 ? matches : pool.filter(a => a.answer?.includes("->"));
       } else if (selectedCategory === 'flowcharts') {
-        pool = pool.filter(a => a.category === "Process Flowcharts" || a.type?.includes("Flowchart"));
+        const matches = pool.filter(a => a.category?.includes("Process") || a.category?.includes("Workflow") || a.type?.includes("Process") || a.answer?.includes("Stage") || a.answer?.includes("->"));
+        pool = matches.length > 0 ? matches : pool;
       } else if (selectedCategory === 'mindmaps') {
-        pool = pool.filter(a => a.category === "Mind Maps & Hierarchy" || a.type?.includes("Mind Map"));
+        const matches = pool.filter(a => a.category?.includes("Mind Map") || a.type?.includes("Mind Map") || a.answer?.includes("Structure") || a.answer?.includes("Principles"));
+        pool = matches.length > 0 ? matches : pool;
       } else if (selectedCategory === 'lastday') {
-        pool = pool.filter(a => a.category === "Last-Day Revision Notes" || a.type?.includes("Last-Day"));
+        const matches = pool.filter(a => a.category?.includes("Last-Day") || a.type?.includes("Revision") || a.key_points?.length >= 3);
+        pool = matches.length > 0 ? matches : pool;
       } else if (selectedCategory === 'mistakes') {
-        pool = pool.filter(a => a.category === "Common Mistakes & Tips" || a.type?.includes("Mistakes"));
+        const matches = pool.filter(a => a.category?.includes("Mistakes") || a.type?.includes("Examiner") || a.answer?.includes("Common Errors") || a.answer?.includes("Examiner"));
+        pool = matches.length > 0 ? matches : pool;
       } else if (selectedCategory === 'mcqs') {
-        pool = pool.filter(a => a.category === "Exam MCQs" || a.type?.includes("MCQ") || a.options?.length > 0);
+        const matches = pool.filter(a => a.category?.includes("MCQ") || a.type?.includes("MCQ") || (a.options && a.options.length > 0));
+        pool = matches.length > 0 ? matches : pool;
       }
     }
 
@@ -83,11 +94,12 @@ export default function AnswerBankTab({ appState, setAppState, setActiveTab, api
     }
 
     const query = searchQuery.toLowerCase();
-    return pool.filter(a => 
+    const searched = pool.filter(a => 
       a.question?.toLowerCase().includes(query) ||
       a.answer?.toLowerCase().includes(query) ||
       a.topic?.toLowerCase().includes(query)
     );
+    return searched.length > 0 ? searched : pool.slice(0, 10);
   }, [allMasterAnswers, selectedCategory, searchQuery]);
 
   const handleGenerateAnswersFromMaterial = async () => {
@@ -157,6 +169,15 @@ export default function AnswerBankTab({ appState, setAppState, setActiveTab, api
         </div>
 
         <div className="flex flex-wrap gap-2.5">
+          {hasAnswers && (
+            <button
+              onClick={() => setExpandAll(!expandAll)}
+              className="px-4 py-2 bg-primary-50 dark:bg-primary-950/80 text-primary-700 dark:text-primary-300 border border-primary-200 dark:border-primary-800 rounded-xl text-xs md:text-sm font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+            >
+              <span>{expandAll ? 'Collapse All' : 'Expand All Answers'}</span>
+            </button>
+          )}
+
           {hasAnswers && (
             <button
               onClick={handleDownloadStudyGuide}
@@ -241,7 +262,7 @@ export default function AnswerBankTab({ appState, setAppState, setActiveTab, api
           {/* Answer Cards */}
           <div className="flex flex-col gap-3">
             {filteredAnswers.map((item, index) => {
-              const isExpanded = expandedId === (item.id || index + 1);
+              const isExpanded = expandAll || expandedId === (item.id || index + 1);
               const isDiagram = item.category === "Important Diagrams" || item.type?.includes("Diagram") || item.answer?.includes("[DRAW");
               
               return (
@@ -254,7 +275,7 @@ export default function AnswerBankTab({ appState, setAppState, setActiveTab, api
                   }`}
                 >
                   <button
-                    onClick={() => setExpandedId(isExpanded ? null : (item.id || index + 1))}
+                    onClick={() => setExpandedId(isExpanded && !expandAll ? null : (item.id || index + 1))}
                     className="w-full p-4 md:p-5 text-left flex items-start justify-between gap-4 cursor-pointer"
                   >
                     <div className="flex items-start gap-3">
@@ -288,6 +309,21 @@ export default function AnswerBankTab({ appState, setAppState, setActiveTab, api
                       ▼
                     </span>
                   </button>
+
+                  {/* Collapsed Answer Preview Snippet so answers are ALWAYS visible */}
+                  {!isExpanded && item.answer && (
+                    <div 
+                      onClick={() => setExpandedId(item.id || index + 1)}
+                      className="px-4 md:px-5 pb-4 -mt-1 pl-12 md:pl-16 text-xs text-gray-600 dark:text-gray-400 cursor-pointer"
+                    >
+                      <div className="bg-gray-50 dark:bg-gray-800/60 p-2.5 rounded-xl border border-gray-100 dark:border-gray-800 flex items-start gap-2">
+                        <span className="font-bold text-emerald-600 dark:text-emerald-400 shrink-0">Solution Preview:</span>
+                        <p className="line-clamp-2 italic font-sans text-xs leading-relaxed text-gray-700 dark:text-gray-300">
+                          {item.answer.replace(/\[.*?\]/g, '').trim()}
+                        </p>
+                      </div>
+                    </div>
+                  )}
 
                   <AnimatePresence>
                     {isExpanded && (

@@ -2,7 +2,7 @@
 // Extracts genuine human-readable text from user-uploaded PDFs, Word docs, PPTs, and text files
 
 // Helper to ensure PDF.js is loaded with same-origin worker
-async function ensurePdfJsLoaded() {
+export async function ensurePdfJsLoaded() {
   if (typeof window !== 'undefined' && window.pdfjsLib) {
     if (window.pdfjsLib.GlobalWorkerOptions && !window.pdfjsLib.GlobalWorkerOptions.workerSrc) {
       window.pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
