@@ -315,7 +315,12 @@ export default function App() {
   const hasActiveSession = Boolean(appState.uploadedFile || (appState.uploadedFiles && appState.uploadedFiles.length > 0) || appState.extractedText);
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[#f5f5f7] dark:bg-[#000000] text-[#1d1d1f] dark:text-[#f5f5f7] transition-colors duration-300">
+    <div className="flex h-screen overflow-hidden bg-[#f5f5f7] dark:bg-[#000000] text-[#1d1d1f] dark:text-[#f5f5f7] transition-colors duration-300 relative">
+      {/* Liquid Glass Ambient Refraction Glows */}
+      <div className="pointer-events-none fixed -top-28 -right-28 w-96 h-96 rounded-full bg-gradient-to-br from-blue-400/20 via-cyan-300/15 to-transparent blur-3xl dark:from-blue-600/15 dark:via-cyan-600/10 dark:to-transparent z-0" />
+      <div className="pointer-events-none fixed top-1/3 -left-36 w-80 h-80 rounded-full bg-gradient-to-tr from-emerald-300/15 via-teal-200/15 to-transparent blur-3xl dark:from-emerald-700/10 dark:via-teal-800/10 z-0" />
+      <div className="pointer-events-none fixed -bottom-28 right-1/4 w-96 h-96 rounded-full bg-gradient-to-tr from-amber-300/15 via-orange-200/15 to-transparent blur-3xl dark:from-amber-600/10 dark:via-orange-600/10 z-0" />
+
       <Sidebar
         activeTab={activeTab}
         setActiveTab={setActiveTab}
@@ -323,7 +328,7 @@ export default function App() {
         setCollapsed={setSidebarCollapsed}
       />
 
-      <div className="flex-1 flex flex-col h-full overflow-hidden">
+      <div className="flex-1 flex flex-col h-full overflow-hidden relative z-10">
         <header className="h-14 flex items-center justify-between px-6 bg-white/75 dark:bg-black/75 backdrop-blur-2xl border-b border-black/5 dark:border-white/10 sticky top-0 z-40 transition-colors">
           <div className="flex items-center gap-3">
             <div className="w-7 h-7 rounded-[8px] bg-gradient-to-tr from-[#0071e3] to-[#42a5f5] flex items-center justify-center font-bold text-xs text-white shadow-xs">

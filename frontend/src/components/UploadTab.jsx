@@ -433,6 +433,61 @@ export default function UploadTab({ appState, setAppState, setActiveTab, session
         </button>
       </div>
 
+      {/* Liquid Glass Study Vitality & Blueprint Deck */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5">
+        <div className="p-4 apple-glass-card floating-card flex flex-col justify-between">
+          <div className="flex items-center justify-between mb-2">
+            <span className="w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.6)]" />
+            <span className="text-[10px] font-medium text-cyan-700 dark:text-cyan-300 bg-cyan-500/10 px-2 py-0.5 rounded-full border border-cyan-500/20">
+              NAAC A++
+            </span>
+          </div>
+          <div>
+            <span className="text-[11px] text-[#86868b] dark:text-neutral-400 font-medium">Exam Blueprint</span>
+            <h4 className="text-sm font-semibold text-[#1d1d1f] dark:text-[#f5f5f7] tracking-tight">Parul Standard</h4>
+          </div>
+        </div>
+
+        <div className="p-4 apple-glass-card floating-card flex flex-col justify-between">
+          <div className="flex items-center justify-between mb-2">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.6)]" />
+            <span className="text-[10px] font-medium text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+              Zero-Hallucination
+            </span>
+          </div>
+          <div>
+            <span className="text-[11px] text-[#86868b] dark:text-neutral-400 font-medium">Deliberation</span>
+            <h4 className="text-sm font-semibold text-[#1d1d1f] dark:text-[#f5f5f7] tracking-tight">6-Agent Squad</h4>
+          </div>
+        </div>
+
+        <div className="p-4 apple-glass-card floating-card flex flex-col justify-between">
+          <div className="flex items-center justify-between mb-2">
+            <span className="w-2 h-2 rounded-full bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.6)]" />
+            <span className="text-[10px] font-medium text-amber-700 dark:text-amber-300 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
+              Bloom's Schema
+            </span>
+          </div>
+          <div>
+            <span className="text-[11px] text-[#86868b] dark:text-neutral-400 font-medium">Prediction Paper</span>
+            <h4 className="text-sm font-semibold text-[#1d1d1f] dark:text-[#f5f5f7] tracking-tight">Sets A, B, C, D</h4>
+          </div>
+        </div>
+
+        <div className="p-4 apple-glass-card floating-card flex flex-col justify-between">
+          <div className="flex items-center justify-between mb-2">
+            <span className="w-2 h-2 rounded-full bg-blue-400 shadow-[0_0_8px_rgba(96,165,250,0.6)]" />
+            <span className="text-[10px] font-medium text-blue-700 dark:text-blue-300 bg-blue-500/10 px-2 py-0.5 rounded-full border border-blue-500/20">
+              Tiered Funnel
+            </span>
+          </div>
+          <div>
+            <span className="text-[11px] text-[#86868b] dark:text-neutral-400 font-medium">Question Bank</span>
+            <h4 className="text-sm font-semibold text-[#1d1d1f] dark:text-[#f5f5f7] tracking-tight">300 Questions</h4>
+          </div>
+        </div>
+      </div>
+
       {/* Queued Files List */}
       {files.length > 0 && (
         <div className="flex flex-col gap-3">
