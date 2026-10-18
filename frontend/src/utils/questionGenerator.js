@@ -14,13 +14,9 @@
 const INSTITUTIONAL_BOILERPLATE_REGEX = new RegExp(
   '\\b(' +
   'parul\\s*university|vadodara|gujarat|naac|grade\\s*a\\+\\+?|accreditation|' +
-  'faculty\\s+of|department\\s+of|institute\\s+of|centre\\s+for|school\\s+of|' +
-  'assignment\\s*\\d*|assig\\s*\\d*|lecture\\s*\\d*|module\\s*\\d*|modul\\s*\\d*|unit\\s*\\d*|' +
-  'semester|academic\\s*year|batch|roll\\s*no|enrolment|enrollment|student\\s*id|' +
-  'subject\\s*code|course\\s*code|credit|hours|marks|internal\\s*assessment|end\\s*term|' +
   'all\\s*rights\\s*reserved|copyright|prepared\\s*by|presented\\s*by|submitted\\s*by|' +
-  'guided\\s*by|dr\\.|prof\\.|mr\\.|ms\\.|mrs\\.|assistant\\s*professor|associate\\s*professor|' +
-  'page\\s*\\d+|slide\\s*\\d+|table\\s*of\\s*contents|index|objective|outcome' +
+  'guided\\s*by|roll\\s*no|enrolment\\s*no|enrollment\\s*no|batch\\s*\\d{4}|' +
+  'faculty\\s+of\\s+management|institute\\s+of\\s+technology|faculty\\s+of\\s+engineering' +
   ')\\b',
   'i'
 );
@@ -75,12 +71,17 @@ export function cleanTextLines(rawText) {
   if (!rawText) return '';
   return rawText
     .split('\n')
-    .map(line => line.trim())
+    .map(line => {
+      let l = line.trim();
+      if (/^={2,}\s*\[?DOCUMENT\b.*={2,}$/i.test(l)) return '';
+      // Strip structural prefixes like "Unit 1: ", "Module 2 - " while preserving topic title
+      l = l.replace(/^(?:Unit|Module|Topic|Chapter|Lecture)\s*\d*[:\-\u2013]?\s*/i, '');
+      return l.trim();
+    })
     .filter(line => {
-      if (line.length < 4) return false;
-      if (/^={2,}\s*\[?DOCUMENT\b.*={2,}$/i.test(line)) return false;
+      if (line.length < 3) return false;
       if (isCodeOrGarbage(line)) return false;
-      if (INSTITUTIONAL_BOILERPLATE_REGEX.test(line) && line.length < 90) return false;
+      if (INSTITUTIONAL_BOILERPLATE_REGEX.test(line) && line.length < 75) return false;
       return true;
     })
     .join('\n')
@@ -95,80 +96,135 @@ export function cleanTextLines(rawText) {
 export function extractAcademicConcepts(extractedText = '', filename = '') {
   const concepts = [];
   const text = cleanTextLines(extractedText);
-  const isAccounting = /mac|cost|account|finan|audit|budget|decision|cvp|variance|bep/i.test(filename + ' ' + text);
-  const isTech = /cs|it|data|algo|prog|soft|code|web|ai|ml|system|database/i.test(filename + ' ' + text);
+  if (!text || text.length < 15) return [];
 
-  // 1. Definitory Pattern Matching
-  const sentences = text.split(/(?<=[.!?])\s+|\n+/).map(s => s.trim()).filter(s => s.length > 15 && !isCodeOrGarbage(s));
-  
+  // Helper to safely add a unique concept
+  const addConcept = (term, def, raw, bonusOccurrences = 1) => {
+    if (!term || typeof term !== 'string') return;
+    const cleanTerm = term.replace(/^[^a-zA-Z0-9]+|[^a-zA-Z0-9)]+$/g, '').trim();
+    if (cleanTerm.length < 3 || cleanTerm.length > 55) return;
+    if (INSTITUTIONAL_BOILERPLATE_REGEX.test(cleanTerm)) return;
+    if (isCodeOrGarbage(cleanTerm)) return;
+    
+    // Check duplication
+    const lower = cleanTerm.toLowerCase();
+    const existing = concepts.find(c => c.term.toLowerCase() === lower);
+    if (!existing) {
+      concepts.push({
+        term: cleanTerm,
+        definition: (def || `${cleanTerm} is a fundamental concept analyzed in this syllabus material.`).slice(0, 300).trim(),
+        rawText: (raw || def || cleanTerm).slice(0, 300).trim(),
+        occurrences: bonusOccurrences
+      });
+    } else {
+      existing.occurrences = (existing.occurrences || 1) + 1;
+      if (def && def.length > (existing.definition?.length || 0)) {
+        existing.definition = def.slice(0, 300).trim();
+      }
+    }
+  };
+
+  // 1. Natural Definition & Equivalence Statements
+  const sentences = text.split(/(?<=[.!?])\s+|\n+/).map(s => s.trim()).filter(s => s.length > 12 && !isCodeOrGarbage(s));
   for (const s of sentences) {
-    const defMatch = s.match(/^([A-Z][A-Za-z0-9\s\-]{2,45})\s+(is defined as|refers to|means|is the process of|is a method of|is a technique of|is used to|represents)\s+(.+)/i);
+    const defMatch = s.match(/(?:^|(?<=[\n.!?]\s*))([A-Z][A-Za-z0-9\s\-]{2,45})\s+(is an?|are|refers to|is defined as|means|is the process of|is a method of|is a technique of|is used to|represents|stands for|focuses on|consists of|involves|includes|signifies|denotes|serves as|acts as)\s+(.+)/i);
     if (defMatch) {
       const term = defMatch[1].trim();
-      const explanation = defMatch[3].trim();
-      if (!INSTITUTIONAL_BOILERPLATE_REGEX.test(term) && term.length > 3 && term.length < 40) {
-        concepts.push({
-          term: term,
-          definition: `${term} ${defMatch[2]} ${explanation}`,
-          rawText: s
-        });
+      const verb = defMatch[2].trim();
+      const body = defMatch[3].trim();
+      addConcept(term, `${term} ${verb} ${body}`, s, 2);
+    }
+
+    const colonDef = s.match(/^([A-Z][A-Za-z0-9\s\-]{2,45})\s*[:\-\u2013]\s*([A-Za-z].{12,})/);
+    if (colonDef) {
+      const term = colonDef[1].trim();
+      const body = colonDef[2].trim();
+      addConcept(term, `${term}: ${body}`, s, 2);
+    }
+  }
+
+  // 2. Headings, Colon Lines & Bulleted Lists
+  const rawLines = text.split('\n').map(l => l.trim()).filter(l => l.length >= 3 && !isCodeOrGarbage(l));
+  for (const line of rawLines) {
+    const colonHeader = line.match(/^([A-Z][A-Za-z0-9\s\-]{2,45}):$/);
+    if (colonHeader) {
+      const term = colonHeader[1].trim();
+      addConcept(term, `${term} is an essential syllabus subject area detailed in the curriculum.`, line, 2);
+    }
+
+    const bulletMatch = line.match(/^(?:(?:\d+[\.\)]|[\u2022\-\*])\s*)([A-Z][A-Za-z0-9\s\-]{2,45})[:\-\u2013]?\s*(.*)/);
+    if (bulletMatch) {
+      const term = bulletMatch[1].trim();
+      const body = bulletMatch[2].trim();
+      addConcept(term, body.length > 15 ? body : `${term} is an operational component analyzed in the material.`, line, 1);
+    }
+  }
+
+  // 3. Document Filename Concept Harvesting (Extempore, SWOT, SOAR, etc.)
+  if (filename) {
+    if (/swot/i.test(filename)) {
+      addConcept("SWOT Analysis", "SWOT Analysis is a strategic management tool evaluating Strengths, Weaknesses, Opportunities, and Threats.", "Extracted from syllabus document title", 3);
+    }
+    if (/soar/i.test(filename)) {
+      addConcept("SOAR Analysis", "SOAR Analysis is a strategic planning model focusing on Strengths, Opportunities, Aspirations, and measurable Results.", "Extracted from syllabus document title", 3);
+    }
+    if (/extempore/i.test(filename)) {
+      addConcept("Extempore Speaking", "Extempore speaking is an impromptu verbal presentation delivered without prior rehearsal or notes to assess spontaneity, structure, and stage presence.", "Extracted from syllabus document title", 3);
+    }
+
+    const fileList = filename.split(/[\s,;]+/).filter(Boolean);
+    const stopWords = new Set(["sem", "semester", "topic", "reading", "material", "pdf", "docx", "pptx", "txt", "unit", "and", "the", "for", "in", "of", "with", "doc", "presentation", "assignment", "review"]);
+    fileList.forEach(fn => {
+      const base = fn.replace(/\.[^/.]+$/, "").replace(/\d+/g, " ");
+      const words = base.split(/[\s\-_]+/).filter(w => w.length > 2 && !stopWords.has(w.toLowerCase()));
+      if (words.length > 0) {
+        const phrase = words.map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+        if (phrase.length >= 3 && phrase.length <= 40) {
+          addConcept(phrase, `${phrase} is an established syllabus subject derived from course document "${fn}".`, `Document: ${fn}`, 2);
+        }
+      }
+    });
+  }
+
+  // 4. Secondary Deep Extraction across paragraphs if concepts are few (< 6)
+  if (concepts.length < 6 && text.length > 50) {
+    const paragraphs = text.split(/\n\n+|(?<=[.!?])\s{2,}/).map(p => p.trim()).filter(p => p.length > 25 && !isCodeOrGarbage(p));
+    for (const p of paragraphs) {
+      const firstLine = p.split(/[.:\n]/)[0].trim();
+      if (firstLine.length >= 3 && firstLine.length <= 50 && /^[A-Z]/.test(firstLine)) {
+        addConcept(firstLine, p.slice(0, 240), p, 1);
       }
     }
   }
 
-  // 2. Headings & Paragraphs
-  const paragraphs = text.split(/\n\n+|(?<=[.!?])\s{2,}/).map(p => p.trim()).filter(p => p.length > 25 && !isCodeOrGarbage(p));
-  for (const p of paragraphs) {
-    const firstSent = p.split(/[.:\n]/)[0].trim();
-    if (
-      firstSent.length >= 4 && 
-      firstSent.length <= 45 && 
-      /^[A-Z]/.test(firstSent) &&
-      !INSTITUTIONAL_BOILERPLATE_REGEX.test(firstSent) &&
-      !isCodeOrGarbage(firstSent)
-    ) {
-      const alreadyExists = concepts.some(c => c.term.toLowerCase() === firstSent.toLowerCase());
-      if (!alreadyExists) {
-        concepts.push({
-          term: firstSent,
-          definition: p.slice(0, 220),
-          rawText: p
-        });
-      }
-    }
-  }
-
-  // 3. Secondary Deep Extraction Pass across paragraphs if concepts are few
-  if (concepts.length < 8 && text.length > 50) {
-    const rawLines = text.split('\n').map(l => l.trim()).filter(l => l.length > 8 && !isCodeOrGarbage(l));
-    for (const line of rawLines) {
-      // Check for bullet items, list numbers, or bold-like key lines
-      const bulletMatch = line.match(/^(?:[\u2022\-\*\d+\.]\s*)([A-Z][A-Za-z0-9\s\-]{3,45})[:\-\u2013]?\s*(.*)/);
-      if (bulletMatch) {
-        const candidateTerm = bulletMatch[1].trim();
-        const candidateBody = bulletMatch[2].trim() || line;
-        if (
-          candidateTerm.length >= 4 &&
-          candidateTerm.length <= 45 &&
-          !INSTITUTIONAL_BOILERPLATE_REGEX.test(candidateTerm) &&
-          !concepts.some(c => c.term.toLowerCase() === candidateTerm.toLowerCase())
-        ) {
-          concepts.push({
-            term: candidateTerm,
-            definition: candidateBody.length > 15 ? candidateBody.slice(0, 220) : `${candidateTerm} is a core syllabus element analyzed in this document.`,
-            rawText: line,
-            occurrences: 1
-          });
+  // 5. Universal Fail-Safe Pass: Guarantee at least 1-4 concepts from any readable text > 50 chars
+  if (concepts.length === 0 && text.length > 50) {
+    const candidateSentences = text.split(/(?<=[.!?])\s+|\n+/)
+      .map(s => s.trim())
+      .filter(s => s.length >= 25 && s.length <= 300 && !isCodeOrGarbage(s));
+    
+    for (const sent of candidateSentences.slice(0, 6)) {
+      const words = sent.split(/\s+/).filter(Boolean);
+      if (words.length >= 2) {
+        const term = words.slice(0, Math.min(4, words.length)).join(' ').replace(/[^a-zA-Z0-9\s]/g, '').trim();
+        if (term.length >= 3 && term.length <= 40) {
+          addConcept(term, sent.slice(0, 240), sent, 1);
         }
       }
     }
   }
 
-  // Calculate term occurrences for genuine confidence weighting
+  // Re-verify occurrence counts for genuine evidence scoring
   concepts.forEach(c => {
-    const termRegex = new RegExp('\\b' + c.term.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&') + '\\b', 'gi');
-    const matches = text.match(termRegex);
-    c.occurrences = matches ? matches.length : 1;
+    try {
+      const termRegex = new RegExp('\\b' + c.term.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&') + '\\b', 'gi');
+      const matches = text.match(termRegex);
+      if (matches && matches.length > 0) {
+        c.occurrences = Math.max(c.occurrences || 1, matches.length);
+      }
+    } catch {
+      // Keep existing occurrences
+    }
   });
 
   return concepts;

@@ -114,11 +114,23 @@ export async function extractTextFromPDF(file) {
           try {
             const page = await pdf.getPage(pageNum);
             const textContent = await page.getTextContent();
-            const pageStr = textContent.items
-              .map(item => item.str)
-              .join(' ')
-              .replace(/\s+/g, ' ')
-              .trim();
+            let pageLines = [];
+            let currentLine = '';
+            for (const item of textContent.items) {
+              const str = item.str || '';
+              if (!str) continue;
+              currentLine += str;
+              if (item.hasEOL) {
+                if (currentLine.trim()) pageLines.push(currentLine.trim());
+                currentLine = '';
+              } else if (!currentLine.endsWith(' ')) {
+                currentLine += ' ';
+              }
+            }
+            if (currentLine.trim()) pageLines.push(currentLine.trim());
+            const pageStr = pageLines.length > 0 
+              ? pageLines.join('\n') 
+              : textContent.items.map(item => item.str).join(' ').replace(/\s+/g, ' ').trim();
             
             // Verify page text is clean human language, not PDF dictionary tokens
             if (pageStr && pageStr.length > 15 && !isPdfCodeToken(pageStr)) {
@@ -263,8 +275,8 @@ export function cleanExtractedText(text) {
     .replace(/\/Resources\s+\d+\s+\d+\s+R/gi, '')
     .replace(/\/Contents\s+\d+\s+\d+\s+R/gi, '')
     .replace(/Quartz PDFContext/gi, '')
-    .replace(/\n{3,}/g, '\n\n')
     .replace(/[^\x20-\x7E\n\t]/g, ' ')
-    .replace(/\s{2,}/g, ' ')
+    .replace(/[ \t]{2,}/g, ' ')
+    .replace(/\n{3,}/g, '\n\n')
     .trim();
 }
