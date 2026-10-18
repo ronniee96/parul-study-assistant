@@ -4,6 +4,7 @@ import { createAnswerGuidePDF } from '../utils/pdfGenerator';
 import { generateDynamicQuestions } from '../utils/questionGenerator';
 import { apiFetch } from '../utils/apiClient';
 import { formatModelConfidenceBadge } from '../utils/confidenceFormatter';
+import { generateClientAIAnswer, getAvailableApiKeys } from '../utils/aiOrchestrator';
 
 const MASTER_CATEGORIES = [
   { id: 'all', label: '🌟 All High-Yield', icon: '🌟' },
@@ -13,19 +14,19 @@ const MASTER_CATEGORIES = [
   { id: '10m', label: '🏛️ 10-Mark Detailed + Diagrams', icon: '🏛️' },
   { id: 'diagrams', label: '🖼️ Important Diagrams', icon: '🖼️' },
   { id: 'flowcharts', label: '🔀 Process Flowcharts', icon: '🔀' },
-  { id: 'mindmaps', label: '🧠 Mind Maps & Hierarchy', icon: '🧠' },
-  { id: 'lastday', label: '⏱️ Last-Day Revision (30m)', icon: '⏱️' },
+  { id: 'mcqs', label: '🎯 University MCQs', icon: '🎯' },
   { id: 'mistakes', label: '⚠️ Mistakes & Examiner Secrets', icon: '⚠️' },
-  { id: 'mcqs', label: '🎯 University MCQs', icon: '🎯' }
+  { id: 'lastday', label: '⏱️ Last-Day Revision (30m)', icon: '⏱️' }
 ];
 
-export default function AnswerBankTab({ appState, setAppState, setActiveTab, apiKeys: _apiKeys, openApiKeyModal: _openApiKeyModal, sessionKey: _sessionKey }) {
+export default function AnswerBankTab({ appState, setAppState, setActiveTab, apiKeys = {}, openApiKeyModal, sessionKey }) {
   const [expandedId, setExpandedId] = useState(1);
   const [expandAll, setExpandAll] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [generating, setGenerating] = useState(false);
   const [copiedId, setCopiedId] = useState(null);
+  const [enrichingId, setEnrichingId] = useState(null);
 
   const hasDocuments = Boolean(
     (appState.extractedText && appState.extractedText.trim().length > 20) ||
@@ -57,40 +58,28 @@ export default function AnswerBankTab({ appState, setAppState, setActiveTab, api
 
     if (selectedCategory !== 'all') {
       if (selectedCategory === '1-2m') {
-        const matches = pool.filter(a => a.category?.includes("1-2") || a.type?.includes("1-2M") || a.type?.includes("Very Short") || (a.marks || 2) <= 2);
-        pool = matches.length > 0 ? matches : pool.filter(a => (a.marks || 2) <= 2);
+        pool = pool.filter(a => a.category?.includes("1-2") || a.category?.includes("Definitions") || (a.marks || 2) <= 2 && a.type !== 'MCQ');
       } else if (selectedCategory === '2-5m') {
-        const matches = pool.filter(a => a.category?.includes("2-5") || a.type?.includes("2-5M") || a.marks === 2 || a.marks === 3);
-        pool = matches.length > 0 ? matches : pool;
+        pool = pool.filter(a => a.category?.includes("2-5") || a.category?.includes("Concepts") || (a.marks >= 2 && a.marks <= 5 && a.type !== 'MCQ'));
       } else if (selectedCategory === '5m') {
-        const matches = pool.filter(a => a.category?.includes("5-Mark") || a.type?.includes("Descriptive") || a.marks === 5);
-        pool = matches.length > 0 ? matches : pool.filter(a => a.marks === 5);
+        pool = pool.filter(a => a.category?.includes("5-Mark") || a.category?.includes("Descriptive") || a.marks === 5);
       } else if (selectedCategory === '10m') {
-        const matches = pool.filter(a => a.category?.includes("10") || a.category?.includes("Essay") || a.type?.includes("Essay") || (a.marks || 0) >= 10);
-        pool = matches.length > 0 ? matches : pool.filter(a => (a.marks || 0) >= 10);
+        pool = pool.filter(a => a.category?.includes("10") || a.category?.includes("Essay") || a.type === 'Essay' || (a.marks || 0) >= 10);
       } else if (selectedCategory === 'diagrams') {
-        const matches = pool.filter(a => a.category?.includes("Diagram") || a.type?.includes("Diagram") || a.answer?.includes("[DRAW") || a.answer?.includes("Diagram") || a.answer?.includes("Framework:"));
-        pool = matches.length > 0 ? matches : pool.filter(a => a.answer?.includes("->"));
+        pool = pool.filter(a => a.category?.includes("Diagram") || a.answer?.includes("Diagram") || a.answer?.includes("FRAMEWORK") || a.answer?.includes("┌─"));
       } else if (selectedCategory === 'flowcharts') {
-        const matches = pool.filter(a => a.category?.includes("Process") || a.category?.includes("Workflow") || a.type?.includes("Process") || a.answer?.includes("Stage") || a.answer?.includes("->"));
-        pool = matches.length > 0 ? matches : pool;
-      } else if (selectedCategory === 'mindmaps') {
-        const matches = pool.filter(a => a.category?.includes("Mind Map") || a.type?.includes("Mind Map") || a.answer?.includes("Structure") || a.answer?.includes("Principles"));
-        pool = matches.length > 0 ? matches : pool;
-      } else if (selectedCategory === 'lastday') {
-        const matches = pool.filter(a => a.category?.includes("Last-Day") || a.type?.includes("Revision") || a.key_points?.length >= 3);
-        pool = matches.length > 0 ? matches : pool;
-      } else if (selectedCategory === 'mistakes') {
-        const matches = pool.filter(a => a.category?.includes("Mistakes") || a.type?.includes("Examiner") || a.answer?.includes("Common Errors") || a.answer?.includes("Examiner"));
-        pool = matches.length > 0 ? matches : pool;
+        pool = pool.filter(a => a.category?.includes("Process") || a.category?.includes("Workflow") || a.answer?.includes("Stage") || a.answer?.includes("➔") || a.answer?.includes("->"));
       } else if (selectedCategory === 'mcqs') {
-        const matches = pool.filter(a => a.category?.includes("MCQ") || a.type?.includes("MCQ") || (a.options && a.options.length > 0));
-        pool = matches.length > 0 ? matches : pool;
+        pool = pool.filter(a => a.type === 'MCQ' || (a.options && a.options.length > 0));
+      } else if (selectedCategory === 'mistakes') {
+        pool = pool.filter(a => a.category?.includes("Mistakes") || a.category?.includes("Examiner") || a.answer?.includes("Common Errors") || a.answer?.includes("Examiner"));
+      } else if (selectedCategory === 'lastday') {
+        pool = pool.filter(a => a.category?.includes("Last-Day") || a.category?.includes("Revision") || a.answer?.includes("Revision"));
       }
     }
 
     if (!searchQuery.trim()) {
-      return selectedCategory === 'all' ? pool.slice(0, 30) : pool.slice(0, 25);
+      return pool.slice(0, selectedCategory === 'all' ? 50 : 35);
     }
 
     const query = searchQuery.toLowerCase();
@@ -99,7 +88,7 @@ export default function AnswerBankTab({ appState, setAppState, setActiveTab, api
       a.answer?.toLowerCase().includes(query) ||
       a.topic?.toLowerCase().includes(query)
     );
-    return searched.length > 0 ? searched : pool.slice(0, 10);
+    return searched.slice(0, 30);
   }, [allMasterAnswers, selectedCategory, searchQuery]);
 
   const handleGenerateAnswersFromMaterial = async () => {
@@ -112,7 +101,7 @@ export default function AnswerBankTab({ appState, setAppState, setActiveTab, api
     setGenerating(true);
     try {
       const questionsToSolve = allMasterAnswers.slice(0, 25);
-      const res = await apiFetch('/api/v1/generate-answers', {
+      const data = await apiFetch('/api/v1/generate-answers', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -121,20 +110,84 @@ export default function AnswerBankTab({ appState, setAppState, setActiveTab, api
           api_keys: apiKeys
         })
       });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.answers && data.answers.length > 0) {
-          setAppState(prev => ({
-            ...prev,
-            answers: data.answers,
-            stats: { ...prev.stats, answerCount: data.answers.length }
-          }));
-        }
+
+      if (data && data.answers && data.answers.length > 0) {
+        setAppState(prev => ({
+          ...prev,
+          answers: data.answers,
+          stats: { ...prev.stats, answerCount: data.answers.length }
+        }));
+        return;
       }
     } catch (e) {
-      console.warn("Using high-yield master generator:", e);
+      console.warn("Backend generate-answers endpoint not reachable, generating from syllabus engine:", e);
     } finally {
       setGenerating(false);
+    }
+
+    // Client fallback: refresh with grounded answers
+    const freshQs = generateDynamicQuestions(
+      appState.extractedText,
+      appState.uploadedFiles?.map(f => f.name).join(' ') || appState.uploadedFile?.name || ''
+    );
+    const top25 = freshQs.slice(0, 25);
+
+    setAppState(prev => ({
+      ...prev,
+      questions: freshQs,
+      rankedQuestions: top25,
+      answers: top25,
+      stats: { ...prev.stats, questionCount: freshQs.length, answerCount: top25.length }
+    }));
+  };
+
+  // Enrich single answer using connected AI (Gemini or OpenAI)
+  const handleEnrichWithAI = async (item) => {
+    const activeKeys = getAvailableApiKeys(apiKeys);
+    if (!activeKeys.gemini && !activeKeys.openai) {
+      if (openApiKeyModal) {
+        openApiKeyModal();
+      } else {
+        alert("Please connect Google Gemini or OpenAI in API Keys to enable direct AI answer enrichment.");
+      }
+      return;
+    }
+
+    setEnrichingId(item.id);
+    try {
+      const enriched = await generateClientAIAnswer(
+        item.question,
+        appState.extractedText || item.answer,
+        item.marks || 5,
+        activeKeys
+      );
+
+      if (enriched && enriched.answer) {
+        const updated = allMasterAnswers.map(q => {
+          if (q.id === item.id) {
+            return {
+              ...q,
+              answer: enriched.answer,
+              key_points: enriched.key_points && enriched.key_points.length > 0 ? enriched.key_points : q.key_points,
+              is_ai_generated: true,
+              confidence: 0.96
+            };
+          }
+          return q;
+        });
+
+        setAppState(prev => ({
+          ...prev,
+          questions: updated,
+          answers: updated.slice(0, 25)
+        }));
+        alert(`Solution successfully enriched with ${enriched.engine}!`);
+      }
+    } catch (err) {
+      console.error("AI answer enrichment failed:", err);
+      alert(`AI enrichment notice: ${err.message || 'Could not reach AI provider'}`);
+    } finally {
+      setEnrichingId(null);
     }
   };
 
@@ -164,7 +217,7 @@ export default function AnswerBankTab({ appState, setAppState, setActiveTab, api
             <span>🎓</span> Master University Answer Bank ({filteredAnswers.length})
           </h2>
           <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-            Standard 10-tier exam preparation blueprint: 1-2M definitions, 5M & 10M structured answers, diagrams to draw, and examiner scoring secrets.
+            Standard 10-tier exam preparation blueprint: 1-2M definitions, 5M & 10M structured answers, schematics, and examiner scoring secrets.
           </p>
         </div>
 
@@ -191,7 +244,7 @@ export default function AnswerBankTab({ appState, setAppState, setActiveTab, api
             <button
               onClick={handleGenerateAnswersFromMaterial}
               disabled={generating}
-              className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-xl text-xs md:text-sm font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-md"
+              className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-xl text-xs md:text-sm font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-md disabled:opacity-50"
             >
               {generating ? (
                 <>
@@ -259,135 +312,139 @@ export default function AnswerBankTab({ appState, setAppState, setActiveTab, api
             />
           </div>
 
-          {/* Answer Cards */}
+          {/* Answer Cards List */}
           <div className="flex flex-col gap-3">
-            {filteredAnswers.map((item, index) => {
-              const isExpanded = expandAll || expandedId === (item.id || index + 1);
-              const isDiagram = item.category === "Important Diagrams" || item.type?.includes("Diagram") || item.answer?.includes("[DRAW");
-              
+            {filteredAnswers.map((item, idx) => {
+              const isExpanded = expandAll || expandedId === item.id;
+              const diffLabel = item.difficulty === 1 ? '🟢 Easy' : (item.difficulty === 3 || item.marks >= 10 ? '🔴 Hard' : '🟡 Medium');
+
               return (
                 <div
-                  key={item.id || index}
-                  className={`bg-white dark:bg-gray-900 rounded-2xl border transition-all duration-200 shadow-sm overflow-hidden ${
-                    isExpanded 
-                      ? 'border-primary-400 dark:border-primary-600 shadow-md ring-1 ring-primary-400/20' 
-                      : 'border-gray-200 dark:border-gray-800 hover:border-gray-300 dark:hover:border-gray-700'
-                  }`}
+                  key={item.id || idx}
+                  className="glass-card rounded-2xl border border-gray-200 dark:border-gray-800/80 p-5 transition-all shadow-xs flex flex-col gap-3"
                 >
-                  <button
-                    onClick={() => setExpandedId(isExpanded && !expandAll ? null : (item.id || index + 1))}
-                    className="w-full p-4 md:p-5 text-left flex items-start justify-between gap-4 cursor-pointer"
-                  >
-                    <div className="flex items-start gap-3">
-                      <span className="px-2.5 py-1 bg-primary-100 dark:bg-primary-950 text-primary-700 dark:text-primary-300 font-black rounded-xl text-xs shrink-0 mt-0.5">
-                        #{index + 1}
+                  {/* Card Header */}
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="w-7 h-7 rounded-lg bg-emerald-100 dark:bg-emerald-900/50 text-emerald-800 dark:text-emerald-300 font-bold text-xs flex items-center justify-center">
+                        Q{idx + 1}
                       </span>
-                      <div>
-                        <h4 className="font-bold text-sm md:text-base text-gray-900 dark:text-gray-100">
-                          {item.question}
-                        </h4>
-                        <div className="flex flex-wrap items-center gap-2 mt-2">
-                          <span className="text-[11px] px-2.5 py-0.5 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-md font-bold">
-                            📂 {item.topic || 'Core Subject'}
-                          </span>
-                          <span className="text-[11px] px-2.5 py-0.5 bg-indigo-50 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-300 rounded-md font-bold">
-                            {item.type || 'Model Solution'}
-                          </span>
-                          <span className="text-[11px] px-2.5 py-0.5 bg-emerald-50 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 rounded-md font-bold">
-                            🎯 {formatModelConfidenceBadge(item.confidence, item.evidence_score)}
-                          </span>
-                          {item.marks && (
-                            <span className="text-[11px] px-2.5 py-0.5 bg-amber-50 dark:bg-amber-950/80 text-amber-700 dark:text-amber-300 rounded-md font-bold">
-                              🏅 {item.marks} Marks
-                            </span>
-                          )}
-                        </div>
-                      </div>
+
+                      <span className="px-2 py-0.5 rounded-md bg-rose-100 dark:bg-rose-900/40 text-rose-700 dark:text-rose-300 text-xs font-bold flex items-center gap-1 border border-rose-200 dark:border-rose-800">
+                        <span>🎯</span>
+                        <span>{formatModelConfidenceBadge(item.confidence, item.evidence_score)}</span>
+                      </span>
+
+                      <span className="px-2 py-0.5 rounded-md bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 text-xs font-semibold">
+                        [{item.marks || 2} Marks]
+                      </span>
+
+                      <span className="px-2 py-0.5 rounded-md bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 text-xs font-medium">
+                        {item.type || 'Short Answer'}
+                      </span>
+
+                      <span className="px-2 py-0.5 rounded-md text-xs font-semibold bg-gray-50 dark:bg-gray-800/60 text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-gray-700">
+                        {diffLabel}
+                      </span>
+
+                      {item.is_ai_generated && (
+                        <span className="px-2 py-0.5 rounded-md bg-emerald-100 dark:bg-emerald-900/50 text-emerald-800 dark:text-emerald-200 text-[10px] font-bold">
+                          🤖 AI Solution
+                        </span>
+                      )}
                     </div>
 
-                    <span className={`text-gray-400 transform transition-transform duration-200 text-sm shrink-0 ${isExpanded ? 'rotate-180' : ''}`}>
-                      ▼
-                    </span>
-                  </button>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        onClick={() => handleEnrichWithAI(item)}
+                        disabled={enrichingId === item.id}
+                        title="Enhance solution with connected Google Gemini or OpenAI"
+                        className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:hover:bg-emerald-900 dark:text-emerald-300 transition-colors cursor-pointer flex items-center gap-1"
+                      >
+                        {enrichingId === item.id ? (
+                          <>
+                            <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1 }} className="w-3 h-3 border-2 border-emerald-500 border-t-transparent rounded-full" />
+                            <span>AI Solving...</span>
+                          </>
+                        ) : (
+                          <>
+                            <span>🤖</span>
+                            <span>Enrich with AI</span>
+                          </>
+                        )}
+                      </button>
 
-                  {/* Collapsed Answer Preview Snippet so answers are ALWAYS visible */}
-                  {!isExpanded && item.answer && (
-                    <div 
-                      onClick={() => setExpandedId(item.id || index + 1)}
-                      className="px-4 md:px-5 pb-4 -mt-1 pl-12 md:pl-16 text-xs text-gray-600 dark:text-gray-400 cursor-pointer"
-                    >
-                      <div className="bg-gray-50 dark:bg-gray-800/60 p-2.5 rounded-xl border border-gray-100 dark:border-gray-800 flex items-start gap-2">
-                        <span className="font-bold text-emerald-600 dark:text-emerald-400 shrink-0">Solution Preview:</span>
-                        <p className="line-clamp-2 italic font-sans text-xs leading-relaxed text-gray-700 dark:text-gray-300">
-                          {item.answer.replace(/\[.*?\]/g, '').trim()}
-                        </p>
-                      </div>
+                      <button
+                        onClick={() => copyToClipboard(`Q: ${item.question}\n\nAnswer: ${item.answer}`, item.id)}
+                        className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 flex items-center gap-1 cursor-pointer"
+                        title="Copy Question & Answer"
+                      >
+                        <span>{copiedId === item.id ? '✓ Copied' : '📋'}</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Question Title */}
+                  <h4 className="text-sm md:text-base font-bold text-gray-900 dark:text-gray-100 leading-snug">
+                    {item.question}
+                  </h4>
+
+                  {/* MCQ Options (if present) */}
+                  {item.options && item.options.length > 0 && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                      {item.options.map((opt, oIdx) => (
+                        <div
+                          key={oIdx}
+                          className="p-2.5 rounded-xl bg-gray-50 dark:bg-gray-800/60 border border-gray-200 dark:border-gray-700/50 text-xs text-gray-800 dark:text-gray-200 font-medium"
+                        >
+                          {opt}
+                        </div>
+                      ))}
                     </div>
                   )}
 
-                  <AnimatePresence>
-                    {isExpanded && (
-                      <motion.div
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: 'auto' }}
-                        exit={{ opacity: 0, height: 0 }}
-                        className="px-4 md:px-5 pb-5 border-t border-gray-100 dark:border-gray-800 pt-4 flex flex-col gap-4"
-                      >
-                        {/* Options if MCQ */}
-                        {item.options && item.options.length > 0 && (
-                          <div className="bg-blue-50/60 dark:bg-blue-950/30 p-3.5 rounded-xl border border-blue-200 dark:border-blue-900/40">
-                            <span className="text-xs font-bold text-blue-900 dark:text-blue-300 block mb-2">
-                              Options:
+                  {/* Answer Content Accordion */}
+                  <div className="border-t border-gray-100 dark:border-gray-800/60 pt-2">
+                    <button
+                      onClick={() => setExpandedId(isExpanded ? null : item.id)}
+                      className="text-xs font-bold text-primary-600 dark:text-primary-400 hover:text-primary-700 flex items-center gap-1 cursor-pointer mb-2"
+                    >
+                      <span>{isExpanded ? '▲ Hide Full Solution' : '👁️ View Comprehensive Model Answer & Marking Scheme'}</span>
+                    </button>
+
+                    <AnimatePresence>
+                      {isExpanded && (
+                        <motion.div
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: 'auto' }}
+                          exit={{ opacity: 0, height: 0 }}
+                          className="p-4 rounded-2xl bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/60 flex flex-col gap-3 text-xs md:text-sm mt-2"
+                        >
+                          <div>
+                            <span className="font-bold text-emerald-800 dark:text-emerald-300 block mb-1">
+                              Model Examination Answer:
                             </span>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
-                              {item.options.map((opt, oIdx) => (
-                                <div key={oIdx} className="p-2 rounded-lg bg-white dark:bg-gray-900 border border-blue-100 dark:border-blue-900/20 text-gray-800 dark:text-gray-200 font-medium">
-                                  {opt}
-                                </div>
-                              ))}
+                            <div className="text-gray-700 dark:text-gray-300 whitespace-pre-line leading-relaxed font-normal">
+                              {item.answer}
                             </div>
                           </div>
-                        )}
 
-                        {/* Model Solution Box */}
-                        <div className="p-4 bg-gray-50 dark:bg-gray-950/80 rounded-xl border border-gray-200 dark:border-gray-800">
-                          <div className="flex items-center justify-between mb-2">
-                            <span className="text-xs font-bold uppercase tracking-wider text-primary-600 dark:text-primary-400 flex items-center gap-1.5">
-                              <span>✍️</span> Official University Examination Model Answer
-                            </span>
-                            <button
-                              onClick={() => copyToClipboard(item.answer, item.id || index)}
-                              className="text-xs text-gray-600 hover:text-primary-600 dark:text-gray-400 dark:hover:text-primary-400 font-bold cursor-pointer flex items-center gap-1 bg-white dark:bg-gray-900 px-2 py-1 rounded-md border border-gray-200 dark:border-gray-800 shadow-2xs"
-                            >
-                              <span>{copiedId === (item.id || index) ? '✓ Copied!' : '📋 Copy Solution'}</span>
-                            </button>
-                          </div>
-                          
-                          {/* If diagram present, render in monospaced format */}
-                          <div className={`text-xs md:text-sm text-gray-900 dark:text-gray-100 whitespace-pre-line leading-relaxed ${isDiagram ? 'font-mono bg-white dark:bg-black/40 p-3 rounded-lg border border-gray-200 dark:border-gray-800 overflow-x-auto' : 'font-sans'}`}>
-                            {item.answer}
-                          </div>
-                        </div>
-
-                        {/* Key Examination Points Checklist */}
-                        {item.key_points && item.key_points.length > 0 && (
-                          <div>
-                            <span className="text-xs font-bold text-gray-700 dark:text-gray-300 block mb-2">
-                              📌 Examiner Evaluation Rubric:
-                            </span>
-                            <ul className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs text-gray-600 dark:text-gray-400">
-                              {item.key_points.map((kp, kIdx) => (
-                                <li key={kIdx} className="flex items-start gap-2 bg-emerald-50/60 dark:bg-emerald-950/30 p-2.5 rounded-xl border border-emerald-200 dark:border-emerald-900/40 text-gray-800 dark:text-gray-200">
-                                  <span className="text-emerald-600 dark:text-emerald-400 font-bold text-sm">✓</span>
-                                  <span>{kp}</span>
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        )}
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
+                          {item.key_points && item.key_points.length > 0 && (
+                            <div className="pt-2 border-t border-emerald-200/60 dark:border-emerald-800/40">
+                              <span className="font-bold text-emerald-800 dark:text-emerald-300 block mb-1">
+                                High-Yield Key Points (Parul Marking Scheme):
+                              </span>
+                              <ul className="list-disc list-inside space-y-1 text-gray-600 dark:text-gray-300">
+                                {item.key_points.map((kp, kIdx) => (
+                                  <li key={kIdx}>{kp}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
                 </div>
               );
             })}
