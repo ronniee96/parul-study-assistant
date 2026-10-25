@@ -9,11 +9,13 @@ from fastapi.responses import JSONResponse, HTMLResponse
 import uvicorn
 import os
 import logging
-from dotenv import load_dotenv
-
-# Load environment variables
-load_dotenv()
-load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
+# Load environment variables safely
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+    load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
+except ImportError:
+    pass
 
 # Import API router
 from app.api.v1 import router as api_v1_router
@@ -307,21 +309,24 @@ Timestamp: """ + str(logging.Formatter().formatTime(logging.LogRecord('', 0, '',
     )
 
 
-# Include API router
+# Include API router (support both /api/v1 and stripped /v1 prefixes)
 app.include_router(api_v1_router, prefix="/api/v1")
+app.include_router(api_v1_router, prefix="/v1")
 
-# Health check endpoint
+# Health check endpoints
 @app.get("/")
+@app.get("/api")
 async def root():
     return {
         "message": "Ethical MBA Study Assistant API",
-        "version": "1.0.0",
+        "version": "2.0.0",
         "status": "active",
         "ethical_guidelines": "This tool works only with materials you have legitimate access to",
         "docs": "Visit /docs for API documentation"
     }
 
 @app.get("/health")
+@app.get("/api/health")
 async def health_check():
     return {"status": "healthy", "service": "study-assistant-backend"}
 
