@@ -1,0 +1,9 @@
+{
+  "name": "study-assistant-backend-frontend-stub",
+  "version": "2.1.0",
+  "private": true,
+  "description": "Static build stub for backend Vercel deployment",
+  "scripts": {
+    "build": "mkdir -p dist && cp ../public/index.html dist/index.html 2>/dev/null || echo '<!DOCTYPE html><html><body>Backend API Active</body></html>' > dist/index.html"
+  }
+}
