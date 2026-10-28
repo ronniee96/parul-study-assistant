@@ -4,6 +4,6 @@
   "private": true,
   "description": "Backend service for Parul Study Assistant",
   "scripts": {
-    "build": "cd frontend && npm install && npm run build"
+    "build": "mkdir -p dist frontend/dist && echo '<!DOCTYPE html><html><body>Backend API Active</body></html>' | tee dist/index.html frontend/dist/index.html"
   }
 }

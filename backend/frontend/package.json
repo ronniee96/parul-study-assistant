@@ -4,6 +4,6 @@
   "private": true,
   "description": "Static build stub for backend Vercel deployment",
   "scripts": {
-    "build": "mkdir -p dist && cp ../public/index.html dist/index.html 2>/dev/null || echo '<!DOCTYPE html><html><body>Backend API Active</body></html>' > dist/index.html"
+    "build": "mkdir -p dist ../dist && echo '<!DOCTYPE html><html><body>Backend API Active</body></html>' | tee dist/index.html ../dist/index.html"
   }
 }
