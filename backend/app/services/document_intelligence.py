@@ -46,6 +46,36 @@ class DocumentIntelligence:
         'advantage', 'disadvantage', 'merit', 'demerit', 'limitation', 'benefit', 'drawback'
     ]
 
+    INSTITUTIONAL_BOILERPLATE = re.compile(
+        r'\b('
+        r'time:\s*three\s*hours|time:\s*\d+\s*hours?|maximum\s*marks|total\s*marks|'
+        r'semester\s+[ivx\d]+|b\.?\s*tech|examination|faculty\s+of|branch|subject\s*code|'
+        r'roll\s*no|enrolment\s*no|enrollment\s*no|parul\s*university|vadodara|gujarat|'
+        r'naac|grade\s*a\+\+?|all\s*questions\s*carry|instructions\s+to\s+candidates|q\.?\s*no|'
+        r'page\s*\d+\s*of\s*\d+|figure\s*to\s*the\s*right|assume\s*suitable\s*data|'
+        r'cbcs|regular\s*examination|all\s*rights\s*reserved|copyright|prepared\s*by|'
+        r'presented\s*by|submitted\s*by|guided\s*by|institute\s+of\s+technology|'
+        r'seat\s*no|hall\s*ticket|internal\s*assessment|end\s*semester'
+        r')\b',
+        re.IGNORECASE
+    )
+
+    @classmethod
+    def is_boilerplate(cls, text: str) -> bool:
+        if not text or not isinstance(text, str):
+            return True
+        t = text.strip()
+        if len(t) < 3:
+            return True
+        if cls.INSTITUTIONAL_BOILERPLATE.search(t):
+            return True
+        if re.search(r'/Length\b|/Filter\b|/FlateDecode\b|Quartz PDFContext', t, re.I):
+            return True
+        # Check if text is just numbers/symbols
+        if not re.search(r'[a-zA-Z]{3,}', t):
+            return True
+        return False
+
     @classmethod
     def extract_rich_document(
         cls,
@@ -313,6 +343,8 @@ class DocumentIntelligence:
         headings = []
         lines = [l.strip() for l in text.split("\n") if l.strip()]
         for line in lines:
+            if cls.is_boilerplate(line):
+                continue
             if line.isupper() and 4 < len(line) < 60:
                 headings.append(line.title())
             elif re.match(r'^(?:Unit|Module|Chapter|\d+\.|\d+\.\d+)\s+([A-Za-z0-9\s\-:]{3,60})', line, re.IGNORECASE):
@@ -481,6 +513,8 @@ class DocumentIntelligence:
         paras = [p.strip() for p in re.split(r'\n{2,}', text) if len(p.strip()) > 60]
         for p in paras:
             first_sent = p.split('.')[0].strip()
+            if cls.is_boilerplate(first_sent) or cls.is_boilerplate(p[:80]):
+                continue
             if 15 < len(first_sent) < 70 and not any(k in first_sent.lower() for k in ['page', 'slide', 'copyright']):
                 elements.append({
                     "id": f"{doc_id}_concept_{uuid.uuid4().hex[:6]}",

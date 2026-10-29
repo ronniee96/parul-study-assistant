@@ -320,24 +320,47 @@ class ExamPredictionPipeline:
         Selects the Final 25 High-Confidence Predictions with strict syllabus coverage.
         Ensures representation across all sections (Short, Medium, Numerical, Essay).
         """
-        final_25: List[QuestionItem] = []
-        topic_counts = Counter()
-        type_counts = Counter()
+        # Split top_100 candidates by tier: Easy/MCQ/Definition (2-3M), Medium/Descriptive (5-7M), Hard/Essay (8-15M)
+        easy_pool = [q for q in top_100 if q.marks <= 3 and q.type in ['multiple_choice', 'very_short_answer']]
+        if len(easy_pool) < 10:
+            easy_pool = [q for q in top_100 if q.marks <= 3]
 
-        # Prioritize items with 'Very High Evidence' and 'High Evidence'
-        priority_items = [q for q in top_100 if q.confidence_label in ["Very High Evidence", "High Evidence"]]
-        other_items = [q for q in top_100 if q not in priority_items]
+        medium_pool = [q for q in top_100 if 4 <= q.marks <= 7]
+        hard_pool = [q for q in top_100 if q.marks >= 8]
 
-        for q in priority_items + other_items:
-            t = q.topic[:30]
-            # Max 2 questions per exact topic in final 25 to guarantee variety
-            if topic_counts[t] < 2:
-                final_25.append(q)
-                topic_counts[t] += 1
-                type_counts[q.type] += 1
-            if len(final_25) >= 25:
-                break
+        # Prioritize 5 MCQs and 5 Definitions/Short answers in Section A
+        mcq_items = [q for q in easy_pool if q.type == 'multiple_choice']
+        def_items = [q for q in easy_pool if q.type != 'multiple_choice']
+        selected_easy = mcq_items[:5] + def_items[:5]
+        if len(selected_easy) < 10:
+            for q in easy_pool:
+                if q not in selected_easy:
+                    selected_easy.append(q)
+                if len(selected_easy) >= 10:
+                    break
 
+        selected_medium = []
+        for q in medium_pool:
+            if q not in selected_easy and len(selected_medium) < 10:
+                selected_medium.append(q)
+
+        selected_hard = []
+        for q in hard_pool:
+            if q not in selected_easy and q not in selected_medium and len(selected_hard) < 5:
+                selected_hard.append(q)
+
+        # Assemble in examination order: Section A (10 Easy/MCQ) -> Section B (10 Medium/Descriptive) -> Section C (5 Hard/Essay)
+        assembled = selected_easy + selected_medium + selected_hard
+
+        # Fill up to 25 if any pool was short
+        if len(assembled) < 25:
+            for q in top_100:
+                if q not in assembled:
+                    assembled.append(q)
+                if len(assembled) >= 25:
+                    break
+
+        final_25 = assembled[:25]
         # Re-number 1 to 25
         for i, q in enumerate(final_25):
             q.id = i + 1

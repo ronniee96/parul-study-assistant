@@ -76,10 +76,17 @@ class AnswerGenerator:
         }
     
     def _find_relevant_content(self, question: str, topic: str, source_text: str) -> str:
-        """Find the most relevant section of source text for answering"""
-        # Split source into paragraphs
-        paragraphs = [p.strip() for p in re.split(r'\n{2,}|---\s*Slide\s*\d+\s*---', source_text) if len(p.strip()) > 20]
+        """Find the most relevant section of source text for answering, excluding boilerplate and slide markers"""
+        # Clean slide markers and split
+        cleaned_text = re.sub(r'---\s*\[?(?:Page|Slide)\s*\d+\]?\s*---\s*', '\n\n', source_text)
+        raw_paras = [p.strip() for p in re.split(r'\n{2,}', cleaned_text) if len(p.strip()) > 20]
         
+        # Filter out institutional boilerplate
+        from app.services.document_intelligence import DocumentIntelligence
+        paragraphs = [p for p in raw_paras if not DocumentIntelligence.is_boilerplate(p[:80])]
+        if not paragraphs:
+            paragraphs = raw_paras
+            
         if not paragraphs:
             return source_text[:1000]
         
@@ -101,43 +108,53 @@ class AnswerGenerator:
         return top_content[:2000]
     
     def _extract_answer(self, content: str, marks: int, q_type: str) -> str:
-        """Extract and format answer from relevant content"""
-        sentences = [s.strip() for s in re.split(r'(?<=[.!?])\s+', content) if len(s.strip()) > 10]
+        """Extract and format structured academic answer from relevant content"""
+        # Clean slide tags from content
+        clean_content = re.sub(r'---\s*\[?(?:Page|Slide)\s*\d+\]?\s*---\s*', '', content).strip()
+        sentences = [s.strip() for s in re.split(r'(?<=[.!?])\s+|\n+', clean_content) if len(s.strip()) > 10]
+        
+        # Remove any sentences with institutional boilerplate
+        from app.services.document_intelligence import DocumentIntelligence
+        sentences = [s for s in sentences if not DocumentIntelligence.is_boilerplate(s)]
         
         if not sentences:
             return 'Please refer to the study material for a detailed answer.'
         
         # Number of sentences based on marks
-        num_sentences = min(marks * 2, len(sentences))
+        num_sentences = min(max(marks * 2, 2), len(sentences))
         
         # Prioritize definition sentences
         definition_sentences = [s for s in sentences if any(
             marker in s.lower() for marker in ['is defined as', 'refers to', 'is the', 'means', 'can be described']
         )]
         
-        # Build answer
-        answer_parts = []
+        # Build definition header
+        primary_def = definition_sentences[0] if definition_sentences else sentences[0]
+        remaining = [s for s in sentences if s != primary_def]
         
-        # Start with definitions if available
-        for ds in definition_sentences[:2]:
-            answer_parts.append(ds)
-            if ds in sentences:
-                sentences.remove(ds)
-        
-        # Add remaining relevant sentences
-        for s in sentences:
-            if len(answer_parts) >= num_sentences:
-                break
-            if s not in answer_parts:
-                answer_parts.append(s)
-        
-        answer = ' '.join(answer_parts)
-        
-        # Add structure for longer answers
-        if marks >= 5:
-            answer = f"{answer}\n\nIn conclusion, this concept is significant in understanding the broader subject matter and its practical applications."
-        
-        return answer
+        if marks <= 2:
+            return f"Definition:\n{primary_def}\n\nKey Scope:\n• Directly tests foundational syllabus terminology.\n• Formulated for Section A 2-line direct recall."
+        elif marks <= 5:
+            body_pts = remaining[:3] if remaining else ["Core principle grounded in course syllabus.", "Integrates theoretical concepts with practical application."]
+            bullet_str = '\n'.join(f"• {pt}" for pt in body_pts)
+            return (
+                f"1. Theoretical Concept & Meaning:\n{primary_def}\n\n"
+                f"2. Key Operational Principles:\n{bullet_str}\n\n"
+                f"3. Examiner Scoring Rubric:\nFull marks require a clear technical definition followed by at least 3 structured bullet points."
+            )
+        else:
+            body_pts = remaining[:5] if remaining else ["Comprehensive syllabus foundation.", "Operational methodologies and governing parameters."]
+            bullet_str = '\n'.join(f"• Principle {i+1}: {pt}" for i, pt in enumerate(body_pts))
+            return (
+                f"1. Comprehensive Theoretical Analysis:\n{primary_def}\n\n"
+                f"2. Core Operational Breakdown:\n{bullet_str}\n\n"
+                f"3. [DIAGRAM/FLOWCHART TO SKETCH IN BOOKLET]:\n"
+                f"[ Input Parameters ] ➔ [ Governing Process Mechanism ] ➔ [ Output & Quality Benchmarks ]\n\n"
+                f"4. Examiner Evaluation Criteria (Full Marks):\n"
+                f"• Technical definition and governing principles (4 Marks)\n"
+                f"• Detailed operational breakdown and analysis (5 Marks)\n"
+                f"• Neat schematic diagram/flowchart and conclusion (3 Marks)"
+            )
     
     def _extract_key_points(self, content: str) -> List[str]:
         """Extract key points from content"""
