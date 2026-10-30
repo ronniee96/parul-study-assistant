@@ -1218,26 +1218,30 @@ async def generate_summary_endpoint(request: Request):
 
 
 @router.post("/generate-questions")
-async def generate_questions_endpoint(
-    request: Request,
-    text: str = "",
-    num_questions: int = 10,
-    question_types: list = ["multiple_choice", "short_answer"],
-):
+async def generate_questions_endpoint(request: Request):
     """
     Generate practice questions from provided text.
     Stores results with provenance in the capability-verified session.
     """
     session = resolve_request_session(request, create_if_none=True)
 
-    if not text:
-        try:
-            data = await request.json()
-            text = data.get("text", "")
+    text = request.query_params.get("text", "")
+    num_questions = 10
+    try:
+        if request.query_params.get("num_questions"):
+            num_questions = int(request.query_params.get("num_questions"))
+    except Exception:
+        pass
+    question_types = ["multiple_choice", "short_answer"]
+
+    try:
+        data = await request.json()
+        if isinstance(data, dict):
+            text = data.get("text", text)
             num_questions = data.get("num_questions", num_questions)
             question_types = data.get("question_types", question_types)
-        except Exception:
-            pass
+    except Exception:
+        pass
 
     if not text or len(text.strip()) < 50:
         text = session.extracted_text

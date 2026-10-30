@@ -17,8 +17,11 @@ try:
 except ImportError:
     pass
 
-# Import API router
+# Import API routers
 from app.api.v1 import router as api_v1_router
+from app.api.admin_api import admin_router, record_request_trace
+import time
+import uuid
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -42,6 +45,41 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Request Telemetry & Correlation ID Middleware
+@app.middleware("http")
+async def telemetry_middleware(request: Request, call_next):
+    req_id = request.headers.get("X-Request-ID") or f"req_{uuid.uuid4().hex[:12]}"
+    t0 = time.perf_counter()
+    session_id = request.headers.get("X-Session-ID") or request.query_params.get("session_id")
+    error_msg = None
+    status_code = 500
+
+    try:
+        response = await call_next(request)
+        status_code = response.status_code
+        response.headers["X-Request-ID"] = req_id
+        return response
+    except Exception as exc:
+        error_msg = str(exc)
+        raise exc
+    finally:
+        duration_ms = (time.perf_counter() - t0) * 1000
+        # Only record non-static endpoints
+        path = request.url.path
+        if not path.startswith(("/docs", "/redoc", "/openapi.json")):
+            try:
+                record_request_trace(
+                    method=request.method,
+                    path=path,
+                    status_code=status_code,
+                    duration_ms=duration_ms,
+                    session_id=session_id,
+                    error=error_msg
+                )
+            except Exception:
+                pass
+
 
 # Custom error handlers from v1
 @app.exception_handler(404)
@@ -312,6 +350,11 @@ Timestamp: """ + str(logging.Formatter().formatTime(logging.LogRecord('', 0, '',
 # Include API router (support both /api/v1 and stripped /v1 prefixes)
 app.include_router(api_v1_router, prefix="/api/v1")
 app.include_router(api_v1_router, prefix="/v1")
+
+# Include Admin Operations router
+app.include_router(admin_router, prefix="/api/v1/admin")
+app.include_router(admin_router, prefix="/v1/admin")
+
 
 # Health check endpoints
 @app.get("/")

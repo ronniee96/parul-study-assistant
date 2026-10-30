@@ -13,6 +13,7 @@ import ResearchHubTab from './components/ResearchHubTab';
 import TransparencyAuditTab from './components/TransparencyAuditTab';
 import AgentSquadTab from './components/AgentSquadTab';
 import SettingsTab from './components/SettingsTab';
+import OperationsConsole from './components/admin/OperationsConsole';
 import APIKeyModal from './components/APIKeyModal';
 import AkiDashboardCompanion from './components/AkiDashboardCompanion';
 import PrivacyPolicy from './components/PrivacyPolicy';
@@ -81,6 +82,21 @@ export default function App() {
   const [lastSaved, setLastSaved] = useState(null);
   const [isHydrating, setIsHydrating] = useState(true);
   const [backendStatus, setBackendStatus] = useState('checking');
+
+  // Route detection effect: /admin/operations, /admin, ?tab=admin, or #admin
+  useEffect(() => {
+    const path = window.location.pathname || '';
+    const search = window.location.search || '';
+    const hash = window.location.hash || '';
+    if (
+      path === '/admin/operations' ||
+      path.startsWith('/admin') ||
+      search.includes('tab=admin') ||
+      hash.includes('admin')
+    ) {
+      setActiveTab('admin_operations');
+    }
+  }, []);
 
   // Mount effect: Probe backend health and rehydrate active session state from backend or offline cache
   useEffect(() => {
@@ -302,6 +318,15 @@ export default function App() {
         return <StudyPlanTab {...tabProps} />;
       case 'settings':
         return <SettingsTab {...tabProps} handleSaveApiKeys={handleSaveApiKeys} />;
+      case 'admin_operations':
+        return (
+          <OperationsConsole
+            onExit={() => {
+              setActiveTab('upload');
+              if (window.history.pushState) window.history.pushState(null, '', '/');
+            }}
+          />
+        );
       case 'privacy':
         return <PrivacyPolicy onBack={() => setActiveTab('upload')} />;
       case 'terms':
@@ -313,6 +338,18 @@ export default function App() {
 
   const hasConfiguredKeys = Object.values(apiKeys).some(k => k && k.trim().length > 5);
   const hasActiveSession = Boolean(appState.uploadedFile || (appState.uploadedFiles && appState.uploadedFiles.length > 0) || appState.extractedText);
+
+  // If viewing the operations console, render it standalone for the dedicated control-room experience
+  if (activeTab === 'admin_operations') {
+    return (
+      <OperationsConsole
+        onExit={() => {
+          setActiveTab('upload');
+          if (window.history.pushState) window.history.pushState(null, '', '/');
+        }}
+      />
+    );
+  }
 
   return (
     <div className="flex h-screen overflow-hidden bg-[#f5f5f7] dark:bg-[#000000] text-[#1d1d1f] dark:text-[#f5f5f7] transition-colors duration-300 relative">
@@ -402,6 +439,18 @@ export default function App() {
                 {hasConfiguredKeys ? `AI Engines: (${primaryPriority.toUpperCase()})` : 'AI Providers'}
               </span>
               <span className={`w-1.5 h-1.5 rounded-full ${hasConfiguredKeys ? 'bg-emerald-500' : 'bg-amber-500'}`}></span>
+            </button>
+
+            <button
+              onClick={() => {
+                setActiveTab('admin_operations');
+                if (window.history.pushState) window.history.pushState(null, '', '/admin/operations');
+              }}
+              className="h-8 px-3 rounded-full bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-600 dark:text-cyan-400 border border-cyan-500/20 text-xs font-medium transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap active:scale-95"
+              title="Open Deep System Operations & Admin Console"
+            >
+              <span>⚡</span>
+              <span className="hidden md:inline">Operations</span>
             </button>
 
             <button
