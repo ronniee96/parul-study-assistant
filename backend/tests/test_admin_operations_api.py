@@ -4,7 +4,14 @@ Validates constant-time authentication, session capability masking, telemetry en
 and non-destructive forensic integrity checks.
 """
 
+import sys
+from pathlib import Path
 import unittest
+
+BACKEND_DIR = Path(__file__).resolve().parent.parent
+if str(BACKEND_DIR) not in sys.path:
+    sys.path.insert(0, str(BACKEND_DIR))
+
 from fastapi.testclient import TestClient
 from main import app
 from app.api.admin_api import DEFAULT_ADMIN_PASSCODE
