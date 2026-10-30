@@ -1,36 +1,18 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "framework": "vite",
-  "buildCommand": "sh -c 'if [ -d \"frontend\" ]; then cd frontend && npm install && npm run build; else npm install && npm run build; fi'",
+  "buildCommand": "cd frontend && npm install && npm run build",
   "outputDirectory": "frontend/dist",
-  "functions": {
-    "api/index.py": {
-      "maxDuration": 30
-    }
-  },
   "rewrites": [
     {
       "source": "/api",
-      "destination": "/api/index.py"
+      "destination": "/api"
     },
     {
       "source": "/api/(.*)",
-      "destination": "/api/index.py"
+      "destination": "/api"
     },
     {
-      "source": "/docs",
-      "destination": "/api/index.py"
-    },
-    {
-      "source": "/redoc",
-      "destination": "/api/index.py"
-    },
-    {
-      "source": "/openapi.json",
-      "destination": "/api/index.py"
-    },
-    {
-      "source": "/((?!assets/|api|api/|docs|redoc|openapi\\.json|.*\\..*).*)",
+      "source": "/((?!assets/|api|.*\\..*).*)",
       "destination": "/index.html"
     }
   ],

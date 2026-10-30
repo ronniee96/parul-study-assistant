@@ -1,0 +1,23 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "node build.js",
+  "outputDirectory": "dist",
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "/api"
+    },
+    {
+      "source": "/api",
+      "destination": "/api"
+    },
+    {
+      "source": "/health",
+      "destination": "/api/health"
+    },
+    {
+      "source": "/((?!api|.*\\..*).*)",
+      "destination": "/index.html"
+    }
+  ]
+}
