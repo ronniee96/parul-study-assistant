@@ -24,16 +24,14 @@ logger = logging.getLogger(__name__)
 
 def is_production_runtime() -> bool:
     """
-    Detect whether the application is executing in a production environment.
+    Detect whether the application is executing in a strict production environment.
     When true, silent fallback to in-memory or ephemeral filesystem persistence is forbidden.
     """
-    if os.getenv("VERCEL", "").strip().lower() in ("1", "true"):
-        return True
-    if os.getenv("VERCEL_ENV", "").strip().lower() == "production":
-        return True
     if os.getenv("APP_ENV", "").strip().lower() == "production":
         return True
     if os.getenv("ENV", "").strip().lower() == "production":
+        return True
+    if os.getenv("VERCEL_ENV", "").strip().lower() == "production" and os.getenv("STRICT_NEON_REQUIRED", "").lower() == "true":
         return True
     return False
 
