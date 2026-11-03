@@ -4,16 +4,28 @@
   "outputDirectory": "dist",
   "rewrites": [
     {
-      "source": "/api/(.*)",
-      "destination": "/api"
+      "source": "/api/v1/admin/:path*",
+      "destination": "/api/v1/admin.py"
     },
     {
-      "source": "/api",
-      "destination": "/api"
+      "source": "/api/v1/health",
+      "destination": "/api/v1/health.py"
+    },
+    {
+      "source": "/api/health",
+      "destination": "/api/health.py"
     },
     {
       "source": "/health",
-      "destination": "/api/health"
+      "destination": "/api/health.py"
+    },
+    {
+      "source": "/api/(.*)",
+      "destination": "/api/index.py"
+    },
+    {
+      "source": "/api",
+      "destination": "/api/index.py"
     },
     {
       "source": "/((?!api|.*\\..*).*)",
