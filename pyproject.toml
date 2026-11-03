@@ -43,3 +43,12 @@ dev = [
 [project.scripts]
 study-assistant = "backend.main:start"
 study-assistant-mcp = "backend.mcp_server:main"
+
+[tool.setuptools]
+py-modules = ["main", "mcp_server", "verify_exam_pipeline"]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["app*", "api*", "backend*"]
+exclude = ["data*", "public*", "frontend*", "sessions*", "user_data*", "migrations*", "tests*"]
+
