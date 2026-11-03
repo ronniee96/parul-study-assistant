@@ -43,6 +43,14 @@ _TRACE_BUFFER: deque = deque(maxlen=500)
 _LOG_BUFFER: deque = deque(maxlen=500)
 
 
+def _safe_int(val: Any, default: int = 0) -> int:
+    """Safely coerce any database count (including string representations from Postgres) to int."""
+    try:
+        return int(val)
+    except (ValueError, TypeError):
+        return default
+
+
 def record_request_trace(
     method: str,
     path: str,
@@ -197,23 +205,23 @@ async def get_system_overview(request: Request, _auth: bool = Depends(verify_adm
 
     try:
         row = db.fetch_one("SELECT COUNT(*) AS c FROM study_sessions")
-        sessions_count = row.get("c", 0) if row else 0
+        sessions_count = _safe_int(row.get("c", 0)) if row else 0
     except Exception as e:
         logger.warning(f"Error reading sessions count: {e}")
 
     try:
         row = db.fetch_one("SELECT COUNT(*) AS c, COALESCE(SUM(LENGTH(extracted_text)), 0) AS ch FROM session_documents")
         if row:
-            docs_count = row.get("c", 0)
-            total_chars = row.get("ch", 0)
+            docs_count = _safe_int(row.get("c", 0))
+            total_chars = _safe_int(row.get("ch", 0))
     except Exception as e:
         logger.warning(f"Error reading documents count: {e}")
 
     try:
         row_p = db.fetch_one("SELECT COUNT(*) AS c FROM processing_jobs WHERE status = 'PENDING'")
-        jobs_pending = row_p.get("c", 0) if row_p else 0
+        jobs_pending = _safe_int(row_p.get("c", 0)) if row_p else 0
         row_f = db.fetch_one("SELECT COUNT(*) AS c FROM processing_jobs WHERE status = 'FAILED'")
-        jobs_failed = row_f.get("c", 0) if row_f else 0
+        jobs_failed = _safe_int(row_f.get("c", 0)) if row_f else 0
     except Exception as e:
         pass
 
@@ -296,27 +304,27 @@ async def get_architecture_status(request: Request, _auth: bool = Depends(verify
     if db_ok:
         try:
             row_s = db.fetch_one("SELECT COUNT(*) AS c FROM study_sessions")
-            sessions_count = row_s.get("c", 0) if row_s else 0
+            sessions_count = _safe_int(row_s.get("c", 0)) if row_s else 0
         except Exception:
             pass
 
         try:
             row_d = db.fetch_one("SELECT COUNT(*) AS c, COALESCE(SUM(LENGTH(extracted_text)), 0) AS ch FROM session_documents")
             if row_d:
-                docs_count = row_d.get("c", 0)
-                total_chars = row_d.get("ch", 0)
+                docs_count = _safe_int(row_d.get("c", 0))
+                total_chars = _safe_int(row_d.get("ch", 0))
         except Exception:
             pass
 
         try:
             row_q = db.fetch_one("SELECT COUNT(*) AS c FROM study_sessions WHERE questions_json IS NOT NULL AND questions_json != '' AND questions_json != '[]'")
-            questions_count = row_q.get("c", 0) if row_q else 0
+            questions_count = _safe_int(row_q.get("c", 0)) if row_q else 0
         except Exception:
             pass
 
         try:
             row_a = db.fetch_one("SELECT COUNT(*) AS c FROM study_sessions WHERE answers_json IS NOT NULL AND answers_json != '' AND answers_json != '[]'")
-            answers_count = row_a.get("c", 0) if row_a else 0
+            answers_count = _safe_int(row_a.get("c", 0)) if row_a else 0
         except Exception:
             pass
 
@@ -908,7 +916,7 @@ async def get_database_status(request: Request, _auth: bool = Depends(verify_adm
     for tbl in table_names:
         try:
             count_row = db.fetch_one(f"SELECT COUNT(*) AS c FROM {tbl}")
-            count = count_row.get("c", 0) if count_row else 0
+            count = _safe_int(count_row.get("c", 0)) if count_row else 0
             tables_info.append({
                 "table_name": tbl,
                 "row_count": count,
@@ -1162,7 +1170,7 @@ async def verify_system_integrity(request: Request, _auth: bool = Depends(verify
             WHERE s.session_id IS NULL
             """
         )
-        orphaned_docs = row.get("c", 0) if row else 0
+        orphaned_docs = _safe_int(row.get("c", 0)) if row else 0
     except Exception:
         pass
 
