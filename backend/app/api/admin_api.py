@@ -8,6 +8,8 @@ SECURITY BOUNDARY:
 - Real telemetry: no fabricated data; uninstrumented metrics are reported honestly as 'not_instrumented'.
 """
 
+from __future__ import annotations
+
 import os
 import time
 import hmac
@@ -17,7 +19,7 @@ import secrets
 import hashlib
 import logging
 import shutil
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any, Optional, Tuple
 from datetime import datetime, timezone, timedelta
 from collections import deque
 
