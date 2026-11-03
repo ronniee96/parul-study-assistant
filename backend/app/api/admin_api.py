@@ -107,16 +107,65 @@ record_audit_log("INFO", "DatabaseEngine", f"Relational database engine connecte
 
 # ─── Auth Verification Dependency ────────────────────────────
 
-def verify_admin_auth(
+def _get_client_ip(request: Optional[Request]) -> str:
+    """Safely extract client IP address across ASGI implementations."""
+    if not request or not request.client:
+        return "unknown"
+    if hasattr(request.client, "host"):
+        return str(request.client.host)
+    if isinstance(request.client, tuple) and len(request.client) > 0:
+        return str(request.client[0])
+    return str(request.client)
+
+
+def _generate_admin_token() -> Tuple[str, float]:
+    """Generate a cryptographically signed HMAC admin bearer token with 12-hour expiry."""
+    expires_epoch = time.time() + (12 * 3600)  # 12 hours
+    exp_str = str(int(expires_epoch))
+    entropy = secrets.token_hex(8)
+    msg = f"{exp_str}:{entropy}".encode("utf-8")
+    sig = hmac.new(DEFAULT_ADMIN_PASSCODE.encode("utf-8"), msg, hashlib.sha256).hexdigest()[:32]
+    token = f"adm_sec_{exp_str}_{entropy}_{sig}"
+    _ACTIVE_ADMIN_TOKENS[token] = expires_epoch
+    return token, expires_epoch
+
+
+def _verify_admin_token(token: str) -> bool:
+    """Verify admin bearer token using memory cache with stateless HMAC-SHA256 signature verification."""
+    if not token or not token.startswith("adm_sec_"):
+        return False
+    now = time.time()
+    # 1. In-memory fast path
+    if token in _ACTIVE_ADMIN_TOKENS and _ACTIVE_ADMIN_TOKENS[token] > now:
+        return True
+    # 2. Stateless HMAC verification across serverless lambdas
+    parts = token.split("_")
+    if len(parts) == 5:  # adm, sec, exp_str, entropy, sig
+        exp_str, entropy, sig = parts[2], parts[3], parts[4]
+        try:
+            exp_epoch = float(exp_str)
+            if exp_epoch < now:
+                return False
+            msg = f"{exp_str}:{entropy}".encode("utf-8")
+            expected_sig = hmac.new(DEFAULT_ADMIN_PASSCODE.encode("utf-8"), msg, hashlib.sha256).hexdigest()[:32]
+            if hmac.compare_digest(sig, expected_sig):
+                _ACTIVE_ADMIN_TOKENS[token] = exp_epoch
+                return True
+        except Exception:
+            return False
+    return False
+
+
+async def verify_admin_authorization(
     request: Request,
-    authorization: Optional[str] = Header(None, alias="Authorization"),
-    x_admin_key: Optional[str] = Header(None, alias="X-Admin-Key")
+    authorization: Optional[str] = Header(None),
+    x_admin_key: Optional[str] = Header(None)
 ) -> bool:
     """
     Constant-time authentication check for admin console requests.
     Accepts:
     1. Direct 'X-Admin-Key: <passcode>'
-    2. Bearer token in 'Authorization: Bearer <ephemeral_token>'
+    2. Bearer token in 'Authorization: Bearer <token>' (verified statelessly or via cache)
     """
     # 1. Check direct X-Admin-Key header
     if x_admin_key:
@@ -126,21 +175,19 @@ def verify_admin_auth(
     # 2. Check Bearer token
     if authorization and authorization.startswith("Bearer "):
         token = authorization.split(" ", 1)[1].strip()
-        now = time.time()
-        # Clean expired tokens
-        expired_keys = [k for k, exp in _ACTIVE_ADMIN_TOKENS.items() if exp < now]
-        for k in expired_keys:
-            _ACTIVE_ADMIN_TOKENS.pop(k, None)
-
-        if token in _ACTIVE_ADMIN_TOKENS and _ACTIVE_ADMIN_TOKENS[token] > now:
+        if _verify_admin_token(token):
             return True
 
     # Reject unauthorized request
-    record_audit_log("WARN", "AdminAuth", f"Unauthorized admin console access attempt from {request.client.host if request.client else 'unknown'}")
+    client_ip = _get_client_ip(request)
+    record_audit_log("WARN", "AdminAuth", f"Unauthorized admin console access attempt from {client_ip}")
     raise HTTPException(
         status_code=401,
         detail="Unauthorized administrative access. Valid Master Passcode or Admin Bearer Token required."
     )
+
+
+verify_admin_auth = verify_admin_authorization
 
 
 class AdminAuthRequest(BaseModel):
@@ -161,18 +208,16 @@ class AdminAuthResponse(BaseModel):
 async def admin_authenticate(payload: AdminAuthRequest, request: Request):
     """
     Authenticate administrator using constant-time passcode verification.
-    Issues an ephemeral 12-hour session authorization token.
+    Issues a cryptographically signed 12-hour session authorization token.
     """
     input_pass = payload.passcode.strip()
     if not hmac.compare_digest(input_pass, DEFAULT_ADMIN_PASSCODE):
         record_audit_log("WARN", "AdminAuth", "Failed admin login attempt: invalid passcode")
         raise HTTPException(status_code=403, detail="Invalid admin master passcode.")
 
-    token = f"adm_sec_{secrets.token_urlsafe(32)}"
-    expires_epoch = time.time() + (12 * 3600)  # 12 hours
-    _ACTIVE_ADMIN_TOKENS[token] = expires_epoch
+    token, expires_epoch = _generate_admin_token()
 
-    client_ip = request.client.host if request.client else "local"
+    client_ip = _get_client_ip(request)
     record_audit_log("AUDIT", "AdminAuth", f"Admin session authenticated successfully from {client_ip}")
 
     env_name = "production" if is_production_runtime() else "preview_local"
