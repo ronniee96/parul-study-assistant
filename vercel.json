@@ -9,6 +9,10 @@
   },
   "rewrites": [
     {
+      "source": "/api/admin/:path*",
+      "destination": "/api/v1/admin.py"
+    },
+    {
       "source": "/api/v1/admin/:path*",
       "destination": "/api/v1/admin.py"
     },
