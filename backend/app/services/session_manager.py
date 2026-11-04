@@ -534,25 +534,27 @@ class SessionManager:
 
     def _sync_questions(self, session_id: str, questions: List[Dict[str, Any]], now: str) -> None:
         self.db.execute("DELETE FROM session_questions WHERE session_id = ?", (session_id,))
-        for idx, q in enumerate(questions):
-            q_dict = q if isinstance(q, dict) else (q.dict() if hasattr(q, "dict") else asdict(q))
-            q_dict["session_id"] = session_id
-            q_uid = f"{session_id}_q_{idx + 1}"
-            doc_id = q_dict.get("source_document_id") or q_dict.get("document_id")
-            job_id = q_dict.get("job_id")
-            content_hash = q_dict.get("content_hash")
-            source_pages = q_dict.get("source_pages") or []
-            source_snippet = q_dict.get("source_evidence") or q_dict.get("explanation") or ""
+        if not questions:
+            return
 
-            self.db.execute(
-                """
-                INSERT INTO session_questions (
-                    question_uid, session_id, document_id, job_id, content_hash,
-                    question_index, question_type, question_text, topic, marks,
-                    confidence, source_pages_json, source_snippet, question_json, created_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                (
+        batch_size = 30
+        for i in range(0, len(questions), batch_size):
+            batch = questions[i:i + batch_size]
+            value_clauses = []
+            params = []
+            for idx_rel, q in enumerate(batch):
+                idx = i + idx_rel
+                q_dict = q if isinstance(q, dict) else (q.dict() if hasattr(q, "dict") else asdict(q))
+                q_dict["session_id"] = session_id
+                q_uid = f"{session_id}_q_{idx + 1}"
+                doc_id = q_dict.get("source_document_id") or q_dict.get("document_id")
+                job_id = q_dict.get("job_id")
+                content_hash = q_dict.get("content_hash")
+                source_pages = q_dict.get("source_pages") or []
+                source_snippet = q_dict.get("source_evidence") or q_dict.get("explanation") or ""
+
+                value_clauses.append("(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
+                params.extend([
                     q_uid,
                     session_id,
                     doc_id,
@@ -568,8 +570,16 @@ class SessionManager:
                     str(source_snippet)[:500],
                     json.dumps(q_dict, default=str),
                     now,
-                ),
-            )
+                ])
+
+            sql = f"""
+            INSERT INTO session_questions (
+                question_uid, session_id, document_id, job_id, content_hash,
+                question_index, question_type, question_text, topic, marks,
+                confidence, source_pages_json, source_snippet, question_json, created_at
+            ) VALUES {', '.join(value_clauses)}
+            """
+            self.db.execute(sql, params)
 
     def delete_session(
         self,

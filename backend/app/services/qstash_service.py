@@ -97,8 +97,16 @@ class QStashService:
             or ""
         ).strip()
 
+        is_dummy_key = (
+            "qstash-token-here" in self.qstash_token.lower()
+            or "your-token" in self.qstash_token.lower()
+            or "example" in self.qstash_token.lower()
+            or "your-backend" in self.webhook_url.lower()
+            or "sig_current_key_here" in self.current_signing_key.lower()
+        )
         self.live_qstash_configured = bool(
             self.qstash_token
+            and not is_dummy_key
             and os.getenv("QSTASH_CURRENT_SIGNING_KEY")
             and self.webhook_url
         )

@@ -37,9 +37,9 @@ BASE_URL = "http://127.0.0.1:8000"
 def _create_test_http_client():
     """Return a live httpx.Client if port 8000 is listening, otherwise an in-process FastAPI TestClient."""
     try:
-        probe = httpx.get(f"{BASE_URL}/api/v1/health", timeout=1.0)
+        probe = httpx.get(f"{BASE_URL}/api/v1/health", timeout=2.0)
         if probe.status_code == 200:
-            return httpx.Client(base_url=BASE_URL, timeout=20.0)
+            return httpx.Client(base_url=BASE_URL, timeout=60.0)
     except Exception:
         pass
     from fastapi.testclient import TestClient

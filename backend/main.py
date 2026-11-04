@@ -9,6 +9,12 @@ from fastapi.responses import JSONResponse, HTMLResponse
 import uvicorn
 import os
 import logging
+try:
+    import certifi
+    if not os.environ.get("SSL_CERT_FILE"):
+        os.environ["SSL_CERT_FILE"] = certifi.where()
+except ImportError:
+    pass
 # Load environment variables safely
 try:
     from dotenv import load_dotenv
@@ -354,6 +360,7 @@ app.include_router(api_v1_router, prefix="/v1")
 # Include Admin Operations router
 app.include_router(admin_router, prefix="/api/v1/admin")
 app.include_router(admin_router, prefix="/v1/admin")
+app.include_router(admin_router, prefix="/api/admin")
 
 
 # Health check endpoints

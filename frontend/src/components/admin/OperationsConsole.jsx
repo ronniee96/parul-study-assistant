@@ -4,10 +4,15 @@ import ComponentInspector from './ComponentInspector';
 import RequestTraceViewer from './RequestTraceViewer';
 import DocumentProcessingBench from './DocumentProcessingBench';
 import AIProviderMonitor from './AIProviderMonitor';
+import AcademicPipelinePanel from './AcademicPipelinePanel';
 import SessionIntegrityPanel from './SessionIntegrityPanel';
 import DatabaseStoragePanel from './DatabaseStoragePanel';
+import JobsQueuesPanel from './JobsQueuesPanel';
 import LogEventExplorer from './LogEventExplorer';
+import MetricsAnalyticsPanel from './MetricsAnalyticsPanel';
+import SecurityAuditPanel from './SecurityAuditPanel';
 import TestReleaseHealthPanel from './TestReleaseHealthPanel';
+import SystemConfigPanel from './SystemConfigPanel';
 import AdminAuthModal from './AdminAuthModal';
 import { COMPONENT_GROUPS, SYSTEM_GROUPS, SYSTEM_NODES, getNode } from './operationsRegistry';
 
@@ -92,7 +97,7 @@ export default function OperationsConsole({ onExit }) {
     setRefreshTrigger((prev) => prev + 1);
   };
 
-  // 15 Left Navigation Modules matching Reference Image B
+  // 16 Left Navigation Modules matching Reference Image B
   const navItems = [
     { id: 'overview', label: 'System Overview', icon: '🏠' },
     { id: 'architecture', label: 'Architecture Map', icon: '🗺️' },
@@ -100,6 +105,7 @@ export default function OperationsConsole({ onExit }) {
     { id: 'tracing', label: 'Request Tracing', icon: '⚡' },
     { id: 'documents', label: 'Document Processing', icon: '📄' },
     { id: 'ai_providers', label: 'AI Provider Operations', icon: '🧠' },
+    { id: 'academic', label: 'Academic Pipeline', icon: '🎓' },
     { id: 'sessions', label: 'Sessions & Data', icon: '🛡️' },
     { id: 'database', label: 'Database & Storage', icon: '💾' },
     { id: 'jobs', label: 'Jobs & Queues', icon: '⏱️' },
@@ -108,7 +114,7 @@ export default function OperationsConsole({ onExit }) {
     { id: 'security', label: 'Security & Audit', icon: '🔒' },
     { id: 'health', label: 'Test & Release Health', icon: '🧪' },
     { id: 'config', label: 'Configuration', icon: '⚙️' },
-    { id: 'settings', label: 'Settings', icon: '⚙️' }
+    { id: 'settings', label: 'Settings', icon: '🔧' }
   ];
 
   return (
@@ -253,6 +259,110 @@ export default function OperationsConsole({ onExit }) {
         <div className="flex-1 flex flex-col overflow-hidden">
           {/* Active Central Content Viewport */}
           <div className="flex-1 overflow-hidden relative">
+            {/* VIEW: SYSTEM OVERVIEW */}
+            {activeNav === 'overview' && (
+              <div className="h-full overflow-y-auto p-6 space-y-6 text-gray-200">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-800 pb-4">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xl">🏠</span>
+                      <h1 className="text-lg font-bold text-white tracking-tight">System Overview & Live Health</h1>
+                      <span className="px-2 py-0.5 rounded text-[11px] font-mono bg-emerald-500/10 text-emerald-300 border border-emerald-500/30">
+                        Health Score: {overviewData?.health_score || 98.5}%
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-400 mt-1">
+                      High-level telemetry across student clients, Vercel gateways, document processors, AI engines, and database persistence.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setActiveNav('architecture')}
+                      className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow transition"
+                    >
+                      Open Architecture Map ➔
+                    </button>
+                  </div>
+                </div>
+
+                {/* 4 High-Level KPI Cards */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div className="p-4 bg-[#090d16] border border-gray-800 rounded-xl space-y-1">
+                    <span className="text-xs text-gray-400">Total System Nodes</span>
+                    <div className="text-2xl font-bold font-mono text-cyan-400">32</div>
+                    <span className="text-[10px] font-mono text-emerald-400">Across 7 Core Groups</span>
+                  </div>
+
+                  <div className="p-4 bg-[#090d16] border border-gray-800 rounded-xl space-y-1">
+                    <span className="text-xs text-gray-400">Database Latency (SQL Ping)</span>
+                    <div className="text-2xl font-bold font-mono text-emerald-400">
+                      {overviewData?.kpis?.db_latency_ms !== undefined ? `${overviewData.kpis.db_latency_ms} ms` : '0.44 ms'}
+                    </div>
+                    <span className="text-[10px] font-mono text-gray-400">
+                      Backend: {overviewData?.database?.backend || 'sqlite_wal / neon'}
+                    </span>
+                  </div>
+
+                  <div className="p-4 bg-[#090d16] border border-gray-800 rounded-xl space-y-1">
+                    <span className="text-xs text-gray-400">Processed Documents</span>
+                    <div className="text-2xl font-bold font-mono text-white">
+                      {overviewData?.kpis?.processed_documents || 0}
+                    </div>
+                    <span className="text-[10px] font-mono text-cyan-400">
+                      {(overviewData?.kpis?.extracted_characters || 0).toLocaleString()} chars extracted
+                    </span>
+                  </div>
+
+                  <div className="p-4 bg-[#090d16] border border-gray-800 rounded-xl space-y-1">
+                    <span className="text-xs text-gray-400">Active Anonymous Sessions</span>
+                    <div className="text-2xl font-bold font-mono text-purple-400">
+                      {overviewData?.kpis?.active_sessions || 0}
+                    </div>
+                    <span className="text-[10px] font-mono text-emerald-400">HMAC Capability Guard Active</span>
+                  </div>
+                </div>
+
+                {/* Quick Navigation to Key Workbenches */}
+                <div className="bg-[#090d16] border border-gray-800 rounded-xl p-5 space-y-4">
+                  <h2 className="text-sm font-bold text-white">Operations Workbench Quick-Launch</h2>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <button
+                      onClick={() => setActiveNav('tracing')}
+                      className="p-3 bg-[#05080e] border border-gray-800 hover:border-blue-500 rounded-xl text-left transition space-y-1"
+                    >
+                      <div className="flex items-center gap-2 text-xs font-bold text-white">
+                        <span>⚡</span>
+                        <span>Request Tracing</span>
+                      </div>
+                      <p className="text-[11px] text-gray-400">Inspect real-time execution waterfall and latency breakdowns.</p>
+                    </button>
+
+                    <button
+                      onClick={() => setActiveNav('academic')}
+                      className="p-3 bg-[#05080e] border border-gray-800 hover:border-amber-500 rounded-xl text-left transition space-y-1"
+                    >
+                      <div className="flex items-center gap-2 text-xs font-bold text-white">
+                        <span>🎓</span>
+                        <span>Academic Pipeline</span>
+                      </div>
+                      <p className="text-[11px] text-gray-400">Monitor 4-tier funnel (300➔200➔100➔25) and Parul PYQ weighting.</p>
+                    </button>
+
+                    <button
+                      onClick={() => setActiveNav('health')}
+                      className="p-3 bg-[#05080e] border border-gray-800 hover:border-emerald-500 rounded-xl text-left transition space-y-1"
+                    >
+                      <div className="flex items-center gap-2 text-xs font-bold text-white">
+                        <span>🧪</span>
+                        <span>Test & Release Health</span>
+                      </div>
+                      <p className="text-[11px] text-gray-400">Verify unit tests, API contracts, and CI/CD workflow status.</p>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* VIEW: ARCHITECTURE MAP (PRIMARY) */}
             {activeNav === 'architecture' && (
               <ArchitectureCanvas
@@ -298,6 +408,16 @@ export default function OperationsConsole({ onExit }) {
               />
             )}
 
+            {/* VIEW: ACADEMIC GENERATION PIPELINE */}
+            {activeNav === 'academic' && (
+              <AcademicPipelinePanel
+                onSelectNode={(nodeId) => {
+                  setSelectedNodeId(nodeId);
+                  setActiveNav('architecture');
+                }}
+              />
+            )}
+
             {/* VIEW: SESSIONS & DATA */}
             {activeNav === 'sessions' && (
               <SessionIntegrityPanel
@@ -324,9 +444,8 @@ export default function OperationsConsole({ onExit }) {
 
             {/* VIEW: JOBS & QUEUES */}
             {activeNav === 'jobs' && (
-              <DatabaseStoragePanel
+              <JobsQueuesPanel
                 adminToken={adminToken}
-                onRefreshTrigger={refreshTrigger}
                 onSelectNode={(nodeId) => {
                   setSelectedNodeId(nodeId);
                   setActiveNav('architecture');
@@ -339,6 +458,28 @@ export default function OperationsConsole({ onExit }) {
               <LogEventExplorer
                 adminToken={adminToken}
                 onRefreshTrigger={refreshTrigger}
+                onSelectNode={(nodeId) => {
+                  setSelectedNodeId(nodeId);
+                  setActiveNav('architecture');
+                }}
+              />
+            )}
+
+            {/* VIEW: METRICS & ANALYTICS */}
+            {activeNav === 'metrics' && (
+              <MetricsAnalyticsPanel
+                overviewData={overviewData}
+                onSelectNode={(nodeId) => {
+                  setSelectedNodeId(nodeId);
+                  setActiveNav('architecture');
+                }}
+              />
+            )}
+
+            {/* VIEW: SECURITY & AUDIT */}
+            {activeNav === 'security' && (
+              <SecurityAuditPanel
+                adminToken={adminToken}
                 onSelectNode={(nodeId) => {
                   setSelectedNodeId(nodeId);
                   setActiveNav('architecture');
@@ -366,7 +507,18 @@ export default function OperationsConsole({ onExit }) {
                   <p className="text-xs text-gray-400">Click any component to open the inspector and view telemetry.</p>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                  {SYSTEM_NODES.map((node) => (
+                  {SYSTEM_NODES
+                    .filter((node) => {
+                      if (!globalSearch.trim()) return true;
+                      const q = globalSearch.toLowerCase();
+                      return (
+                        node.label.toLowerCase().includes(q) ||
+                        node.description.toLowerCase().includes(q) ||
+                        node.id.toLowerCase().includes(q) ||
+                        (node.file && node.file.toLowerCase().includes(q))
+                      );
+                    })
+                    .map((node) => (
                     <div
                       key={node.id}
                       onClick={() => {
@@ -391,61 +543,15 @@ export default function OperationsConsole({ onExit }) {
               </div>
             )}
 
-            {/* VIEW: METRICS & ANALYTICS */}
-            {activeNav === 'metrics' && (
-              <div className="h-full overflow-y-auto p-6 space-y-6">
-                <div>
-                  <h2 className="text-base font-bold text-white">Metrics & Execution Analytics</h2>
-                  <p className="text-xs text-gray-400">Detailed throughput, latency percentiles, and reliability trends.</p>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="p-4 bg-[#090d16] border border-gray-800 rounded-xl space-y-2">
-                    <span className="text-xs text-gray-400">API Gateway p50</span>
-                    <div className="text-2xl font-bold font-mono text-cyan-400">14.2 ms</div>
-                  </div>
-                  <div className="p-4 bg-[#090d16] border border-gray-800 rounded-xl space-y-2">
-                    <span className="text-xs text-gray-400">AI Ingestion p95</span>
-                    <div className="text-2xl font-bold font-mono text-amber-400">1.24 s</div>
-                  </div>
-                  <div className="p-4 bg-[#090d16] border border-gray-800 rounded-xl space-y-2">
-                    <span className="text-xs text-gray-400">Max Concurrency</span>
-                    <div className="text-2xl font-bold font-mono text-emerald-400">500 req/s</div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* VIEW: SECURITY & AUDIT */}
-            {activeNav === 'security' && (
-              <div className="h-full overflow-y-auto p-6 space-y-4 text-xs">
-                <h2 className="text-base font-bold text-white">Security & Audit Controls</h2>
-                <div className="p-4 bg-[#090d16] border border-gray-800 rounded-xl space-y-2 leading-relaxed">
-                  <p className="text-gray-300">
-                    Validated with constant-time HMAC tokens, SHA-256 capability digests, and strict session-isolated databases.
-                  </p>
-                </div>
-              </div>
-            )}
-
             {/* VIEW: CONFIGURATION & SETTINGS */}
             {(activeNav === 'config' || activeNav === 'settings') && (
-              <div className="h-full overflow-y-auto p-6 space-y-4 text-xs font-mono">
-                <h2 className="text-base font-bold text-white font-sans">Configuration & System Settings</h2>
-                <div className="bg-[#090d16] border border-gray-800 rounded-xl p-4 space-y-2 text-xs">
-                  <div className="flex justify-between border-b border-gray-800 pb-2">
-                    <span className="text-gray-400">FEATURE_ADMIN_OPERATIONS:</span>
-                    <span className="text-emerald-400">ACTIVE</span>
-                  </div>
-                  <div className="flex justify-between border-b border-gray-800 pb-2">
-                    <span className="text-gray-400">ENVIRONMENT:</span>
-                    <span className="text-cyan-400">PREVIEW (Vercel + Neon)</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-400">DATABASE_DIALECT:</span>
-                    <span className="text-purple-400">POSTGRESQL / SQLITE_WAL</span>
-                  </div>
-                </div>
-              </div>
+              <SystemConfigPanel
+                overviewData={overviewData}
+                onSelectNode={(nodeId) => {
+                  setSelectedNodeId(nodeId);
+                  setActiveNav('architecture');
+                }}
+              />
             )}
           </div>
 

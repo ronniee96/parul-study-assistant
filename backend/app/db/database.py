@@ -291,7 +291,13 @@ class DatabaseEngine:
             "query": dollar_sql,
             "params": list(params),
         }
-        with httpx.Client(timeout=15.0) as client:
+        client_kwargs: Dict[str, Any] = {"timeout": 15.0}
+        try:
+            import certifi
+            client_kwargs["verify"] = certifi.where()
+        except ImportError:
+            pass
+        with httpx.Client(**client_kwargs) as client:
             resp = client.post(self._neon_http_endpoint, headers=headers, json=payload)
             if resp.status_code != 200:
                 raise RuntimeError(f"Neon HTTP SQL error ({resp.status_code}): {resp.text[:250]}")

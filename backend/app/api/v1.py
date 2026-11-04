@@ -812,8 +812,17 @@ async def process_document(
 
     # Support options passed via query parameters or multipart form data
     if request is not None:
-        try:
-            form = await request.form()
+        if "generate_questions" in request.query_params:
+            generate_questions = request.query_params["generate_questions"].lower() in ("true", "1", "yes")
+        if "generate_summary" in request.query_params:
+            generate_summary = request.query_params["generate_summary"].lower() in ("true", "1", "yes")
+        if "num_questions" in request.query_params:
+            try:
+                num_questions = int(request.query_params["num_questions"])
+            except (ValueError, TypeError):
+                pass
+        form = getattr(request, "_form", None)
+        if form is not None:
             if "generate_questions" in form:
                 generate_questions = str(form.get("generate_questions", "")).lower() in ("true", "1", "yes")
             if "generate_summary" in form:
@@ -823,8 +832,6 @@ async def process_document(
                     num_questions = int(form.get("num_questions", 10))
                 except (ValueError, TypeError):
                     pass
-        except Exception:
-            pass
 
     file_extension = os.path.splitext(file.filename or "")[1].lower()
     if file_extension in UNSUPPORTED_LEGACY_BINARY_EXTENSIONS:
