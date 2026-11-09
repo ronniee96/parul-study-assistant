@@ -11,6 +11,7 @@ if str(BACKEND_DIR) not in sys.path:
     sys.path.insert(0, str(BACKEND_DIR))
 
 import unittest
+
 from fastapi.testclient import TestClient
 from main import app
 from app.api.admin_api import DEFAULT_ADMIN_PASSCODE
