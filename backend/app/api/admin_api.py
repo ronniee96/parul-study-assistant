@@ -420,7 +420,7 @@ async def register_passkey(payload: PasskeyRegisterRequest, request: Request):
             detail="A master Mac Touch ID passkey is already permanently registered. No additional passkeys can be created."
         )
 
-    # First-time enrollment: No passwords needed. Binds directly to the Mac Touch ID enclave.
+    # First-time enrollment: Zero passwords required. Binds directly to the Mac Touch ID enclave.
 
     passkey_id = f"pk_{uuid.uuid4().hex[:12]}"
     cred_id = payload.credential_id.strip()

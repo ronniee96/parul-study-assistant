@@ -41,10 +41,3 @@ backend/data/*.sqlite3*
 backend/data/s3_local/
 .vercel
 .env*
-
-# October desktop — local canvas state
-.october/
-
-# October (generated — context bus / browser MCP)
-.codex/config.toml
-.codex/hooks.json
