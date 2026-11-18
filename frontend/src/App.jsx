@@ -336,8 +336,28 @@ export default function App() {
           />
         );
       case 'student_toolkit':
+      case 'student_academic_suite':
+      case 'student_dashboard':
+      case 'student_plagiarism':
+      case 'student_ai_text':
+      case 'student_paraphrase':
+      case 'student_grammar':
+      case 'student_assignment':
+      case 'student_resume':
+      case 'student_flowchart':
+      case 'student_database':
+      case 'student_spreadsheet':
+      case 'student_engineering':
+      case 'student_documents':
+      case 'student_reports':
+      case 'student_settings':
         return (
           <StudentToolkitShell
+            initialSubTab={
+              activeTab.startsWith('student_') && activeTab !== 'student_toolkit' && activeTab !== 'student_academic_suite'
+                ? activeTab.replace('student_', '')
+                : 'dashboard'
+            }
             onExit={() => {
               setActiveTab('upload');
               if (window.history.pushState) window.history.pushState(null, '', '/');

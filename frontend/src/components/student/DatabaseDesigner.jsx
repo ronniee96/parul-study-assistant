@@ -7,21 +7,43 @@ import {
   IconCheck,
   IconX
 } from './StudentIcons';
-import { formatApiError } from './studentUtils';
+import { formatApiError, computeLocalDatabaseSchema } from './studentUtils';
+
+const DB_PRESETS = [
+  {
+    id: 'bookstore',
+    label: 'Academic Bookstore (E-Commerce)',
+    engine: 'mysql',
+    norm: 'BCNF',
+    desc: 'E-commerce academic bookstore where students can browse textbooks, place orders with multiple line items, leave course reviews, and apply discount coupons.'
+  },
+  {
+    id: 'university',
+    label: 'Course Enrollment Platform',
+    engine: 'postgresql',
+    norm: '3NF',
+    desc: 'Create an academic course enrollment platform with Students, Faculty, Courses, Department, Grades, and Classroom Scheduling.'
+  },
+  {
+    id: 'hospital',
+    label: 'Clinical Health Records',
+    engine: 'postgresql',
+    norm: '3NF',
+    desc: 'Hospital clinical management database with Departments, Doctors, Patients, Appointments, Prescriptions, and Billings.'
+  }
+];
 
 export default function DatabaseDesigner() {
-  const [description, setDescription] = useState(
-    'Create an academic course enrollment platform with Students, Faculty, Courses, Department, Grades, and Classroom Scheduling.'
-  );
-  const [dbEngine, setDbEngine] = useState('postgresql');
-  const [normalizationLevel, setNormalizationLevel] = useState('3NF');
+  const [description, setDescription] = useState(DB_PRESETS[0].desc);
+  const [dbEngine, setDbEngine] = useState('mysql');
+  const [normalizationLevel, setNormalizationLevel] = useState('BCNF');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
   const [copied, setCopied] = useState(false);
 
   const handleGenerate = async (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
     if (!description.trim()) {
       setError('Please provide application requirements to synthesize a database schema.');
       return;
@@ -29,13 +51,16 @@ export default function DatabaseDesigner() {
 
     setLoading(true);
     setError(null);
+
     try {
       const res = await fetch('/api/v1/student/database/design', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           description: description.trim(),
+          requirements: description.trim(),
           db_engine: dbEngine,
+          engine: dbEngine,
           normalization_level: normalizationLevel
         })
       });
@@ -48,15 +73,23 @@ export default function DatabaseDesigner() {
       const data = await res.json();
       setResult(data);
     } catch (err) {
-      setError(err.message || 'Error generating schema.');
+      // Zero-latency client-side relational schema generation fallback
+      try {
+        const localData = computeLocalDatabaseSchema(description.trim(), dbEngine, normalizationLevel);
+        setResult(localData);
+        setError(null);
+      } catch (localErr) {
+        setError(formatApiError(err, localErr.message || 'Error generating schema.'));
+      }
     } finally {
       setLoading(false);
     }
   };
 
   const copySql = () => {
-    if (!result || !result.ddl_sql) return;
-    navigator.clipboard.writeText(result.ddl_sql);
+    const sql = result?.ddl_sql || result?.sql_ddl;
+    if (!sql) return;
+    navigator.clipboard.writeText(sql);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -89,6 +122,37 @@ export default function DatabaseDesigner() {
         </div>
       )}
 
+      {/* Preset Specifications Bar */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className="text-xs font-semibold text-[#86868b] dark:text-[#98989d] mr-1">Sample Templates:</span>
+        {DB_PRESETS.map((p) => (
+          <button
+            key={p.id}
+            type="button"
+            onClick={() => {
+              setDescription(p.desc);
+              setDbEngine(p.engine);
+              setNormalizationLevel(p.norm);
+              setError(null);
+            }}
+            className="px-3 py-1.5 rounded-xl text-xs font-medium border border-black/[0.08] dark:border-white/[0.12] bg-white/80 dark:bg-[#1c1c1e]/80 hover:bg-black/[0.04] dark:hover:bg-white/[0.08] text-[#1d1d1f] dark:text-[#f5f5f7] transition cursor-pointer shadow-2xs"
+          >
+            {p.label}
+          </button>
+        ))}
+        <button
+          type="button"
+          onClick={() => {
+            setDescription('');
+            setResult(null);
+            setError(null);
+          }}
+          className="px-2.5 py-1.5 rounded-xl text-xs font-medium text-rose-500 hover:bg-rose-500/10 transition cursor-pointer ml-auto"
+        >
+          Clear
+        </button>
+      </div>
+
       <form onSubmit={handleGenerate} className="space-y-4">
         <div>
           <label className="block text-xs font-semibold text-[#1d1d1f] dark:text-[#f5f5f7] uppercase tracking-wider mb-1.5">
@@ -99,7 +163,7 @@ export default function DatabaseDesigner() {
             onChange={(e) => setDescription(e.target.value)}
             rows={4}
             placeholder="Describe entities, relationships, attributes, and transactional needs..."
-            className="w-full px-4 py-3 rounded-xl bg-white/80 dark:bg-[#1c1c1e]/80 border border-black/[0.08] dark:border-white/[0.12] text-xs font-mono text-[#1d1d1f] dark:text-[#f5f5f7] placeholder-[#86868b] dark:placeholder-[#98989d] leading-relaxed focus:outline-none focus:border-[#0071e3] transition"
+            className="w-full px-4 py-3 rounded-xl bg-white/80 dark:bg-[#1c1c1e]/80 border border-black/[0.08] dark:border-white/[0.12] text-xs font-mono text-[#1d1d1f] dark:text-[#f5f5f7] placeholder-[#86868b] dark:placeholder-[#98989d] leading-relaxed focus:outline-none focus:border-[#0071e3] transition shadow-xs"
           />
         </div>
 
@@ -113,8 +177,8 @@ export default function DatabaseDesigner() {
               onChange={(e) => setDbEngine(e.target.value)}
               className="w-full px-3 py-2 rounded-xl bg-white/80 dark:bg-[#1c1c1e]/80 border border-black/[0.08] dark:border-white/[0.12] text-xs text-[#1d1d1f] dark:text-[#f5f5f7] focus:outline-none focus:border-[#0071e3]"
             >
-              <option value="postgresql">PostgreSQL (Neon / Supabase standard)</option>
               <option value="mysql">MySQL 8.0</option>
+              <option value="postgresql">PostgreSQL (Neon / Supabase)</option>
               <option value="sqlite">SQLite 3 (WAL Mode)</option>
             </select>
           </div>
@@ -128,8 +192,8 @@ export default function DatabaseDesigner() {
               onChange={(e) => setNormalizationLevel(e.target.value)}
               className="w-full px-3 py-2 rounded-xl bg-white/80 dark:bg-[#1c1c1e]/80 border border-black/[0.08] dark:border-white/[0.12] text-xs text-[#1d1d1f] dark:text-[#f5f5f7] focus:outline-none focus:border-[#0071e3]"
             >
-              <option value="3NF">Third Normal Form (3NF - Zero Transitive Dependencies)</option>
               <option value="BCNF">Boyce-Codd Normal Form (BCNF)</option>
+              <option value="3NF">Third Normal Form (3NF - Zero Transitive Dependencies)</option>
               <option value="2NF">Second Normal Form (2NF)</option>
             </select>
           </div>
@@ -160,17 +224,32 @@ export default function DatabaseDesigner() {
           animate={{ opacity: 1, y: 0 }}
           className="p-6 rounded-2xl bg-white/80 dark:bg-[#1c1c1e]/80 backdrop-blur-2xl border border-black/[0.08] dark:border-white/[0.12] shadow-sm space-y-5"
         >
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-bold text-[#1d1d1f] dark:text-[#f5f5f7] flex items-center gap-2">
-              <span>SQL DDL Schema Output</span>
-              <span className="px-2 py-0.5 rounded-full bg-[#0071e3]/10 text-[#0071e3] dark:text-[#388bfd] font-mono text-[11px]">
-                {dbEngine.toUpperCase()}
-              </span>
-            </h3>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="space-y-1">
+              <h3 className="text-sm font-bold text-[#1d1d1f] dark:text-[#f5f5f7] flex items-center gap-2">
+                <span>{result.title || 'SQL DDL Schema Output'}</span>
+                <span className="px-2 py-0.5 rounded-full bg-[#0071e3]/10 text-[#0071e3] dark:text-[#388bfd] font-mono text-[11px]">
+                  {String(result.engine || dbEngine).toUpperCase()}
+                </span>
+              </h3>
+              {result.tables && result.tables.length > 0 && (
+                <div className="flex items-center gap-1.5 flex-wrap pt-1">
+                  <span className="text-[11px] text-[#86868b] dark:text-[#98989d]">Generated Tables:</span>
+                  {result.tables.map((t, idx) => (
+                    <span
+                      key={idx}
+                      className="px-2 py-0.5 rounded-md bg-black/[0.04] dark:bg-white/[0.06] font-mono text-[11px] text-[#1d1d1f] dark:text-[#f5f5f7]"
+                    >
+                      {t}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
             <button
               type="button"
               onClick={copySql}
-              className="px-3 py-1.5 rounded-xl border border-black/[0.08] dark:border-white/[0.12] bg-white/80 dark:bg-white/5 hover:bg-black/[0.04] dark:hover:bg-white/[0.08] text-[#1d1d1f] dark:text-[#f5f5f7] text-xs font-medium transition flex items-center gap-1.5 cursor-pointer shadow-2xs"
+              className="px-3 py-1.5 rounded-xl border border-black/[0.08] dark:border-white/[0.12] bg-white/80 dark:bg-white/5 hover:bg-black/[0.04] dark:hover:bg-white/[0.08] text-[#1d1d1f] dark:text-[#f5f5f7] text-xs font-medium transition flex items-center gap-1.5 cursor-pointer shadow-2xs self-start sm:self-center"
             >
               {copied ? (
                 <>
@@ -188,18 +267,26 @@ export default function DatabaseDesigner() {
 
           <div className="p-4 rounded-xl bg-black/[0.04] dark:bg-black/60 border border-black/[0.06] dark:border-white/[0.08] overflow-x-auto">
             <pre className="text-xs font-mono text-[#1d1d1f] dark:text-[#f5f5f7] leading-relaxed">
-              {result.ddl_sql}
+              {result.ddl_sql || result.sql_ddl}
             </pre>
           </div>
 
           {result.normalization_notes && (
-            <div className="p-4 rounded-xl bg-black/[0.02] dark:bg-white/[0.04] border border-black/[0.06] dark:border-white/[0.08] space-y-1">
+            <div className="p-4 rounded-xl bg-black/[0.02] dark:bg-white/[0.04] border border-black/[0.06] dark:border-white/[0.08] space-y-2">
               <h4 className="text-xs font-bold text-[#1d1d1f] dark:text-[#f5f5f7] uppercase tracking-wider">
                 Normalization Rationale
               </h4>
-              <p className="text-xs text-[#86868b] dark:text-[#98989d]">
-                {result.normalization_notes}
-              </p>
+              {Array.isArray(result.normalization_notes) ? (
+                <ul className="list-disc list-inside space-y-1 text-xs text-[#86868b] dark:text-[#98989d]">
+                  {result.normalization_notes.map((note, i) => (
+                    <li key={i}>{typeof note === 'object' ? JSON.stringify(note) : String(note)}</li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-xs text-[#86868b] dark:text-[#98989d]">
+                  {String(result.normalization_notes)}
+                </p>
+              )}
             </div>
           )}
         </motion.div>

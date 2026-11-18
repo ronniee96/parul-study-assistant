@@ -1089,23 +1089,190 @@ async def design_database_schema(payload: DatabaseDesignRequest):
     design_id = f"db_{uuid.uuid4().hex[:10]}"
 
     target_engine = (payload.engine or payload.db_engine or "postgresql").lower().strip()
-    title = payload.title or "Relational Academic Schema"
-    raw_req = payload.requirements or payload.description or "General Academic System"
     norm_level = payload.normalization_level or "3NF"
+    raw_req = (payload.requirements or payload.description or "General Academic System").lower().strip()
 
-    auto_inc = "SERIAL" if target_engine == "postgresql" else ("AUTO_INCREMENT" if target_engine == "mysql" else "AUTOINCREMENT")
+    is_postgres = "postgres" in target_engine
+    is_mysql = "mysql" in target_engine
+    is_sqlite = "sqlite" in target_engine
 
-    sql_ddl = f"""-- Database Schema: {title}
--- Target Engine: {target_engine.upper()}
+    pk_int = "SERIAL PRIMARY KEY" if is_postgres else ("INT AUTO_INCREMENT PRIMARY KEY" if is_mysql else "INTEGER PRIMARY KEY AUTOINCREMENT")
+    ts_type = "TIMESTAMP DEFAULT CURRENT_TIMESTAMP" if is_postgres else ("DATETIME DEFAULT CURRENT_TIMESTAMP" if is_mysql else "TEXT DEFAULT CURRENT_TIMESTAMP")
+    dec_type = lambda p=10, s=2: "REAL" if is_sqlite else (f"NUMERIC({p},{s})" if is_postgres else f"DECIMAL({p},{s})")
+    tbl_suffix = " ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;" if is_mysql else ";"
+
+    if any(k in raw_req for k in ["book", "commerce", "order", "shop", "store", "coupon", "cart"]):
+        title = payload.title if payload.title != "Academic Portal Schema" else "Academic E-Commerce Bookstore Schema"
+        tables = ["users", "categories", "textbooks", "coupons", "orders", "order_items", "course_reviews"]
+        sql_ddl = f"""-- Database Schema: {title}
+-- Target Dialect: {target_engine.upper()}
+-- Normalization Standard: {norm_level} (Boyce-Codd / Third Normal Form)
+
+-- 1. Users / Customers Entity
+CREATE TABLE users (
+    user_id {pk_int},
+    email VARCHAR(120) NOT NULL UNIQUE,
+    full_name VARCHAR(100) NOT NULL,
+    student_id VARCHAR(30) UNIQUE,
+    password_hash VARCHAR(255) NOT NULL,
+    role VARCHAR(20) DEFAULT 'student' CHECK (role IN ('student', 'faculty', 'admin')),
+    created_at {ts_type}
+){tbl_suffix}
+
+-- 2. Category Taxonomy
+CREATE TABLE categories (
+    category_id {pk_int},
+    name VARCHAR(80) NOT NULL UNIQUE,
+    slug VARCHAR(80) NOT NULL UNIQUE,
+    description TEXT
+){tbl_suffix}
+
+-- 3. Textbooks / Catalog Entity (1NF Atomic Attributes)
+CREATE TABLE textbooks (
+    textbook_id {pk_int},
+    title VARCHAR(200) NOT NULL,
+    isbn VARCHAR(20) NOT NULL UNIQUE,
+    author VARCHAR(120) NOT NULL,
+    edition INT DEFAULT 1,
+    price {dec_type(10,2)} NOT NULL CHECK (price >= 0),
+    stock_quantity INT DEFAULT 0 CHECK (stock_quantity >= 0),
+    category_id INT REFERENCES categories(category_id) ON DELETE RESTRICT,
+    created_at {ts_type}
+){tbl_suffix}
+
+-- 4. Discount Coupons Entity
+CREATE TABLE coupons (
+    coupon_id {pk_int},
+    code VARCHAR(30) NOT NULL UNIQUE,
+    discount_percent {dec_type(5,2)} NOT NULL CHECK (discount_percent > 0 AND discount_percent <= 100),
+    min_order_amount {dec_type(10,2)} DEFAULT 0.00,
+    valid_until {ts_type},
+    is_active BOOLEAN DEFAULT TRUE
+){tbl_suffix}
+
+-- 5. Orders Header Entity (2NF/3NF Order Summary)
+CREATE TABLE orders (
+    order_id {pk_int},
+    user_id INT NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+    coupon_id INT REFERENCES coupons(coupon_id) ON DELETE SET NULL,
+    order_status VARCHAR(25) DEFAULT 'pending' CHECK (order_status IN ('pending', 'paid', 'shipped', 'delivered', 'cancelled')),
+    subtotal {dec_type(10,2)} NOT NULL,
+    discount_amount {dec_type(10,2)} DEFAULT 0.00,
+    total_amount {dec_type(10,2)} NOT NULL,
+    created_at {ts_type}
+){tbl_suffix}
+
+-- 6. Order Line Items Entity (Resolves M:N Between Orders & Textbooks)
+CREATE TABLE order_items (
+    order_item_id {pk_int},
+    order_id INT NOT NULL REFERENCES orders(order_id) ON DELETE CASCADE,
+    textbook_id INT NOT NULL REFERENCES textbooks(textbook_id) ON DELETE RESTRICT,
+    quantity INT NOT NULL CHECK (quantity > 0),
+    unit_price {dec_type(10,2)} NOT NULL,
+    UNIQUE (order_id, textbook_id)
+){tbl_suffix}
+
+-- 7. Course Reviews Entity
+CREATE TABLE course_reviews (
+    review_id {pk_int},
+    textbook_id INT NOT NULL REFERENCES textbooks(textbook_id) ON DELETE CASCADE,
+    user_id INT NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+    rating INT NOT NULL CHECK (rating BETWEEN 1 AND 5),
+    review_text TEXT,
+    created_at {ts_type},
+    UNIQUE (textbook_id, user_id)
+){tbl_suffix}
+
+-- Performance Indexes
+CREATE INDEX idx_textbook_category ON textbooks(category_id);
+CREATE INDEX idx_order_user ON orders(user_id);
+CREATE INDEX idx_order_items_order ON order_items(order_id);
+CREATE INDEX idx_reviews_book ON course_reviews(textbook_id);
+"""
+        normalization_notes = [
+            "1NF Compliance: All attributes contain strictly atomic scalar values; multi-item orders decomposed into dedicated order_items relation.",
+            "2NF Compliance: All non-key attributes in order_items (quantity, unit_price) are fully functionally dependent on the complete candidate key.",
+            "3NF / BCNF Compliance: Transitive dependencies removed; discount rules isolated into coupons table, and user profiles isolated from order headers.",
+            "Referential Integrity: Foreign keys configured with ON DELETE CASCADE for dependent order items and reviews, with ON DELETE RESTRICT preventing textbook catalog orphan records."
+        ]
+    elif any(k in raw_req for k in ["hospital", "clinic", "patient", "doctor"]):
+        title = payload.title if payload.title != "Academic Portal Schema" else "Clinical Health & Patient Management Schema"
+        tables = ["departments", "doctors", "patients", "appointments", "prescriptions", "billings"]
+        sql_ddl = f"""-- Database Schema: {title}
+-- Target Dialect: {target_engine.upper()}
+-- Normalization Standard: {norm_level} (3NF / BCNF)
+
+CREATE TABLE departments (
+    department_id {pk_int},
+    name VARCHAR(100) NOT NULL UNIQUE,
+    head_doctor VARCHAR(100)
+){tbl_suffix}
+
+CREATE TABLE doctors (
+    doctor_id {pk_int},
+    full_name VARCHAR(100) NOT NULL,
+    license_number VARCHAR(50) NOT NULL UNIQUE,
+    department_id INT REFERENCES departments(department_id),
+    consultation_fee {dec_type(10,2)} NOT NULL
+){tbl_suffix}
+
+CREATE TABLE patients (
+    patient_id {pk_int},
+    full_name VARCHAR(100) NOT NULL,
+    dob DATE NOT NULL,
+    blood_group VARCHAR(5),
+    emergency_contact VARCHAR(20) NOT NULL,
+    created_at {ts_type}
+){tbl_suffix}
+
+CREATE TABLE appointments (
+    appointment_id {pk_int},
+    patient_id INT NOT NULL REFERENCES patients(patient_id) ON DELETE CASCADE,
+    doctor_id INT NOT NULL REFERENCES doctors(doctor_id) ON DELETE CASCADE,
+    appointment_time {ts_type} NOT NULL,
+    status VARCHAR(20) DEFAULT 'scheduled' CHECK (status IN ('scheduled', 'completed', 'cancelled')),
+    UNIQUE (doctor_id, appointment_time)
+){tbl_suffix}
+
+CREATE TABLE prescriptions (
+    prescription_id {pk_int},
+    appointment_id INT NOT NULL REFERENCES appointments(appointment_id) ON DELETE CASCADE,
+    medication_name VARCHAR(150) NOT NULL,
+    dosage VARCHAR(100) NOT NULL,
+    duration_days INT NOT NULL CHECK (duration_days > 0)
+){tbl_suffix}
+
+CREATE TABLE billings (
+    bill_id {pk_int},
+    appointment_id INT NOT NULL UNIQUE REFERENCES appointments(appointment_id),
+    total_amount {dec_type(10,2)} NOT NULL,
+    payment_status VARCHAR(20) DEFAULT 'unpaid' CHECK (payment_status IN ('unpaid', 'paid', 'refunded')),
+    paid_at {ts_type}
+){tbl_suffix}
+
+CREATE INDEX idx_appointment_patient ON appointments(patient_id);
+CREATE INDEX idx_appointment_doctor ON appointments(doctor_id);
+"""
+        normalization_notes = [
+            "1NF: Scalar atomic fields with unique primary identifiers for all entities.",
+            "2NF: Zero partial dependencies on composite keys.",
+            "3NF: Doctor consultation fee separated from appointment schedules; billing separated from clinical diagnoses.",
+            "Concurrency: Unique constraint on (doctor_id, appointment_time) guarantees zero double-booking at DB level."
+        ]
+    else:
+        title = payload.title or "Relational Academic Schema"
+        tables = ["departments", "faculty", "students", "courses", "classrooms", "course_schedules", "enrollments"]
+        sql_ddl = f"""-- Database Schema: {title}
+-- Target Dialect: {target_engine.upper()}
 -- Normalization Standard: {norm_level} (Boyce-Codd / Third Normal Form)
 
 CREATE TABLE departments (
-    department_id {auto_inc} PRIMARY KEY,
+    department_id {pk_int},
     name VARCHAR(100) NOT NULL UNIQUE,
     code VARCHAR(10) NOT NULL UNIQUE,
     building VARCHAR(50),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+    created_at {ts_type}
+){tbl_suffix}
 
 CREATE TABLE faculty (
     faculty_id VARCHAR(20) PRIMARY KEY,
@@ -1113,8 +1280,8 @@ CREATE TABLE faculty (
     email VARCHAR(100) NOT NULL UNIQUE,
     department_id INT REFERENCES departments(department_id) ON DELETE SET NULL,
     designation VARCHAR(50) DEFAULT 'Assistant Professor',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+    created_at {ts_type}
+){tbl_suffix}
 
 CREATE TABLE students (
     student_id VARCHAR(20) PRIMARY KEY,
@@ -1123,9 +1290,9 @@ CREATE TABLE students (
     email VARCHAR(100) NOT NULL UNIQUE,
     department_id INT REFERENCES departments(department_id) ON DELETE SET NULL,
     admission_year INT NOT NULL,
-    current_cgpa NUMERIC(4,2) DEFAULT 0.00,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+    current_cgpa {dec_type(4,2)} DEFAULT 0.00,
+    created_at {ts_type}
+){tbl_suffix}
 
 CREATE TABLE courses (
     course_code VARCHAR(15) PRIMARY KEY,
@@ -1133,32 +1300,32 @@ CREATE TABLE courses (
     credits INT NOT NULL CHECK (credits > 0),
     department_id INT REFERENCES departments(department_id),
     faculty_id VARCHAR(20) REFERENCES faculty(faculty_id) ON DELETE SET NULL
-);
+){tbl_suffix}
 
 CREATE TABLE classrooms (
     room_id VARCHAR(20) PRIMARY KEY,
     building VARCHAR(50) NOT NULL,
     capacity INT NOT NULL CHECK (capacity > 0)
-);
+){tbl_suffix}
 
 CREATE TABLE course_schedules (
-    schedule_id {auto_inc} PRIMARY KEY,
+    schedule_id {pk_int},
     course_code VARCHAR(15) NOT NULL REFERENCES courses(course_code) ON DELETE CASCADE,
     room_id VARCHAR(20) REFERENCES classrooms(room_id),
     day_of_week VARCHAR(10) NOT NULL,
     start_time TIME NOT NULL,
     end_time TIME NOT NULL,
     UNIQUE (room_id, day_of_week, start_time)
-);
+){tbl_suffix}
 
 CREATE TABLE enrollments (
-    enrollment_id {auto_inc} PRIMARY KEY,
+    enrollment_id {pk_int},
     student_id VARCHAR(20) NOT NULL REFERENCES students(student_id) ON DELETE CASCADE,
     course_code VARCHAR(15) NOT NULL REFERENCES courses(course_code),
     semester VARCHAR(10) NOT NULL,
     grade VARCHAR(2),
     UNIQUE (student_id, course_code, semester)
-);
+){tbl_suffix}
 
 -- Performance & Foreign Key Indexes
 CREATE INDEX idx_student_dept ON students(department_id);
@@ -1166,13 +1333,12 @@ CREATE INDEX idx_enrollment_student ON enrollments(student_id);
 CREATE INDEX idx_enrollment_course ON enrollments(course_code);
 CREATE INDEX idx_course_dept ON courses(department_id);
 """
-
-    normalization_notes = [
-        "1NF: Atomic scalar attributes throughout with composite key elimination.",
-        "2NF: Full functional dependency on primary keys with zero partial dependencies.",
-        "3NF: Transitive functional dependencies strictly eliminated via dedicated department and classroom entities.",
-        "Referential Integrity: Explicit foreign key CASCADE and SET NULL rules with scheduling clash uniqueness."
-    ]
+        normalization_notes = [
+            "1NF: Atomic scalar attributes throughout with composite key elimination.",
+            "2NF: Full functional dependency on primary keys with zero partial dependencies.",
+            "3NF: Transitive functional dependencies strictly eliminated via dedicated department and classroom entities.",
+            "Referential Integrity: Explicit foreign key CASCADE and SET NULL rules with scheduling clash uniqueness."
+        ]
 
     try:
         db.execute(
@@ -1180,7 +1346,7 @@ CREATE INDEX idx_course_dept ON courses(department_id);
             INSERT INTO student_database_designs (id, user_id, title, db_engine, schema_json, generated_sql, normalization_notes, created_at, updated_at)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
             """,
-            (design_id, "student_default", title, target_engine, json.dumps({"tables": ["departments", "faculty", "students", "courses", "classrooms", "course_schedules", "enrollments"]}), sql_ddl, json.dumps(normalization_notes), now_iso, now_iso)
+            (design_id, "student_default", title, target_engine, json.dumps({"tables": tables}), sql_ddl, json.dumps(normalization_notes), now_iso, now_iso)
         )
     except Exception as err:
         logger.debug(f"DB design save error: {err}")
@@ -1192,6 +1358,7 @@ CREATE INDEX idx_course_dept ON courses(department_id);
         "db_engine": target_engine,
         "sql_ddl": sql_ddl,
         "ddl_sql": sql_ddl,
+        "tables": tables,
         "normalization_notes": normalization_notes
     }
 
