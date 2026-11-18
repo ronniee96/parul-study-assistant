@@ -14,6 +14,7 @@ import TransparencyAuditTab from './components/TransparencyAuditTab';
 import AgentSquadTab from './components/AgentSquadTab';
 import SettingsTab from './components/SettingsTab';
 import OperationsConsole from './components/admin/OperationsConsole';
+import StudentToolkitShell from './components/student/StudentToolkitShell';
 import APIKeyModal from './components/APIKeyModal';
 import AkiDashboardCompanion from './components/AkiDashboardCompanion';
 import PrivacyPolicy from './components/PrivacyPolicy';
@@ -95,6 +96,13 @@ export default function App() {
       hash.includes('admin')
     ) {
       setActiveTab('admin_operations');
+    } else if (
+      path === '/student' ||
+      path.startsWith('/student') ||
+      search.includes('tab=student') ||
+      hash.includes('student')
+    ) {
+      setActiveTab('student_toolkit');
     }
   }, []);
 
@@ -321,6 +329,15 @@ export default function App() {
       case 'admin_operations':
         return (
           <OperationsConsole
+            onExit={() => {
+              setActiveTab('upload');
+              if (window.history.pushState) window.history.pushState(null, '', '/');
+            }}
+          />
+        );
+      case 'student_toolkit':
+        return (
+          <StudentToolkitShell
             onExit={() => {
               setActiveTab('upload');
               if (window.history.pushState) window.history.pushState(null, '', '/');

@@ -145,6 +145,34 @@ export default function Sidebar({ activeTab, setActiveTab, collapsed, setCollaps
             </button>
           );
         })}
+
+        {/* Student Academic Toolkit Navigation Section */}
+        <div className="pt-3 pb-1 border-t border-black/5 dark:border-white/10 mt-2">
+          {!collapsed && (
+            <div className="px-3 pb-1.5 text-[10px] font-bold uppercase tracking-wider text-neutral-400">
+              Student Academic Suite
+            </div>
+          )}
+          <button
+            onClick={() => setActiveTab('student_toolkit')}
+            className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl transition-all duration-200 relative group cursor-pointer active:scale-[0.98] ${
+              activeTab === 'student_toolkit' || activeTab.startsWith('student_')
+                ? 'bg-blue-500/10 dark:bg-blue-500/20 text-[#0071e3] dark:text-[#388bfd] font-semibold'
+                : 'text-neutral-600 dark:text-neutral-400 hover:bg-black/[0.03] dark:hover:bg-white/[0.05]'
+            }`}
+            title={collapsed ? 'Student Academic Toolkit' : ''}
+          >
+            <div className="flex items-center justify-center w-7 h-7 rounded-[8px] shrink-0 bg-blue-500/15 text-blue-500 dark:text-blue-400 font-bold text-xs">
+              🎓
+            </div>
+            {!collapsed && (
+              <div className="text-left">
+                <div className="text-xs font-semibold leading-tight">Student Academic Hub</div>
+                <div className="text-[10px] text-neutral-400 font-normal">15 Academic Tools</div>
+              </div>
+            )}
+          </button>
+        </div>
       </div>
 
       {/* Institutional Legal & Academic Footer */}

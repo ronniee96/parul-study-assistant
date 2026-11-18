@@ -17,6 +17,14 @@
       "destination": "/api/v1/admin.py"
     },
     {
+      "source": "/api/student/:path*",
+      "destination": "/api/v1/student.py"
+    },
+    {
+      "source": "/api/v1/student/:path*",
+      "destination": "/api/v1/student.py"
+    },
+    {
       "source": "/api/v1/health",
       "destination": "/api/v1/health.py"
     },

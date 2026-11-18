@@ -26,6 +26,7 @@ except ImportError:
 # Import API routers
 from app.api.v1 import router as api_v1_router
 from app.api.admin_api import admin_router, record_request_trace
+from app.api.student_api import student_router
 import time
 import uuid
 
@@ -361,6 +362,11 @@ app.include_router(api_v1_router, prefix="/v1")
 app.include_router(admin_router, prefix="/api/v1/admin")
 app.include_router(admin_router, prefix="/v1/admin")
 app.include_router(admin_router, prefix="/api/admin")
+
+# Include Student Academic Toolkit router
+app.include_router(student_router, prefix="/api/v1/student")
+app.include_router(student_router, prefix="/v1/student")
+app.include_router(student_router, prefix="/api/student")
 
 
 # Health check endpoints

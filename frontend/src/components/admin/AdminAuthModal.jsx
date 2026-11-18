@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
 /**
  * Helper to convert ArrayBuffer to Base64
@@ -24,8 +24,7 @@ function base64ToBuffer(base64) {
   return bytes;
 }
 
-export default function AdminAuthModal({ isOpen, onClose, onAuthenticated, currentPasscode = '' }) {
-  const [passcode, setPasscode] = useState(currentPasscode || '');
+export default function AdminAuthModal({ isOpen, onClose, onAuthenticated }) {
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
   const [successMsg, setSuccessMsg] = useState(null);
@@ -34,19 +33,24 @@ export default function AdminAuthModal({ isOpen, onClose, onAuthenticated, curre
   const [webAuthnSupported, setWebAuthnSupported] = useState(false);
   const [touchIdAvailable, setTouchIdAvailable] = useState(false);
   const [isPasskeyEnrolled, setIsPasskeyEnrolled] = useState(false);
-  const [activeTab, setActiveTab] = useState('touchid'); // 'touchid' | 'register' | 'passcode'
+  const [checkingEnrollment, setCheckingEnrollment] = useState(true);
+  const [showEmergencyFallback, setShowEmergencyFallback] = useState(false);
+  const [fallbackPasscode, setFallbackPasscode] = useState('');
+
+  const autoPromptRef = useRef(false);
 
   const apiBase = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_URL
     ? import.meta.env.VITE_API_URL
     : '').replace(/\/+$/, '');
 
-  // 1. Detect platform authenticator (Touch ID) and enrollment status on mount
+  // 1. Detect platform authenticator (Mac Touch ID) and persistent enrollment status
   useEffect(() => {
     if (!isOpen) return;
 
     let mounted = true;
 
     async function checkBiometrics() {
+      setCheckingEnrollment(true);
       const hasWebAuthn = typeof window !== 'undefined' && !!(window.PublicKeyCredential && navigator.credentials);
       if (mounted) setWebAuthnSupported(hasWebAuthn);
 
@@ -63,10 +67,10 @@ export default function AdminAuthModal({ isOpen, onClose, onAuthenticated, curre
         }
       }
 
-      // Check local storage for existing enrollment
+      // Check persistent browser storage
       const localEnrolled = localStorage.getItem('parul_admin_passkey_enrolled') === 'true';
 
-      // Check backend status for sync across updates
+      // Check server database persistence
       let serverEnrolled = false;
       try {
         const res = await fetch(`${apiBase}/api/v1/admin/passkey/status`);
@@ -75,19 +79,21 @@ export default function AdminAuthModal({ isOpen, onClose, onAuthenticated, curre
           serverEnrolled = !!statusData.registered;
         }
       } catch {
-        // Fallback to local storage if offline/cold start
+        // Fallback to local storage if offline
       }
 
       const enrolled = localEnrolled || serverEnrolled;
       if (mounted) {
         setIsPasskeyEnrolled(enrolled);
-        // Default to Touch ID if enrolled or if Touch ID hardware is available
-        if (enrolled) {
-          setActiveTab('touchid');
-        } else if (hasWebAuthn) {
-          setActiveTab('register');
-        } else {
-          setActiveTab('passcode');
+        setCheckingEnrollment(false);
+
+        // If enrolled and WebAuthn supported, automatically invoke Touch ID prompt once
+        if (enrolled && hasWebAuthn && !autoPromptRef.current) {
+          autoPromptRef.current = true;
+          // Short delay to allow modal render
+          setTimeout(() => {
+            handleTouchIdLogin();
+          }, 350);
         }
       }
     }
@@ -100,7 +106,7 @@ export default function AdminAuthModal({ isOpen, onClose, onAuthenticated, curre
 
   /**
    * 2. Authenticate with Mac Touch ID / WebAuthn Biometrics
-   * Zero passwords required.
+   * Zero passwords required. Fingerprint IS the password.
    */
   const handleTouchIdLogin = async () => {
     setError(null);
@@ -112,7 +118,7 @@ export default function AdminAuthModal({ isOpen, onClose, onAuthenticated, curre
         throw new Error('WebAuthn / Passkeys not supported by this browser.');
       }
 
-      // Fetch or generate random challenge
+      // Fetch server challenge
       let challengeBytes;
       try {
         const chalRes = await fetch(`${apiBase}/api/v1/admin/passkey/challenge`, { method: 'POST' });
@@ -128,7 +134,7 @@ export default function AdminAuthModal({ isOpen, onClose, onAuthenticated, curre
         window.crypto.getRandomValues(challengeBytes);
       }
 
-      // Check stored credential id if available
+      // Stored credential id
       const storedCredId = localStorage.getItem('parul_admin_passkey_cred_id');
       const allowList = [];
       if (storedCredId) {
@@ -139,7 +145,7 @@ export default function AdminAuthModal({ isOpen, onClose, onAuthenticated, curre
             transports: ['internal'],
           });
         } catch {
-          // Allow discovering resident key
+          // Allow resident key
         }
       }
 
@@ -148,7 +154,7 @@ export default function AdminAuthModal({ isOpen, onClose, onAuthenticated, curre
           challenge: challengeBytes,
           rpId: window.location.hostname || undefined,
           allowCredentials: allowList.length > 0 ? allowList : undefined,
-          userVerification: 'required', // Demands Touch ID biometric touch
+          userVerification: 'required', // Demands Mac Touch ID biometric touch
           timeout: 60000,
         },
       };
@@ -156,7 +162,7 @@ export default function AdminAuthModal({ isOpen, onClose, onAuthenticated, curre
       // Native macOS prompt pops up for Touch ID
       const credential = await navigator.credentials.get(getOptions);
       if (!credential) {
-        throw new Error('Touch ID authentication was canceled or timed out.');
+        throw new Error('Touch ID verification canceled or timed out.');
       }
 
       // Verify assertion with backend
@@ -194,7 +200,7 @@ export default function AdminAuthModal({ isOpen, onClose, onAuthenticated, curre
       }
     } catch (err) {
       if (err.name === 'NotAllowedError') {
-        setError('Touch ID prompt canceled. Touch your Mac fingerprint sensor to retry.');
+        setError('Touch ID prompt dismissed. Tap below to touch your Mac sensor.');
       } else {
         setError(err.message || 'Touch ID verification error.');
       }
@@ -206,9 +212,9 @@ export default function AdminAuthModal({ isOpen, onClose, onAuthenticated, curre
   /**
    * 3. One-Time Passkey Enrollment
    * Binds Touch ID permanently so no passwords are ever needed again.
+   * Zero passcode required for initial enrollment.
    */
-  const handleRegisterPasskey = async (e) => {
-    if (e && e.preventDefault) e.preventDefault();
+  const handleRegisterPasskey = async () => {
     setError(null);
     setSuccessMsg(null);
     setLoading(true);
@@ -240,7 +246,7 @@ export default function AdminAuthModal({ isOpen, onClose, onAuthenticated, curre
             { alg: -257, type: 'public-key' }, // RS256
           ],
           authenticatorSelection: {
-            authenticatorAttachment: 'platform', // Enforce Mac Touch ID hardware enclave
+            authenticatorAttachment: 'platform', // Enforces Mac Touch ID hardware enclave
             userVerification: 'required',
             residentKey: 'preferred',
           },
@@ -257,12 +263,11 @@ export default function AdminAuthModal({ isOpen, onClose, onAuthenticated, curre
 
       const rawIdB64 = bufferToBase64(credential.rawId);
 
-      // Register with backend
+      // Register with backend (no passcode required for initial enrollment)
       const regRes = await fetch(`${apiBase}/api/v1/admin/passkey/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          passcode: passcode.trim() || undefined,
           credential_id: credential.id,
           raw_id: rawIdB64,
           device_name: 'Mac Touch ID Enclave',
@@ -283,8 +288,7 @@ export default function AdminAuthModal({ isOpen, onClose, onAuthenticated, curre
         localStorage.setItem('parul_admin_passkey_date', new Date().toISOString());
 
         setIsPasskeyEnrolled(true);
-        setActiveTab('touchid');
-        setSuccessMsg('Touch ID Enrolled! Unlocking Console...');
+        setSuccessMsg('Touch ID Enrolled! Console Unlocked.');
 
         sessionStorage.setItem('parul_admin_token', data.token);
         sessionStorage.setItem('parul_admin_expires', data.expires_at || '');
@@ -308,45 +312,36 @@ export default function AdminAuthModal({ isOpen, onClose, onAuthenticated, curre
   };
 
   /**
-   * 4. Traditional Master Passcode Fallback
+   * 4. Emergency Offline Fallback (Hidden by default)
    */
-  const handlePasscodeSubmit = async (e) => {
+  const handleEmergencyPasscodeSubmit = async (e) => {
     e.preventDefault();
-    if (!passcode.trim()) {
-      setError('Please enter the Admin Master Passcode.');
-      return;
-    }
+    if (!fallbackPasscode.trim()) return;
 
     setLoading(true);
     setError(null);
 
     try {
-      const authUrl = `${apiBase}/api/v1/admin/auth`;
-      const res = await fetch(authUrl, {
+      const res = await fetch(`${apiBase}/api/v1/admin/auth`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ passcode: passcode.trim() }),
+        body: JSON.stringify({ passcode: fallbackPasscode.trim() }),
       });
 
       if (!res.ok) {
-        if (res.status === 403 || res.status === 401) {
-          throw new Error('Access Denied: Invalid Master Passcode.');
-        }
-        throw new Error(`Authentication failed (HTTP ${res.status}). Check server status.`);
+        throw new Error('Invalid emergency master passcode.');
       }
 
       const data = await res.json();
       if (data.authorized && data.token) {
         sessionStorage.setItem('parul_admin_token', data.token);
         sessionStorage.setItem('parul_admin_expires', data.expires_at || '');
-        sessionStorage.setItem('parul_admin_passcode', passcode.trim());
+        sessionStorage.setItem('parul_admin_passcode', fallbackPasscode.trim());
         onAuthenticated(data.token, data);
         onClose();
-      } else {
-        throw new Error('Authentication succeeded but no authorization token was issued.');
       }
     } catch (err) {
-      setError(err.message || 'Network error verifying admin credentials.');
+      setError(err.message || 'Authentication error.');
     } finally {
       setLoading(false);
     }
@@ -355,7 +350,7 @@ export default function AdminAuthModal({ isOpen, onClose, onAuthenticated, curre
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-fadeIn">
       <div className="w-full max-w-md bg-[#090d16] border border-cyan-500/30 rounded-2xl shadow-2xl shadow-cyan-950/50 p-6 text-gray-200 relative overflow-hidden">
-        {/* Subtle cyber background grid accent */}
+        {/* Cyber background glowing accents */}
         <div className="absolute -top-24 -right-24 w-48 h-48 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute -bottom-24 -left-24 w-48 h-48 bg-teal-500/10 rounded-full blur-3xl pointer-events-none" />
 
@@ -380,51 +375,6 @@ export default function AdminAuthModal({ isOpen, onClose, onAuthenticated, curre
           </button>
         </div>
 
-        {/* Mode Navigation Tabs */}
-        <div className="flex gap-1.5 p-1 bg-[#05080e] rounded-xl border border-gray-800/80 mt-4 text-xs font-medium">
-          <button
-            type="button"
-            onClick={() => { setActiveTab('touchid'); setError(null); }}
-            className={`flex-1 py-1.5 px-2.5 rounded-lg transition flex items-center justify-center gap-1.5 ${
-              activeTab === 'touchid'
-                ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 font-semibold shadow-sm'
-                : 'text-gray-400 hover:text-gray-200'
-            }`}
-          >
-            <span>👆</span>
-            <span>Touch ID</span>
-            {isPasskeyEnrolled && (
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse ml-0.5" title="Enrolled" />
-            )}
-          </button>
-
-          <button
-            type="button"
-            onClick={() => { setActiveTab('register'); setError(null); }}
-            className={`flex-1 py-1.5 px-2.5 rounded-lg transition flex items-center justify-center gap-1.5 ${
-              activeTab === 'register'
-                ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 font-semibold shadow-sm'
-                : 'text-gray-400 hover:text-gray-200'
-            }`}
-          >
-            <span>🪪</span>
-            <span>{isPasskeyEnrolled ? 'Re-enroll' : 'Setup Passkey'}</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => { setActiveTab('passcode'); setError(null); }}
-            className={`flex-1 py-1.5 px-2.5 rounded-lg transition flex items-center justify-center gap-1.5 ${
-              activeTab === 'passcode'
-                ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 font-semibold shadow-sm'
-                : 'text-gray-400 hover:text-gray-200'
-            }`}
-          >
-            <span>🔑</span>
-            <span>Passcode</span>
-          </button>
-        </div>
-
         {/* Success Alert */}
         {successMsg && (
           <div className="mt-4 p-3 bg-emerald-950/40 border border-emerald-500/40 rounded-xl text-emerald-300 text-xs flex items-center gap-2 animate-fadeIn">
@@ -441,19 +391,21 @@ export default function AdminAuthModal({ isOpen, onClose, onAuthenticated, curre
           </div>
         )}
 
-        {/* ─── TAB 1: TOUCH ID LOGIN (PRIMARY & DEFAULT) ──────────────────── */}
-        {activeTab === 'touchid' && (
-          <div className="mt-5 space-y-5 animate-fadeIn">
-            <div className="flex flex-col items-center justify-center py-4 text-center">
-              {/* Biometric glowing radar graphic */}
-              <div
+        {/* ─── PRIMARY SCREEN: TOUCH ID PASSKEY AUTHENTICATION ─────────────── */}
+        {isPasskeyEnrolled ? (
+          <div className="mt-6 space-y-6 animate-fadeIn">
+            <div className="flex flex-col items-center justify-center py-2 text-center">
+              {/* Interactive glowing fingerprint button */}
+              <button
+                type="button"
                 onClick={handleTouchIdLogin}
-                className="relative cursor-pointer group flex items-center justify-center"
+                disabled={loading}
+                className="relative cursor-pointer group flex items-center justify-center p-2 rounded-full focus:outline-none"
               >
-                <div className="w-24 h-24 rounded-full bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center transition transform group-hover:scale-105 group-active:scale-95 shadow-xl shadow-cyan-500/20">
-                  <div className="w-18 h-18 rounded-full bg-cyan-400/10 flex items-center justify-center">
+                <div className="w-28 h-28 rounded-full bg-cyan-500/10 border-2 border-cyan-400/40 flex items-center justify-center transition-all duration-300 group-hover:scale-105 group-hover:border-cyan-300 group-active:scale-95 shadow-2xl shadow-cyan-500/25">
+                  <div className="w-20 h-20 rounded-full bg-cyan-400/10 flex items-center justify-center">
                     <svg
-                      className={`w-12 h-12 ${loading ? 'text-cyan-300 animate-pulse' : 'text-cyan-400 group-hover:text-cyan-200'} transition`}
+                      className={`w-14 h-14 ${loading ? 'text-cyan-300 animate-pulse' : 'text-cyan-400 group-hover:text-cyan-200'} transition`}
                       fill="none"
                       viewBox="0 0 24 24"
                       stroke="currentColor"
@@ -467,17 +419,17 @@ export default function AdminAuthModal({ isOpen, onClose, onAuthenticated, curre
                     </svg>
                   </div>
                 </div>
-                {/* Pulsing ring */}
-                <div className="absolute inset-0 rounded-full border border-cyan-400/40 animate-ping pointer-events-none opacity-30" />
-              </div>
+                {/* Biometric pulsing ring */}
+                <div className="absolute inset-0 rounded-full border border-cyan-400/40 animate-ping pointer-events-none opacity-25" />
+              </button>
 
-              <div className="mt-3.5 space-y-1">
-                <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-[11px] font-medium">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                  <span>Mac Touch ID Passkey Ready</span>
+              <div className="mt-4 space-y-1.5">
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs font-semibold">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                  <span>Mac Touch ID Passkey Active</span>
                 </div>
                 <p className="text-xs text-gray-400">
-                  Tap below or touch the fingerprint graphic to verify.
+                  Touch your Mac sensor or click below to unlock.
                 </p>
               </div>
             </div>
@@ -502,129 +454,89 @@ export default function AdminAuthModal({ isOpen, onClose, onAuthenticated, curre
               )}
             </button>
 
-            <div className="pt-1 text-center">
+            <div className="text-center pt-1">
               <p className="text-[11px] text-gray-400 flex items-center justify-center gap-1.5">
-                <span>🔒</span> Hardware Enclave biometric cryptographic assertion. No passwords required.
+                <span>🔒</span> Permanent Touch ID Passkey. No password required.
               </p>
             </div>
           </div>
-        )}
-
-        {/* ─── TAB 2: ONE-TIME PASSKEY SETUP ──────────────────────────────── */}
-        {activeTab === 'register' && (
-          <form onSubmit={handleRegisterPasskey} className="mt-5 space-y-4 animate-fadeIn">
-            <div className="p-3.5 bg-cyan-950/20 border border-cyan-500/30 rounded-xl space-y-1.5">
-              <div className="flex items-center gap-2 text-cyan-300 font-semibold text-xs">
-                <span>🪪</span>
-                <span>One-Time Mac Passkey Setup</span>
+        ) : (
+          /* ─── ENROLLMENT SCREEN: ONE-TIME TOUCH ID SETUP ────────────────── */
+          <div className="mt-5 space-y-5 animate-fadeIn">
+            <div className="p-4 bg-cyan-950/25 border border-cyan-500/30 rounded-xl space-y-2">
+              <div className="flex items-center gap-2 text-cyan-300 font-bold text-sm">
+                <span>👆</span>
+                <span>One-Time Mac Fingerprint Registration</span>
               </div>
-              <p className="text-[11px] text-gray-300 leading-relaxed">
-                Touch your Mac keyboard sensor once to enroll your fingerprint as the master administrative passkey.
-                After this single setup, you will never need a password again.
+              <p className="text-xs text-gray-300 leading-relaxed">
+                Register your Mac Touch ID fingerprint once. After this one-time setup, it is permanently locked to your Mac and will remain the only key needed for all present and future updates.
               </p>
+              <div className="pt-1 flex items-center gap-2 text-[11px] text-emerald-400 font-medium">
+                <span>✓</span>
+                <span>Zero passwords needed. No repeated setup. One for all.</span>
+              </div>
             </div>
 
-            <div>
-              <label className="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-2">
-                Initial Master Passcode Authorization
-              </label>
-              <input
-                type="password"
-                value={passcode}
-                onChange={(e) => {
-                  setPasscode(e.target.value);
-                  setError(null);
-                }}
-                placeholder="Enter master passcode (e.g. parul-admin-secops-2026)"
-                autoFocus
-                className="w-full px-3.5 py-2.5 bg-[#05080e] border border-gray-700 rounded-xl text-white text-sm focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 font-mono transition"
-              />
-              <p className="text-[11px] text-gray-400 mt-1.5">
-                Authorize this one-time biometric binding using the master passcode.
-              </p>
-            </div>
-
-            <div className="pt-2 flex items-center justify-end gap-3">
-              <button
-                type="button"
-                onClick={onClose}
-                className="px-4 py-2 text-xs font-medium text-gray-400 hover:text-white rounded-lg hover:bg-gray-800 transition"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={loading}
-                className="px-5 py-2.5 text-xs font-semibold rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white shadow-lg shadow-emerald-600/30 transition flex items-center gap-2 disabled:opacity-50"
-              >
-                {loading ? (
-                  <>
-                    <span className="w-3.5 h-3.5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-                    <span>Touch Mac Sensor to Register...</span>
-                  </>
-                ) : (
-                  <>
-                    <span>👆</span>
-                    <span>Register Mac Touch ID</span>
-                    <span>➔</span>
-                  </>
-                )}
-              </button>
-            </div>
-          </form>
+            <button
+              type="button"
+              onClick={handleRegisterPasskey}
+              disabled={loading}
+              className="w-full py-4 px-5 text-sm font-bold rounded-xl bg-gradient-to-r from-emerald-600 via-teal-500 to-cyan-500 hover:from-emerald-500 hover:to-teal-400 text-white shadow-xl shadow-emerald-600/30 transition transform hover:scale-[1.01] active:scale-[0.99] flex items-center justify-center gap-3 disabled:opacity-50"
+            >
+              {loading ? (
+                <>
+                  <span className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                  <span>Touch Mac Sensor to Register...</span>
+                </>
+              ) : (
+                <>
+                  <span className="text-xl">👆</span>
+                  <span>Register My Mac Fingerprint (Touch ID)</span>
+                  <span>➔</span>
+                </>
+              )}
+            </button>
+          </div>
         )}
 
-        {/* ─── TAB 3: PASSCODE FALLBACK ───────────────────────────────────── */}
-        {activeTab === 'passcode' && (
-          <form onSubmit={handlePasscodeSubmit} className="mt-5 space-y-4 animate-fadeIn">
-            <div>
-              <label className="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-2">
-                Admin Master Passcode
-              </label>
-              <input
-                type="password"
-                value={passcode}
-                onChange={(e) => {
-                  setPasscode(e.target.value);
-                  setError(null);
-                }}
-                placeholder="Enter master passcode (e.g. parul-admin-secops-2026)"
-                autoFocus
-                className="w-full px-3.5 py-2.5 bg-[#05080e] border border-gray-700 rounded-xl text-white text-sm focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 font-mono transition"
-              />
-              <p className="text-[11px] text-gray-400 mt-1.5 flex items-center gap-1.5">
-                <span>🔒</span> Validated server-side using constant-time cryptographic digest.
-              </p>
-            </div>
-
-            <div className="pt-2 flex items-center justify-end gap-3">
+        {/* Emergency offline recovery toggle (minimal, hidden at bottom) */}
+        <div className="mt-5 pt-3 border-t border-gray-800/60 text-center">
+          {!showEmergencyFallback ? (
+            <button
+              type="button"
+              onClick={() => setShowEmergencyFallback(true)}
+              className="text-[10px] text-gray-400 hover:text-gray-300 transition underline underline-offset-2"
+            >
+              Emergency Offline Recovery
+            </button>
+          ) : (
+            <form onSubmit={handleEmergencyPasscodeSubmit} className="space-y-2 mt-2">
+              <div className="flex gap-2">
+                <input
+                  type="password"
+                  value={fallbackPasscode}
+                  onChange={(e) => setFallbackPasscode(e.target.value)}
+                  placeholder="Master recovery passcode"
+                  className="flex-1 px-3 py-1.5 bg-[#05080e] border border-gray-700 rounded-lg text-xs text-white focus:outline-none focus:border-cyan-400"
+                />
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-white text-xs font-semibold rounded-lg transition"
+                >
+                  Verify
+                </button>
+              </div>
               <button
                 type="button"
-                onClick={onClose}
-                className="px-4 py-2 text-xs font-medium text-gray-400 hover:text-white rounded-lg hover:bg-gray-800 transition"
+                onClick={() => setShowEmergencyFallback(false)}
+                className="text-[10px] text-gray-400 hover:text-gray-300"
               >
-                Cancel
+                Hide recovery
               </button>
-              <button
-                type="submit"
-                disabled={loading}
-                className="px-5 py-2.5 text-xs font-semibold rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white shadow-lg shadow-cyan-600/30 transition flex items-center gap-2 disabled:opacity-50"
-              >
-                {loading ? (
-                  <>
-                    <span className="w-3.5 h-3.5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-                    <span>Verifying...</span>
-                  </>
-                ) : (
-                  <>
-                    <span>Unlock Console</span>
-                    <span>➔</span>
-                  </>
-                )}
-              </button>
-            </div>
-          </form>
-        )}
+            </form>
+          )}
+        </div>
       </div>
     </div>
   );

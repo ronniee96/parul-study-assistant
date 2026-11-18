@@ -409,18 +409,18 @@ async def register_passkey(payload: PasskeyRegisterRequest, request: Request):
     now_iso = datetime.now(timezone.utc).isoformat()
     client_ip = _get_client_ip(request)
 
-    # Verify authorization passcode
+    # Enforce strict single-master-passkey policy:
+    # "ones register it will remain same no password just my passkey from my mac
+    # but this no more adding up new one every now and then - one for all"
     existing_status = await get_passkey_status()
     if existing_status.registered:
-        input_pass = (payload.passcode or "").strip()
-        if not input_pass or not hmac.compare_digest(input_pass, DEFAULT_ADMIN_PASSCODE):
-            record_audit_log("WARN", "SecOpsPasskey", f"Passkey enrollment rejected: invalid authorization passcode from {client_ip}")
-            raise HTTPException(status_code=403, detail="Passcode required to authorize new passkey enrollment.")
-    else:
-        if payload.passcode:
-            input_pass = payload.passcode.strip()
-            if not hmac.compare_digest(input_pass, DEFAULT_ADMIN_PASSCODE):
-                raise HTTPException(status_code=403, detail="Invalid admin master passcode.")
+        record_audit_log("WARN", "SecOpsPasskey", f"Passkey re-enrollment blocked: master passkey already registered permanently from {client_ip}")
+        raise HTTPException(
+            status_code=403,
+            detail="A master Mac Touch ID passkey is already permanently registered. No additional passkeys can be created."
+        )
+
+    # First-time enrollment: No passwords needed. Binds directly to the Mac Touch ID enclave.
 
     passkey_id = f"pk_{uuid.uuid4().hex[:12]}"
     cred_id = payload.credential_id.strip()
