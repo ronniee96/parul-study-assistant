@@ -32,6 +32,7 @@ frontend/.vite/
 .claude/
 .codex/
 .gemini/
+.october/
 
 # Runtime session storage, local SQLite DB & uploaded data
 sessions/

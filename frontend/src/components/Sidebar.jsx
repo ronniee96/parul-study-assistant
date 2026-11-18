@@ -162,8 +162,11 @@ export default function Sidebar({ activeTab, setActiveTab, collapsed, setCollaps
             }`}
             title={collapsed ? 'Student Academic Toolkit' : ''}
           >
-            <div className="flex items-center justify-center w-7 h-7 rounded-[8px] shrink-0 bg-blue-500/15 text-blue-500 dark:text-blue-400 font-bold text-xs">
-              🎓
+            <div className="flex items-center justify-center w-7 h-7 rounded-[8px] shrink-0 bg-blue-500/15 text-[#0071e3] dark:text-[#388bfd]">
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M22 10v6M2 10l10-5 10 5-10 5z" />
+                <path d="M6 12v5c3 3 9 3 12 0v-5" />
+              </svg>
             </div>
             {!collapsed && (
               <div className="text-left">

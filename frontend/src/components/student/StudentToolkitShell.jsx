@@ -13,22 +13,38 @@ import EngineeringToolkit from './EngineeringToolkit';
 import DocumentLibrary from './DocumentLibrary';
 import ReportsHistory from './ReportsHistory';
 import StudentSettings from './StudentSettings';
+import {
+  IconAcademicCap,
+  IconSearch,
+  IconBot,
+  IconPen,
+  IconGrammar,
+  IconBookOpen,
+  IconFileText,
+  IconDiagram,
+  IconDatabase,
+  IconSpreadsheet,
+  IconCpu,
+  IconFolder,
+  IconBarChart,
+  IconSliders
+} from './StudentIcons';
 
 const NAV_MODULES = [
-  { id: 'dashboard', label: 'Academic Hub', icon: '🏠' },
-  { id: 'plagiarism', label: 'Plagiarism Checker', icon: '🔍' },
-  { id: 'ai_text', label: 'AI Text Analysis', icon: '🤖' },
-  { id: 'paraphrase', label: 'Academic Paraphraser', icon: '✍️' },
-  { id: 'grammar', label: 'Grammar & Clarity', icon: '📝' },
-  { id: 'assignment', label: 'Thesis & Assignment', icon: '📚' },
-  { id: 'resume', label: 'ATS Resume Builder', icon: '📄' },
-  { id: 'flowchart', label: 'Diagram Studio', icon: '📐' },
-  { id: 'database', label: 'Database Designer', icon: '🗄️' },
-  { id: 'spreadsheet', label: 'Spreadsheet Hub', icon: '📈' },
-  { id: 'engineering', label: 'Engineering Toolkit', icon: '⚙️' },
-  { id: 'documents', label: 'Document Library', icon: '📁' },
-  { id: 'reports', label: 'Reports & History', icon: '📊' },
-  { id: 'settings', label: 'Preferences', icon: '🔧' }
+  { id: 'dashboard', label: 'Academic Hub', Icon: IconAcademicCap },
+  { id: 'plagiarism', label: 'Plagiarism Checker', Icon: IconSearch },
+  { id: 'ai_text', label: 'AI Text Analysis', Icon: IconBot },
+  { id: 'paraphrase', label: 'Academic Paraphraser', Icon: IconPen },
+  { id: 'grammar', label: 'Grammar & Clarity', Icon: IconGrammar },
+  { id: 'assignment', label: 'Thesis & Assignment', Icon: IconBookOpen },
+  { id: 'resume', label: 'ATS Resume Builder', Icon: IconFileText },
+  { id: 'flowchart', label: 'Diagram Studio', Icon: IconDiagram },
+  { id: 'database', label: 'Database Designer', Icon: IconDatabase },
+  { id: 'spreadsheet', label: 'Spreadsheet Hub', Icon: IconSpreadsheet },
+  { id: 'engineering', label: 'Engineering Toolkit', Icon: IconCpu },
+  { id: 'documents', label: 'Document Library', Icon: IconFolder },
+  { id: 'reports', label: 'Reports & History', Icon: IconBarChart },
+  { id: 'settings', label: 'Preferences', Icon: IconSliders }
 ];
 
 export default function StudentToolkitShell({ initialSubTab = 'dashboard', onExit }) {
@@ -70,21 +86,21 @@ export default function StudentToolkitShell({ initialSubTab = 'dashboard', onExi
   };
 
   return (
-    <div className="flex-1 flex flex-col h-full overflow-hidden bg-neutral-50 dark:bg-[#07090e] text-neutral-900 dark:text-neutral-100">
-      {/* Top Bar for Student Academic Toolkit */}
-      <div className="h-14 border-b border-neutral-200/80 dark:border-neutral-800 px-6 flex items-center justify-between shrink-0 bg-white/60 dark:bg-black/30 backdrop-blur-xl">
+    <div className="flex-1 flex flex-col h-full overflow-hidden bg-[#f5f5f7] dark:bg-[#000000] text-[#1d1d1f] dark:text-[#f5f5f7]">
+      {/* Apple Liquid Frosted Glass Top Bar */}
+      <div className="h-14 border-b border-black/[0.06] dark:border-white/[0.08] px-6 flex items-center justify-between shrink-0 bg-white/80 dark:bg-[#161617]/80 backdrop-blur-2xl">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500/20 to-cyan-500/10 border border-blue-500/30 flex items-center justify-center text-blue-500 dark:text-blue-400 font-bold text-sm">
-            🎓
+          <div className="w-8 h-8 rounded-xl bg-[#0071e3]/10 border border-[#0071e3]/20 flex items-center justify-center text-[#0071e3] dark:text-[#388bfd]">
+            <IconAcademicCap className="w-4 h-4" />
           </div>
           <div>
-            <div className="text-xs font-bold tracking-tight text-neutral-900 dark:text-white flex items-center gap-2">
+            <div className="text-xs font-semibold tracking-tight text-[#1d1d1f] dark:text-[#f5f5f7] flex items-center gap-2">
               <span>Student Academic Toolkit</span>
-              <span className="px-2 py-0.2 rounded-full bg-cyan-500/10 text-cyan-500 dark:text-cyan-400 text-[10px] font-semibold border border-cyan-500/20">
+              <span className="px-2 py-0.5 rounded-full bg-[#0071e3]/10 text-[#0071e3] dark:text-[#388bfd] text-[10px] font-medium border border-[#0071e3]/20">
                 Active Suite
               </span>
             </div>
-            <div className="text-[11px] text-neutral-500 dark:text-neutral-400">
+            <div className="text-[11px] text-[#86868b] dark:text-[#98989d]">
               Parul University Student Productivity & Research Platform
             </div>
           </div>
@@ -94,7 +110,7 @@ export default function StudentToolkitShell({ initialSubTab = 'dashboard', onExi
           <button
             type="button"
             onClick={onExit}
-            className="px-3 py-1.5 rounded-lg border border-neutral-300 dark:border-neutral-700 text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white text-xs font-medium transition"
+            className="px-3.5 py-1.5 rounded-xl border border-black/[0.08] dark:border-white/[0.12] bg-white/60 dark:bg-white/5 hover:bg-black/[0.04] dark:hover:bg-white/[0.08] text-[#1d1d1f] dark:text-[#f5f5f7] text-xs font-medium transition shadow-2xs"
           >
             ← Return to Main Study Assistant
           </button>
@@ -103,9 +119,9 @@ export default function StudentToolkitShell({ initialSubTab = 'dashboard', onExi
 
       {/* Main Toolkit Body */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Sub-navigation sidebar */}
-        <div className="w-64 border-r border-neutral-200/80 dark:border-neutral-800 p-3 space-y-1 overflow-y-auto shrink-0 bg-neutral-100/40 dark:bg-black/20">
-          <div className="px-3 py-1.5 text-[10px] font-bold text-neutral-400 uppercase tracking-wider">
+        {/* Apple macOS-Style Sidebar Navigation */}
+        <div className="w-64 border-r border-black/[0.06] dark:border-white/[0.08] p-3 space-y-1 overflow-y-auto shrink-0 bg-white/50 dark:bg-[#121214]/50 backdrop-blur-xl">
+          <div className="px-3 py-1.5 text-[10px] font-bold text-[#86868b] dark:text-[#98989d] uppercase tracking-wider">
             Academic Modules
           </div>
           {NAV_MODULES.map(item => {
@@ -115,13 +131,13 @@ export default function StudentToolkitShell({ initialSubTab = 'dashboard', onExi
                 key={item.id}
                 type="button"
                 onClick={() => setCurrentTab(item.id)}
-                className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium transition text-left ${
+                className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium transition text-left cursor-pointer ${
                   isActive
-                    ? 'bg-blue-600 text-white shadow-sm font-semibold'
-                    : 'text-neutral-600 dark:text-neutral-400 hover:bg-neutral-200/60 dark:hover:bg-neutral-800/60 hover:text-neutral-900 dark:hover:text-white'
+                    ? 'bg-[#0071e3] text-white shadow-sm font-semibold'
+                    : 'text-[#1d1d1f] dark:text-[#f5f5f7] hover:bg-black/[0.04] dark:hover:bg-white/[0.06]'
                 }`}
               >
-                <span className="text-sm">{item.icon}</span>
+                <item.Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-white' : 'text-[#86868b] dark:text-[#98989d]'}`} />
                 <span className="truncate">{item.label}</span>
               </button>
             );

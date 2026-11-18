@@ -1,11 +1,18 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { motion } from 'framer-motion';
+import React, { useState } from 'react';
+import {
+  IconDiagram,
+  IconZap,
+  IconDatabase,
+  IconCpu,
+  IconCopy,
+  IconCheck
+} from './StudentIcons';
 
 const PRESETS = [
   {
     id: 'flowchart',
     label: 'Flowchart',
-    icon: '🔀',
+    Icon: IconDiagram,
     code: `graph TD
   A["Student Opens Platform"] --> B["Upload Materials"]
   B --> C{"PDF or Image?"}
@@ -19,7 +26,7 @@ const PRESETS = [
   {
     id: 'sequence',
     label: 'Sequence Diagram',
-    icon: '⚡',
+    Icon: IconZap,
     code: `sequenceDiagram
   autonumber
   actor Student
@@ -37,7 +44,7 @@ const PRESETS = [
   {
     id: 'erd',
     label: 'Entity Relationship (ERD)',
-    icon: '🗄️',
+    Icon: IconDatabase,
     code: `erDiagram
   STUDENTS ||--o{ ACADEMIC_DOCUMENTS : uploads
   STUDENTS ||--o{ PLAGIARISM_REPORTS : generates
@@ -59,7 +66,7 @@ const PRESETS = [
   {
     id: 'class',
     label: 'Architecture Class Diagram',
-    icon: '📐',
+    Icon: IconCpu,
     code: `classDiagram
   class StudentToolkitService {
     +checkPlagiarism(text)
@@ -78,20 +85,14 @@ const PRESETS = [
 
 export default function DiagramBuilder() {
   const [code, setCode] = useState(PRESETS[0].code);
-  const [loading, setLoading] = useState(false);
-  const [title, setTitle] = useState('System Architecture Flowchart');
   const [diagramType, setDiagramType] = useState('flowchart');
-  const [svgOutput, setSvgOutput] = useState('');
   const [copied, setCopied] = useState(false);
 
-  // Quick fallback renderer if mermaid dynamic script loading fails
   const renderFallback = () => {
-    // Generate simple SVG graph placeholder
-    const lines = code.split('\n').filter(l => l.trim().length > 0);
     return (
-      <div className="p-6 bg-neutral-900 rounded-xl font-mono text-xs text-neutral-300 space-y-2 overflow-x-auto">
-        <div className="text-cyan-400 font-bold mb-2">// Mermaid Graph Code</div>
-        <pre className="text-[11px] leading-relaxed text-cyan-200">{code}</pre>
+      <div className="p-6 bg-black/[0.04] dark:bg-black/60 rounded-xl font-mono text-xs text-[#1d1d1f] dark:text-[#f5f5f7] space-y-2 overflow-x-auto w-full">
+        <div className="text-[#0071e3] dark:text-[#388bfd] font-semibold mb-2">// Mermaid Graph Code</div>
+        <pre className="text-[12px] leading-relaxed text-[#1d1d1f] dark:text-[#f5f5f7]">{code}</pre>
       </div>
     );
   };
@@ -104,13 +105,16 @@ export default function DiagramBuilder() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-neutral-200/40 dark:border-neutral-800/60">
+      {/* Apple Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-black/[0.06] dark:border-white/[0.08]">
         <div>
-          <h2 className="text-xl font-bold text-neutral-900 dark:text-white flex items-center gap-2">
-            <span>📐</span>
+          <h2 className="text-xl font-bold text-[#1d1d1f] dark:text-[#f5f5f7] tracking-tight flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-[#ff2d55]/10 text-[#ff2d55] dark:text-[#ff375f] flex items-center justify-center shrink-0">
+              <IconDiagram className="w-4 h-4" />
+            </div>
             <span>Flowchart & Mermaid Diagram Studio</span>
           </h2>
-          <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-1">
+          <p className="text-xs text-[#86868b] dark:text-[#98989d] mt-1">
             Design sequence diagrams, flowcharts, ERD schemas, and system architecture diagrams with Markdown code.
           </p>
         </div>
@@ -118,16 +122,26 @@ export default function DiagramBuilder() {
           <button
             type="button"
             onClick={handleCopyCode}
-            className="px-3.5 py-1.5 rounded-xl bg-neutral-200 dark:bg-neutral-800 hover:bg-neutral-300 dark:hover:bg-neutral-700 text-xs font-semibold transition"
+            className="px-3.5 py-1.5 rounded-xl border border-black/[0.08] dark:border-white/[0.12] bg-white/80 dark:bg-white/5 hover:bg-black/[0.04] dark:hover:bg-white/[0.08] text-[#1d1d1f] dark:text-[#f5f5f7] text-xs font-medium transition flex items-center gap-1.5 cursor-pointer shadow-2xs"
           >
-            {copied ? '✓ Copied Mermaid Code' : '📋 Copy Code'}
+            {copied ? (
+              <>
+                <IconCheck className="w-3.5 h-3.5 text-emerald-500" />
+                <span>Copied Code</span>
+              </>
+            ) : (
+              <>
+                <IconCopy className="w-3.5 h-3.5" />
+                <span>Copy Code</span>
+              </>
+            )}
           </button>
         </div>
       </div>
 
       {/* Preset selector pills */}
       <div className="flex items-center gap-2 flex-wrap">
-        <span className="text-xs font-semibold text-neutral-500 mr-2">Presets:</span>
+        <span className="text-xs font-semibold text-[#86868b] dark:text-[#98989d] mr-1">Presets:</span>
         {PRESETS.map(p => (
           <button
             key={p.id}
@@ -136,13 +150,13 @@ export default function DiagramBuilder() {
               setDiagramType(p.id);
               setCode(p.code);
             }}
-            className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition flex items-center gap-1.5 ${
+            className={`px-3 py-1.5 rounded-xl text-xs font-medium border transition-all flex items-center gap-1.5 cursor-pointer ${
               diagramType === p.id
-                ? 'bg-rose-500/15 border-rose-500/50 text-rose-300'
-                : 'bg-white/40 dark:bg-black/30 border-neutral-200/80 dark:border-neutral-800 text-neutral-700 dark:text-neutral-300 hover:border-neutral-400'
+                ? 'bg-[#0071e3] border-[#0071e3] text-white shadow-sm'
+                : 'bg-white/80 dark:bg-[#1c1c1e]/80 border-black/[0.08] dark:border-white/[0.12] text-[#1d1d1f] dark:text-[#f5f5f7] hover:border-black/20 dark:hover:border-white/25'
             }`}
           >
-            <span>{p.icon}</span>
+            <p.Icon className={`w-3.5 h-3.5 ${diagramType === p.id ? 'text-white' : 'text-[#86868b] dark:text-[#98989d]'}`} />
             <span>{p.label}</span>
           </button>
         ))}
@@ -151,25 +165,28 @@ export default function DiagramBuilder() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Mermaid Editor */}
         <div className="space-y-3">
-          <div className="flex items-center justify-between text-xs font-semibold text-neutral-700 dark:text-neutral-300">
+          <div className="flex items-center justify-between text-xs font-semibold text-[#1d1d1f] dark:text-[#f5f5f7]">
             <span>Mermaid Definition Editor</span>
-            <span className="text-neutral-400 font-mono text-[11px]">syntax: mermaid.js</span>
+            <span className="text-[#86868b] dark:text-[#98989d] font-mono text-[11px]">syntax: mermaid.js</span>
           </div>
           <textarea
             value={code}
             onChange={(e) => setCode(e.target.value)}
             rows={16}
-            className="w-full px-4 py-3 rounded-xl bg-neutral-950 border border-neutral-800 text-cyan-300 font-mono text-xs leading-relaxed focus:outline-none focus:border-rose-500 transition shadow-inner"
+            className="w-full px-4 py-3 rounded-2xl bg-white/80 dark:bg-[#1c1c1e]/80 border border-black/[0.08] dark:border-white/[0.12] text-[#1d1d1f] dark:text-[#f5f5f7] font-mono text-xs leading-relaxed focus:outline-none focus:border-[#0071e3] transition shadow-xs"
           />
         </div>
 
         {/* Live Diagram Viewer */}
         <div className="space-y-3">
-          <div className="flex items-center justify-between text-xs font-semibold text-neutral-700 dark:text-neutral-300">
+          <div className="flex items-center justify-between text-xs font-semibold text-[#1d1d1f] dark:text-[#f5f5f7]">
             <span>Diagram Preview</span>
-            <span className="text-emerald-400 text-[11px] font-medium">● Live Render</span>
+            <span className="text-emerald-500 text-[11px] font-medium flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              <span>Live Render</span>
+            </span>
           </div>
-          <div className="p-6 rounded-xl bg-neutral-900/90 border border-neutral-800 min-h-[380px] flex items-center justify-center overflow-auto">
+          <div className="p-6 rounded-2xl bg-white/80 dark:bg-[#1c1c1e]/80 border border-black/[0.08] dark:border-white/[0.12] min-h-[380px] flex items-center justify-center overflow-auto shadow-xs">
             {renderFallback()}
           </div>
         </div>
