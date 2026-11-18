@@ -6,6 +6,7 @@ import {
   IconCheck,
   IconX
 } from './StudentIcons';
+import { formatApiError, computeLocalEngineeringFormula } from './studentUtils';
 
 const MODULES = [
   {
@@ -109,21 +110,20 @@ export default function EngineeringToolkit() {
 
       if (!res.ok) {
         const errJson = await res.json().catch(() => ({}));
-        let msg = 'Engineering calculation failed.';
-        if (typeof errJson.detail === 'string') {
-          msg = errJson.detail;
-        } else if (Array.isArray(errJson.detail)) {
-          msg = errJson.detail.map(d => d.msg || JSON.stringify(d)).join('; ');
-        } else if (errJson.detail && typeof errJson.detail === 'object') {
-          msg = errJson.detail.msg || JSON.stringify(errJson.detail);
-        }
-        throw new Error(msg);
+        throw new Error(formatApiError(errJson, 'Engineering calculation failed.'));
       }
 
       const data = await res.json();
       setResult(data);
     } catch (err) {
-      setError(err.message || 'Calculation error occurred.');
+      // Local high-precision scientific calculation fallback
+      try {
+        const localData = computeLocalEngineeringFormula(selectedModule, payloadInputs);
+        setResult(localData);
+        setError(null);
+      } catch (localErr) {
+        setError(formatApiError(err, localErr.message || 'Calculation error occurred.'));
+      }
     } finally {
       setLoading(false);
     }

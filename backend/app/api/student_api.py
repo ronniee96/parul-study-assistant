@@ -1202,6 +1202,9 @@ class SpreadsheetAnalyzeRequest(BaseModel):
     filename: Optional[str] = "data_sample.csv"
     csv_content: Optional[str] = None
     csv_text: Optional[str] = None
+    csv_data: Optional[str] = None
+    data: Optional[str] = None
+    text: Optional[str] = None
 
 
 @student_router.post("/spreadsheet/analyze")
@@ -1212,7 +1215,7 @@ async def analyze_spreadsheet_data(payload: SpreadsheetAnalyzeRequest):
     now_iso = datetime.now(timezone.utc).isoformat()
     analysis_id = f"sheet_{uuid.uuid4().hex[:10]}"
 
-    raw_csv = (payload.csv_content or payload.csv_text or "").strip()
+    raw_csv = (payload.csv_content or payload.csv_text or payload.csv_data or payload.data or payload.text or "").strip()
     if not raw_csv:
         raise HTTPException(status_code=400, detail="Empty CSV content.")
 
