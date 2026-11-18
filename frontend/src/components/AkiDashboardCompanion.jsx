@@ -40,6 +40,30 @@ export default function AkiDashboardCompanion({
   setActiveTab = () => {},
   apiKeys = {}
 }) {
+  const [isVisible, setIsVisible] = useState(() => {
+    try {
+      return localStorage.getItem('parul_companion_visible') !== 'false';
+    } catch {
+      return true;
+    }
+  });
+
+  const handleHideCompanion = (e) => {
+    e?.stopPropagation();
+    setIsVisible(false);
+    try {
+      localStorage.setItem('parul_companion_visible', 'false');
+    } catch {}
+  };
+
+  const handleRestoreCompanion = (e) => {
+    e?.stopPropagation();
+    setIsVisible(true);
+    try {
+      localStorage.setItem('parul_companion_visible', 'true');
+    } catch {}
+  };
+
   const [isExpanded, setIsExpanded] = useState(false);
   const [currentQuoteIdx, setCurrentQuoteIdx] = useState(() => Math.floor(Math.random() * ANIME_CHEER_QUOTES.length));
   const [actionState, setActionState] = useState('idle'); // 'idle' | 'jumping'
@@ -281,6 +305,21 @@ export default function AkiDashboardCompanion({
     }
   };
 
+  if (!isVisible) {
+    return (
+      <div className="fixed bottom-20 right-4 z-40 select-none">
+        <button
+          onClick={handleRestoreCompanion}
+          className="px-2.5 py-1 bg-white/80 dark:bg-black/70 hover:bg-white dark:hover:bg-black border border-black/10 dark:border-white/10 rounded-full text-[11px] text-gray-500 hover:text-gray-900 dark:hover:text-white backdrop-blur-md shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
+          title="Show Academic Study Companion"
+        >
+          <span>🌸</span>
+          <span className="text-[10px] font-medium">Companion</span>
+        </button>
+      </div>
+    );
+  }
+
   return (
     /* ── OUTER: responsive width, smoothly expands when chat is open ── */
     <div className={`fixed bottom-24 right-5 sm:right-7 z-40 select-none flex flex-col items-end pointer-events-none transition-all duration-300 ${
@@ -461,6 +500,15 @@ export default function AkiDashboardCompanion({
       {/* RIGHT COLUMN — AKI FIGURE (fixed right-edge, no overlap with text)  */}
       {/* ══════════════════════════════════════════════════════════════════ */}
       <div className="pointer-events-auto flex flex-col items-center relative cursor-pointer group overflow-hidden" style={{paddingTop: '40px', marginTop: '-40px'}}>
+
+        {/* Subtle close / dismiss button */}
+        <button
+          onClick={handleHideCompanion}
+          className="absolute top-10 right-1 z-50 w-5 h-5 rounded-full bg-black/60 hover:bg-black text-white text-[10px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer shadow-md"
+          title="Dismiss Companion"
+        >
+          ✕
+        </button>
 
         {/* Floating Emote Particles — scoped inside Aki's column, no page bleed */}
         <AnimatePresence>

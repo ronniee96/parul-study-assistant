@@ -7,6 +7,7 @@ import {
   IconCheck,
   IconX
 } from './StudentIcons';
+import { formatApiError } from './studentUtils';
 
 export default function AITextAnalysis() {
   const [text, setText] = useState('');
@@ -32,7 +33,7 @@ export default function AITextAnalysis() {
 
       if (!res.ok) {
         const errJson = await res.json().catch(() => ({}));
-        throw new Error(errJson.detail || 'Analysis request failed.');
+        throw new Error(formatApiError(errJson, 'Analysis request failed.'));
       }
 
       const data = await res.json();

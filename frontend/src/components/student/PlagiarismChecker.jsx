@@ -7,6 +7,7 @@ import {
   IconAlertTriangle,
   IconX
 } from './StudentIcons';
+import { formatApiError } from './studentUtils';
 
 export default function PlagiarismChecker() {
   const [text, setText] = useState('');
@@ -36,7 +37,7 @@ export default function PlagiarismChecker() {
 
       if (!res.ok) {
         const errJson = await res.json().catch(() => ({}));
-        throw new Error(errJson.detail || 'Plagiarism analysis request failed.');
+        throw new Error(formatApiError(errJson, 'Plagiarism analysis request failed.'));
       }
 
       const data = await res.json();

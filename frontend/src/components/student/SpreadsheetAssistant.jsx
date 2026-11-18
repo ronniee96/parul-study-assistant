@@ -5,6 +5,7 @@ import {
   IconBarChart,
   IconX
 } from './StudentIcons';
+import { formatApiError } from './studentUtils';
 
 export default function SpreadsheetAssistant() {
   const [csvContent, setCsvContent] = useState(
@@ -32,7 +33,7 @@ export default function SpreadsheetAssistant() {
 
       if (!res.ok) {
         const errJson = await res.json().catch(() => ({}));
-        throw new Error(errJson.detail || 'Spreadsheet analytics processing failed.');
+        throw new Error(formatApiError(errJson, 'Spreadsheet analytics processing failed.'));
       }
 
       const data = await res.json();

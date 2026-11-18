@@ -6,6 +6,7 @@ import {
   IconCheck,
   IconX
 } from './StudentIcons';
+import { formatApiError } from './studentUtils';
 
 export default function GrammarAssistant() {
   const [text, setText] = useState('');
@@ -31,7 +32,7 @@ export default function GrammarAssistant() {
 
       if (!res.ok) {
         const errJson = await res.json().catch(() => ({}));
-        throw new Error(errJson.detail || 'Grammar check failed.');
+        throw new Error(formatApiError(errJson, 'Grammar check failed.'));
       }
 
       const data = await res.json();

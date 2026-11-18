@@ -5,6 +5,7 @@ import {
   IconSave,
   IconCheck
 } from './StudentIcons';
+import { formatApiError } from './studentUtils';
 
 export default function ResumeBuilder() {
   const [fullName, setFullName] = useState('Rohan Mitra');
@@ -17,6 +18,7 @@ export default function ResumeBuilder() {
   const [atsScore, setAtsScore] = useState(88);
   const [saving, setSaving] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
+  const [saveError, setSaveError] = useState(null);
 
   const calculateScore = () => {
     let score = 50;
@@ -29,6 +31,7 @@ export default function ResumeBuilder() {
 
   const handleSave = async () => {
     setSaving(true);
+    setSaveError(null);
     try {
       const res = await fetch('/api/v1/student/resumes/save', {
         method: 'POST',
@@ -48,9 +51,12 @@ export default function ResumeBuilder() {
       if (res.ok) {
         setSavedSuccess(true);
         setTimeout(() => setSavedSuccess(false), 3000);
+      } else {
+        const errJson = await res.json().catch(() => ({}));
+        setSaveError(formatApiError(errJson, 'Failed to save resume.'));
       }
     } catch (err) {
-      console.debug('Error saving resume:', err);
+      setSaveError(err.message || 'Error saving resume.');
     } finally {
       setSaving(false);
     }
@@ -95,6 +101,12 @@ export default function ResumeBuilder() {
         <div className="p-3 bg-[#34c759]/10 border border-[#34c759]/20 rounded-xl text-[#28cd41] dark:text-[#30d158] text-xs flex items-center gap-2">
           <IconCheck className="w-4 h-4 shrink-0" />
           <span>Resume profile successfully saved to Student Academic Repository.</span>
+        </div>
+      )}
+
+      {saveError && (
+        <div className="p-3 bg-[#ff3b30]/10 border border-[#ff3b30]/20 rounded-xl text-[#ff3b30] text-xs flex items-center gap-2">
+          <span>✕ {saveError}</span>
         </div>
       )}
 

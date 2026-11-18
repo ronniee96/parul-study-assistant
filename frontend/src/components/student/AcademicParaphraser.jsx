@@ -17,6 +17,7 @@ import {
   IconTarget,
   IconAward
 } from './StudentIcons';
+import { formatApiError } from './studentUtils';
 
 const TONES = [
   { id: 'formal_academic', label: 'Formal Academic', Icon: IconAcademicCap, desc: 'Scholarly vocabulary, rigorous syntax, objective voice' },
@@ -63,7 +64,7 @@ export default function AcademicParaphraser() {
 
       if (!res.ok) {
         const errJson = await res.json().catch(() => ({}));
-        throw new Error(errJson.detail || 'Paraphrase request failed.');
+        throw new Error(formatApiError(errJson, 'Paraphrase request failed.'));
       }
 
       const data = await res.json();

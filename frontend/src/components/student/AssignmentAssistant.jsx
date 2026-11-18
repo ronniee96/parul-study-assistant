@@ -7,6 +7,7 @@ import {
   IconCheck,
   IconX
 } from './StudentIcons';
+import { formatApiError } from './studentUtils';
 
 export default function AssignmentAssistant() {
   const [topic, setTopic] = useState('');
@@ -41,7 +42,7 @@ export default function AssignmentAssistant() {
 
       if (!res.ok) {
         const errJson = await res.json().catch(() => ({}));
-        throw new Error(errJson.detail || 'Outline generation failed.');
+        throw new Error(formatApiError(errJson, 'Outline generation failed.'));
       }
 
       const data = await res.json();

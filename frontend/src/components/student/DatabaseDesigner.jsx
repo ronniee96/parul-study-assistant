@@ -7,6 +7,7 @@ import {
   IconCheck,
   IconX
 } from './StudentIcons';
+import { formatApiError } from './studentUtils';
 
 export default function DatabaseDesigner() {
   const [description, setDescription] = useState(
@@ -41,7 +42,7 @@ export default function DatabaseDesigner() {
 
       if (!res.ok) {
         const errJson = await res.json().catch(() => ({}));
-        throw new Error(errJson.detail || 'Database schema design failed.');
+        throw new Error(formatApiError(errJson, 'Database schema design failed.'));
       }
 
       const data = await res.json();
