@@ -660,3 +660,175 @@ CREATE INDEX idx_course_dept ON courses(department_id);`;
     normalization_notes: notes
   };
 }
+
+/**
+ * Real-time Grammar, Spelling & Style Linter Engine
+ * Queries LanguageTool public API directly with zero CORS restrictions,
+ * falling back gracefully to local heuristic rules and readability metrics.
+ */
+export async function computeLocalGrammarCheck(rawText) {
+  const text = (rawText || '').trim();
+  if (!text) {
+    throw new Error('Please provide text to evaluate grammar and readability.');
+  }
+
+  let ltMatches = [];
+
+  // 1. Query LanguageTool public API directly from browser (Grammarly-grade engine)
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 3500);
+
+    const params = new URLSearchParams();
+    params.append('text', text.slice(0, 5000));
+    params.append('language', 'en-US');
+
+    const ltRes = await fetch('https://api.languagetool.org/v2/check', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: params.toString(),
+      signal: controller.signal
+    });
+    clearTimeout(timeoutId);
+
+    if (ltRes.ok) {
+      const data = await ltRes.json();
+      if (Array.isArray(data.matches)) {
+        ltMatches = data.matches.map(m => {
+          const offset = m.offset || 0;
+          const length = m.length || 1;
+          const snippet = text.slice(offset, offset + length);
+          const replaces = (m.replacements || []).slice(0, 5).map(r => r.value).filter(Boolean);
+          return {
+            type: m.shortMessage || m.rule?.issueType || 'Grammar & Spelling',
+            rule: m.rule?.description || m.rule?.id || 'Style Rule',
+            message: m.message || 'Possible grammatical or spelling mistake.',
+            context: snippet,
+            text: snippet,
+            start: offset,
+            end: offset + length,
+            suggestions: replaces,
+            suggestion: m.message || ''
+          };
+        });
+      }
+    }
+  } catch (err) {
+    // Network offline or timeout - fallback to local heuristic engine
+  }
+
+  // 2. Local heuristic academic & clarity checks
+  const localErrors = [];
+  const existingContexts = new Set(ltMatches.map(m => (m.context || '').toLowerCase()));
+
+  // Sentence capitalization check
+  if (/^[a-z]/.test(text) && !existingContexts.has(text.charAt(0).toLowerCase())) {
+    const firstWord = text.split(/\s+/)[0];
+    const capitalized = firstWord.charAt(0).toUpperCase() + firstWord.slice(1);
+    localErrors.push({
+      type: 'Capitalization',
+      rule: 'Sentence Capitalization',
+      message: 'Sentences should begin with an uppercase letter.',
+      context: firstWord,
+      text: firstWord,
+      start: 0,
+      end: firstWord.length,
+      suggestions: [capitalized],
+      suggestion: 'Capitalize initial word'
+    });
+    existingContexts.add(firstWord.toLowerCase());
+  }
+
+  // Common academic typos & homophones dictionary
+  const typoDict = [
+    { regex: /\b(hei)\b/gi, type: 'Spelling Mistake', message: "Did you mean 'hey' or 'hi'?", suggestions: ['hey', 'hi'] },
+    { regex: /\b(alot)\b/gi, type: 'Spelling Mistake', message: "Replace 'alot' with 'a lot'.", suggestions: ['a lot'] },
+    { regex: /\b(teh)\b/gi, type: 'Typo', message: "Replace 'teh' with 'the'.", suggestions: ['the'] },
+    { regex: /\b(in order to)\b/gi, type: 'Wordiness', message: "Simplify 'in order to' to 'to'.", suggestions: ['to'] },
+    { regex: /\b(due to the fact that)\b/gi, type: 'Wordiness', message: "Simplify to 'because' or 'since'.", suggestions: ['because', 'since'] },
+    { regex: /\b(at this point in time)\b/gi, type: 'Wordiness', message: "Simplify to 'now' or 'currently'.", suggestions: ['now', 'currently'] },
+    { regex: /\b(irregardless)\b/gi, type: 'Non-Standard Word', message: "Use 'regardless'.", suggestions: ['regardless'] },
+    { regex: /\b(seperate)\b/gi, type: 'Spelling Mistake', message: "Correct spelling is 'separate'.", suggestions: ['separate'] },
+    { regex: /\b(definately)\b/gi, type: 'Spelling Mistake', message: "Correct spelling is 'definitely'.", suggestions: ['definitely'] },
+    { regex: /\b(recieve)\b/gi, type: 'Spelling Mistake', message: "Correct spelling is 'receive'.", suggestions: ['receive'] }
+  ];
+
+  typoDict.forEach(({ regex, type, message, suggestions }) => {
+    let match;
+    while ((match = regex.exec(text)) !== null) {
+      const matched = match[0];
+      if (!existingContexts.has(matched.toLowerCase())) {
+        localErrors.push({
+          type,
+          rule: type,
+          message,
+          context: matched,
+          text: matched,
+          start: match.index,
+          end: match.index + matched.length,
+          suggestions,
+          suggestion: message
+        });
+        existingContexts.add(matched.toLowerCase());
+      }
+    }
+  });
+
+  const allErrors = [...ltMatches, ...localErrors];
+
+  // 3. Compute Readability Metrics (Flesch Reading Ease & Flesch-Kincaid Grade)
+  const words = text.match(/\b\w+\b/g) || ['sample'];
+  const sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 0);
+  const wordCount = Math.max(words.length, 1);
+  const sentenceCount = Math.max(sentences.length, 1);
+
+  // Syllable count heuristic
+  const countSyllables = (word) => {
+    const w = word.toLowerCase().replace(/(?:[^laeiouy]|ed|es|e)$/, '').replace(/^y/, '');
+    const syllables = w.match(/[aeiouy]{1,2}/g);
+    return syllables ? Math.max(syllables.length, 1) : 1;
+  };
+  const totalSyllables = words.reduce((acc, w) => acc + countSyllables(w), 0);
+
+  // Flesch Reading Ease
+  const asl = wordCount / sentenceCount;
+  const asw = totalSyllables / wordCount;
+  let ease = Math.round(206.835 - (1.015 * asl) - (84.6 * asw));
+  ease = Math.max(10, Math.min(100, ease));
+
+  // Flesch-Kincaid Grade Level
+  const gradeNum = 0.39 * asl + 11.8 * asw - 15.59;
+  let gradeLevel = 'High School';
+  if (gradeNum >= 16) gradeLevel = 'Graduate / Post-Doc';
+  else if (gradeNum >= 13) gradeLevel = 'College Undergraduate';
+  else if (gradeNum >= 10) gradeLevel = 'Secondary Senior (Grades 10-12)';
+  else gradeLevel = 'Middle School / General Reader';
+
+  // Passive voice ratio
+  const passiveRegex = /\b(is|are|was|were|been|being)\s+([a-z]+ed|[a-z]+en|conducted|observed|analyzed|tested)\b/gi;
+  const passiveMatches = text.match(passiveRegex) || [];
+  const passiveVoicePct = Math.min(50, Math.round((passiveMatches.length / sentenceCount) * 100));
+
+  // Generate corrected text
+  let correctedText = text;
+  allErrors.forEach(err => {
+    if (err.suggestions && err.suggestions.length > 0 && err.context) {
+      if (correctedText.includes(err.context)) {
+        correctedText = correctedText.replace(err.context, err.suggestions[0]);
+      }
+    }
+  });
+
+  return {
+    status: 'success',
+    id: `grm_${Math.random().toString(36).substring(2, 10)}`,
+    document_name: 'Academic Draft',
+    error_count: allErrors.length,
+    errors: allErrors,
+    suggestions: allErrors,
+    corrected_text: correctedText,
+    readability_score: ease,
+    grade_level: gradeLevel,
+    passive_voice_percentage: passiveVoicePct
+  };
+}

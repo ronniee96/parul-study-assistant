@@ -40,6 +40,15 @@ export default function AkiDashboardCompanion({
   setActiveTab = () => {},
   apiKeys = {}
 }) {
+  // Hide companion completely when user is in the Student Academic Suite for clean, professional Apple workspace
+  const isStudentWorkspace =
+    appState?.activeTab === 'student_toolkit' ||
+    (typeof appState?.activeTab === 'string' && appState.activeTab.startsWith('student_'));
+
+  if (isStudentWorkspace) {
+    return null;
+  }
+
   const [isVisible, setIsVisible] = useState(() => {
     try {
       return localStorage.getItem('parul_companion_visible') !== 'false';

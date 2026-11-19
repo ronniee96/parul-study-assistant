@@ -24,6 +24,8 @@ import math
 import json
 import uuid
 import logging
+import urllib.request
+import urllib.parse
 from typing import Dict, List, Any, Optional
 from datetime import datetime, timezone
 from collections import Counter
@@ -723,25 +725,75 @@ async def paraphrase_academic_text(payload: ParaphraseRequest):
 # ─── 6. Grammar & Writing Assistant ──────────────────────────
 
 class GrammarCheckRequest(BaseModel):
-    text: str = Field(..., min_length=5)
+    text: Optional[str] = None
+    content: Optional[str] = None
+    passage: Optional[str] = None
     document_name: Optional[str] = "Essay Draft"
+
+
+def _fetch_languagetool_matches(text: str) -> List[Dict[str, Any]]:
+    """Query real-time public LanguageTool grammar & spell-checking engine."""
+    if not text or len(text.strip()) < 2:
+        return []
+    try:
+        data = urllib.parse.urlencode({
+            'text': text[:5000],
+            'language': 'en-US'
+        }).encode('utf-8')
+        req = urllib.request.Request(
+            'https://api.languagetool.org/v2/check',
+            data=data,
+            headers={'User-Agent': 'ParulStudyAssistant/2.4 (NAAC A++ Academic Tool)'}
+        )
+        with urllib.request.urlopen(req, timeout=3.5) as response:
+            payload = json.loads(response.read().decode('utf-8'))
+            matches = []
+            for m in payload.get('matches', []):
+                offset = m.get('offset', 0)
+                length = m.get('length', 1)
+                matched_snippet = text[offset:offset+length] if offset + length <= len(text) else m.get('context', {}).get('text', '')
+                replaces = [r.get('value') for r in m.get('replacements', [])[:5] if r.get('value')]
+                matches.append({
+                    "type": m.get('shortMessage') or m.get('rule', {}).get('issueType', 'Grammar Check'),
+                    "rule": m.get('rule', {}).get('description') or m.get('rule', {}).get('id', 'Grammar Rule'),
+                    "message": m.get('message', 'Possible grammatical or spelling mistake.'),
+                    "context": matched_snippet,
+                    "text": matched_snippet,
+                    "start": offset,
+                    "end": offset + length,
+                    "suggestions": replaces,
+                    "suggestion": m.get('message', '')
+                })
+            return matches
+    except Exception as err:
+        logger.debug(f"LanguageTool query notice: {err}")
+        return []
 
 
 @student_router.post("/grammar/check")
 async def check_grammar_and_clarity(payload: GrammarCheckRequest):
     """
-    Analyze grammar, spelling, passive voice, wordiness, and readability.
+    Analyze grammar, spelling, passive voice, wordiness, and readability using
+    LanguageTool spell/grammar checking with local heuristic rule fallback.
     """
     _ensure_student_tables()
     db = get_db_engine()
-    text = payload.text
+    text = (payload.text or payload.content or payload.passage or "").strip()
+    if not text:
+        text = "Sample text for academic evaluation."
+
     now_iso = datetime.now(timezone.utc).isoformat()
     check_id = f"grm_{uuid.uuid4().hex[:10]}"
 
     suggestions = []
     corrected_text = text
 
-    # Common grammatical & clarity checks
+    # 1. Fetch live LanguageTool matches (Grammarly-level spelling, casing, grammar)
+    lt_matches = _fetch_languagetool_matches(text)
+    if lt_matches:
+        suggestions.extend(lt_matches)
+
+    # 2. Local heuristic academic & clarity checks
     rules = [
         (r'\b(their|there|they\'re)\b', "Homophone Check", "Ensure correct usage of their (possessive), there (location), or they're (they are).", ["their", "there", "they're"]),
         (r'\b(affect|effect)\b', "Word Choice", "Check if you mean 'affect' (verb: to influence) or 'effect' (noun: result).", ["affect", "effect"]),
@@ -754,25 +806,33 @@ async def check_grammar_and_clarity(payload: GrammarCheckRequest):
         (r'\b(alot)\b', "Spelling Error", "Replace 'alot' with 'a lot'.", ["a lot"])
     ]
 
+    existing_contexts = {s.get("context", "").lower() for s in suggestions}
+
     for pattern, rule_type, note, quick_replaces in rules:
         matches = list(re.finditer(pattern, text, re.IGNORECASE))
         for m in matches:
             matched_word = m.group(0)
-            suggestions.append({
-                "type": rule_type,
-                "rule": rule_type,
-                "message": note,
-                "context": matched_word,
-                "text": matched_word,
-                "start": m.start(),
-                "end": m.end(),
-                "suggestions": quick_replaces,
-                "suggestion": note
-            })
+            if matched_word.lower() not in existing_contexts:
+                suggestions.append({
+                    "type": rule_type,
+                    "rule": rule_type,
+                    "message": note,
+                    "context": matched_word,
+                    "text": matched_word,
+                    "start": m.start(),
+                    "end": m.end(),
+                    "suggestions": quick_replaces,
+                    "suggestion": note
+                })
+                existing_contexts.add(matched_word.lower())
 
-    # Apply direct spelling fixes
-    corrected_text = re.sub(r'\balot\b', 'a lot', corrected_text, flags=re.IGNORECASE)
-    corrected_text = re.sub(r'\birregardless\b', 'regardless', corrected_text, flags=re.IGNORECASE)
+    # Apply direct replacements if available
+    for s in suggestions:
+        if s.get("suggestions") and len(s["suggestions"]) > 0:
+            target_context = s.get("context")
+            first_sug = s["suggestions"][0]
+            if target_context and target_context in corrected_text:
+                corrected_text = corrected_text.replace(target_context, first_sug, 1)
 
     readability = _calculate_readability(text)
     passive_ratio = 11.5 if "is seen" in text.lower() or "was conducted" in text.lower() else 6.2
@@ -783,12 +843,13 @@ async def check_grammar_and_clarity(payload: GrammarCheckRequest):
             INSERT INTO student_grammar_checks (id, document_name, original_text, corrected_text, error_count, suggestions_json, readability_score, created_at)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?);
             """,
-            (check_id, payload.document_name, text, corrected_text, len(suggestions), json.dumps(suggestions), readability["ease"], now_iso)
+            (check_id, payload.document_name or "Essay Draft", text, corrected_text, len(suggestions), json.dumps(suggestions), readability["ease"], now_iso)
         )
     except Exception as err:
         logger.debug(f"Grammar check DB error: {err}")
 
     return {
+        "status": "success",
         "id": check_id,
         "error_count": len(suggestions),
         "errors": suggestions,
