@@ -19,6 +19,7 @@ import APIKeyModal from './components/APIKeyModal';
 import AkiDashboardCompanion from './components/AkiDashboardCompanion';
 import PrivacyPolicy from './components/PrivacyPolicy';
 import TermsAndConditions from './components/TermsAndConditions';
+import ClutchLogoInteractive from './components/ClutchLogoInteractive';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   createNewSession,
@@ -405,32 +406,8 @@ export default function App() {
       <div className="flex-1 flex flex-col h-full overflow-hidden relative z-10">
         <header className="h-14 flex items-center justify-between px-6 bg-white/75 dark:bg-black/75 backdrop-blur-2xl border-b border-black/5 dark:border-white/10 sticky top-0 z-40 transition-colors">
           <div className="flex items-center gap-3">
-            {/* Clutch Logo & Design Element */}
-            <div className="flex items-center gap-2.5">
-              <img
-                src="/clutch-mascot-transparent.png"
-                alt="Clutch Mascot"
-                className="h-10 w-auto object-contain shrink-0 drop-shadow-xs select-none"
-              />
-              <div className="flex flex-col justify-center">
-                <div className="flex items-baseline gap-2">
-                  <span className="text-base font-black tracking-tight text-[#1d1d1f] dark:text-[#f5f5f7] leading-none">
-                    Clutch
-                  </span>
-                  <span className="text-[10px] font-extrabold tracking-wider text-[#e05338] uppercase leading-none">
-                    STUDY? SOLVED
-                  </span>
-                  <span className="px-2 py-0.5 rounded-full bg-black/5 dark:bg-white/10 text-[9px] font-medium text-neutral-600 dark:text-neutral-400 border border-black/5 dark:border-white/10 hidden sm:inline-block leading-tight">
-                    Academic Portal
-                  </span>
-                </div>
-                <div className="flex items-center gap-1.5 mt-0.5">
-                  <span className="text-[10px] text-neutral-500 dark:text-neutral-400 font-normal">Exam Intelligence &amp; Syllabus Analysis</span>
-                  <span className="text-[10px] text-neutral-300 dark:text-neutral-600 hidden sm:inline">•</span>
-                  <span className="text-[10px] text-neutral-500 dark:text-neutral-400 font-normal hidden sm:inline">Academic Suite</span>
-                </div>
-              </div>
-            </div>
+            {/* Interactive Clutch Crocodile Chomp Logo */}
+            <ClutchLogoInteractive />
           </div>
 
           <div className="flex items-center gap-2 shrink-0 flex-nowrap">

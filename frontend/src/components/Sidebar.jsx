@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
+import { playCrunchChompSound } from './ClutchLogoInteractive';
 
 const SVG_ICONS = {
   upload: (
@@ -106,6 +107,15 @@ const TABS = [
 ];
 
 export default function Sidebar({ activeTab, setActiveTab, collapsed, setCollapsed }) {
+  const [isFooterChomping, setIsFooterChomping] = useState(false);
+
+  const handleFooterChomp = (e) => {
+    e?.stopPropagation();
+    if (isFooterChomping) return;
+    setIsFooterChomping(true);
+    playCrunchChompSound();
+    setTimeout(() => setIsFooterChomping(false), 450);
+  };
   return (
     <motion.div
       animate={{ width: collapsed ? 76 : 250 }}
@@ -181,16 +191,41 @@ export default function Sidebar({ activeTab, setActiveTab, collapsed, setCollaps
       {/* Clutch Institutional Legal & Academic Footer */}
       {!collapsed ? (
         <div className="p-3 mx-2.5 mb-2 rounded-2xl bg-white/60 dark:bg-white/5 border border-black/5 dark:border-white/10 backdrop-blur-xl text-xs">
-          <div className="flex items-center gap-2 mb-1.5">
-            <img
+          <div
+            onClick={handleFooterChomp}
+            title="Click to CHOMP! 🐊"
+            className="flex items-center gap-2 mb-1.5 cursor-pointer group select-none"
+          >
+            <motion.img
+              animate={
+                isFooterChomping
+                  ? {
+                      x: [0, 8, 12, 1, 0],
+                      rotate: [0, -10, 15, -3, 0],
+                      scale: [1, 1.25, 0.9, 1]
+                    }
+                  : { x: 0, rotate: 0, scale: 1 }
+              }
+              transition={{ duration: 0.4 }}
               src="/clutch-mascot-transparent.png"
               alt="Clutch"
               className="w-5 h-5 object-contain shrink-0"
             />
-            <div className="flex items-baseline gap-1.5">
-              <span className="font-bold text-[#1d1d1f] dark:text-[#f5f5f7] text-xs">Clutch</span>
-              <span className="text-[9px] font-extrabold text-[#e05338] tracking-wider uppercase">STUDY? SOLVED</span>
-            </div>
+            <motion.div
+              animate={
+                isFooterChomping
+                  ? { x: [0, 5, -3, 0], scale: [1, 0.9, 1.05, 1] }
+                  : { x: 0, scale: 1 }
+              }
+              className="flex items-baseline gap-1.5"
+            >
+              <span className="font-bold text-[#1d1d1f] dark:text-[#f5f5f7] text-xs group-hover:text-[#e05338] transition-colors">
+                Clutch
+              </span>
+              <span className="text-[9px] font-extrabold text-[#e05338] tracking-wider uppercase">
+                STUDY? SOLVED
+              </span>
+            </motion.div>
           </div>
           <p className="text-[10px] text-neutral-500 dark:text-neutral-400 leading-tight mb-2">
             Academic Question &amp; Blueprint Engine
@@ -214,11 +249,20 @@ export default function Sidebar({ activeTab, setActiveTab, collapsed, setCollaps
       ) : (
         <div className="flex justify-center mb-2">
           <button
-            onClick={() => setActiveTab('privacy')}
-            title="Clutch — STUDY? SOLVED"
-            className="w-8 h-8 rounded-[8px] bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/15 transition flex items-center justify-center cursor-pointer p-1"
+            onClick={handleFooterChomp}
+            title="Click crocodile to CHOMP! 🐊"
+            className="w-8 h-8 rounded-[8px] bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/15 transition flex items-center justify-center cursor-pointer p-1 active:scale-90"
           >
-            <img src="/clutch-mascot-transparent.png" alt="Clutch" className="w-full h-full object-contain" />
+            <motion.img
+              animate={
+                isFooterChomping
+                  ? { scale: [1, 1.4, 0.85, 1], rotate: [0, -15, 15, 0] }
+                  : { scale: 1, rotate: 0 }
+              }
+              src="/clutch-mascot-transparent.png"
+              alt="Clutch"
+              className="w-full h-full object-contain"
+            />
           </button>
         </div>
       )}
