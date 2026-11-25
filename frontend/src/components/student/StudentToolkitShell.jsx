@@ -88,22 +88,22 @@ export default function StudentToolkitShell({ initialSubTab = 'dashboard', onExi
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden bg-[#f5f5f7] dark:bg-[#000000] text-[#1d1d1f] dark:text-[#f5f5f7]">
       {/* Apple Liquid Frosted Glass Top Bar */}
-      <div className="h-14 border-b border-black/[0.06] dark:border-white/[0.08] px-6 flex items-center justify-between shrink-0 bg-white/80 dark:bg-[#161617]/80 backdrop-blur-2xl">
-        <div className="flex items-center gap-3">
+      <div className="h-14 border-b border-black/[0.06] dark:border-white/[0.08] px-3 sm:px-6 flex items-center justify-between shrink-0 bg-white/80 dark:bg-[#161617]/80 backdrop-blur-2xl">
+        <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
           <img
             src="/clutch-mascot-transparent.png"
             alt="Clutch"
-            className="w-8 h-8 object-contain shrink-0 select-none"
+            className="w-7 h-7 sm:w-8 sm:h-8 object-contain shrink-0 select-none"
           />
-          <div>
-            <div className="text-xs font-semibold tracking-tight text-[#1d1d1f] dark:text-[#f5f5f7] flex items-center gap-2">
+          <div className="min-w-0">
+            <div className="text-xs font-semibold tracking-tight text-[#1d1d1f] dark:text-[#f5f5f7] flex items-center gap-1.5 sm:gap-2">
               <span className="font-bold">Clutch</span>
-              <span className="text-[10px] font-extrabold text-[#e05338] tracking-wider uppercase">STUDY? SOLVED</span>
-              <span className="px-2 py-0.5 rounded-full bg-[#0071e3]/10 text-[#0071e3] dark:text-[#388bfd] text-[10px] font-medium border border-[#0071e3]/20">
+              <span className="text-[9px] sm:text-[10px] font-extrabold text-[#e05338] tracking-wider uppercase">STUDY? SOLVED</span>
+              <span className="px-1.5 py-0.5 rounded-full bg-[#0071e3]/10 text-[#0071e3] dark:text-[#388bfd] text-[9px] font-medium border border-[#0071e3]/20 hidden sm:inline-block">
                 Academic Suite
               </span>
             </div>
-            <div className="text-[11px] text-[#86868b] dark:text-[#98989d]">
+            <div className="text-[10px] sm:text-[11px] text-[#86868b] dark:text-[#98989d] truncate">
               Student Productivity, Research &amp; Engineering Platform
             </div>
           </div>
@@ -113,17 +113,40 @@ export default function StudentToolkitShell({ initialSubTab = 'dashboard', onExi
           <button
             type="button"
             onClick={onExit}
-            className="px-3.5 py-1.5 rounded-xl border border-black/[0.08] dark:border-white/[0.12] bg-white/60 dark:bg-white/5 hover:bg-black/[0.04] dark:hover:bg-white/[0.08] text-[#1d1d1f] dark:text-[#f5f5f7] text-xs font-medium transition shadow-2xs"
+            className="px-2.5 sm:px-3.5 py-1.5 rounded-xl border border-black/[0.08] dark:border-white/[0.12] bg-white/60 dark:bg-white/5 hover:bg-black/[0.04] dark:hover:bg-white/[0.08] text-[#1d1d1f] dark:text-[#f5f5f7] text-xs font-medium transition shadow-2xs shrink-0 cursor-pointer"
           >
-            ← Return to Clutch Main Workspace
+            <span className="hidden sm:inline">← Return to Clutch Main Workspace</span>
+            <span className="sm:hidden font-semibold">← Exit Hub</span>
           </button>
         )}
       </div>
 
+      {/* Mobile Horizontal Module Switcher (Only visible on small screens) */}
+      <div className="md:hidden flex items-center gap-1.5 overflow-x-auto p-2 border-b border-black/[0.06] dark:border-white/[0.08] bg-white/60 dark:bg-[#121214]/60 backdrop-blur-xl shrink-0 no-scrollbar">
+        {NAV_MODULES.map(item => {
+          const isActive = currentTab === item.id;
+          return (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => setCurrentTab(item.id)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition shrink-0 cursor-pointer ${
+                isActive
+                  ? 'bg-[#0071e3] text-white font-bold shadow-xs'
+                  : 'bg-black/[0.03] dark:bg-white/[0.05] text-[#1d1d1f] dark:text-[#f5f5f7]'
+              }`}
+            >
+              <item.Icon className={`w-3.5 h-3.5 ${isActive ? 'text-white' : 'text-[#86868b] dark:text-[#98989d]'}`} />
+              <span>{item.label}</span>
+            </button>
+          );
+        })}
+      </div>
+
       {/* Main Toolkit Body */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Apple macOS-Style Sidebar Navigation */}
-        <div className="w-64 border-r border-black/[0.06] dark:border-white/[0.08] p-3 space-y-1 overflow-y-auto shrink-0 bg-white/50 dark:bg-[#121214]/50 backdrop-blur-xl">
+        {/* Desktop macOS-Style Sidebar Navigation */}
+        <div className="hidden md:block w-64 border-r border-black/[0.06] dark:border-white/[0.08] p-3 space-y-1 overflow-y-auto shrink-0 bg-white/50 dark:bg-[#121214]/50 backdrop-blur-xl">
           <div className="px-3 py-1.5 text-[10px] font-bold text-[#86868b] dark:text-[#98989d] uppercase tracking-wider">
             Academic Modules
           </div>
@@ -148,7 +171,7 @@ export default function StudentToolkitShell({ initialSubTab = 'dashboard', onExi
         </div>
 
         {/* Content Pane */}
-        <div className="flex-1 overflow-y-auto p-6 md:p-8">
+        <div className="flex-1 overflow-y-auto p-3 sm:p-6 md:p-8 pb-20 md:pb-8">
           <div className="max-w-6xl mx-auto">
             {renderActiveView()}
           </div>

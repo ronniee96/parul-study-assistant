@@ -4,7 +4,7 @@ import { formatConfidencePercent } from '../utils/confidenceFormatter';
 export default function QuickStats({ stats = {} }) {
   const safeStats = stats || {};
   return (
-    <footer className="h-14 bg-white/75 dark:bg-black/75 backdrop-blur-2xl border-t border-black/5 dark:border-white/10 flex items-center justify-around px-6 md:px-10 pr-28 lg:pr-40 text-xs md:text-sm shrink-0 transition-colors duration-300 z-30">
+    <footer className="hidden md:flex h-14 bg-white/75 dark:bg-black/75 backdrop-blur-2xl border-t border-black/5 dark:border-white/10 items-center justify-around px-6 md:px-10 pr-28 lg:pr-40 text-xs md:text-sm shrink-0 transition-colors duration-300 z-30">
       <div className="flex items-center gap-2">
         <span className="w-2 h-2 rounded-full bg-blue-500 shadow-xs"></span>
         <span className="font-semibold text-[#1d1d1f] dark:text-[#f5f5f7]">{safeStats.pdfCount ?? 0}</span>

@@ -20,6 +20,7 @@ import AkiDashboardCompanion from './components/AkiDashboardCompanion';
 import PrivacyPolicy from './components/PrivacyPolicy';
 import TermsAndConditions from './components/TermsAndConditions';
 import ClutchLogoInteractive from './components/ClutchLogoInteractive';
+import { MobileBottomBar, MobileDrawer } from './components/MobileNavigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   createNewSession,
@@ -35,6 +36,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('upload');
   const [darkMode, setDarkMode] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [apiKeyModalOpen, setApiKeyModalOpen] = useState(false);
   const [sessionKey, setSessionKey] = useState(1);
   const [toastMessage, setToastMessage] = useState(null);
@@ -404,13 +406,27 @@ export default function App() {
       />
 
       <div className="flex-1 flex flex-col h-full overflow-hidden relative z-10">
-        <header className="h-14 flex items-center justify-between px-6 bg-white/75 dark:bg-black/75 backdrop-blur-2xl border-b border-black/5 dark:border-white/10 sticky top-0 z-40 transition-colors">
-          <div className="flex items-center gap-3">
+        <header className="h-14 flex items-center justify-between px-3 sm:px-6 bg-white/75 dark:bg-black/75 backdrop-blur-2xl border-b border-black/5 dark:border-white/10 sticky top-0 z-40 transition-colors">
+          <div className="flex items-center gap-2 sm:gap-3">
+            {/* Mobile Hamburger Drawer Button */}
+            <button
+              type="button"
+              onClick={() => setMobileMenuOpen(true)}
+              className="md:hidden h-8 w-8 rounded-full bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/15 text-neutral-700 dark:text-neutral-200 border border-black/5 dark:border-white/10 flex items-center justify-center shrink-0 cursor-pointer active:scale-95 transition-all"
+              title="Open Navigation Menu"
+            >
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="3" y1="12" x2="21" y2="12" />
+                <line x1="3" y1="6" x2="21" y2="6" />
+                <line x1="3" y1="18" x2="21" y2="18" />
+              </svg>
+            </button>
+
             {/* Interactive Clutch Crocodile Chomp Logo */}
             <ClutchLogoInteractive />
           </div>
 
-          <div className="flex items-center gap-2 shrink-0 flex-nowrap">
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 flex-nowrap">
             {backendStatus === 'offline' && (
               <span className="hidden lg:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-400 text-[10px] font-medium border border-amber-500/20" title="Backend cloud engine is unavailable or intercepted by deployment protection. Running with full in-browser parsing & question engine.">
                 <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
@@ -447,20 +463,24 @@ export default function App() {
             {hasActiveSession && (
               <button
                 onClick={() => handleResetWorkspace(true)}
-                className="h-8 px-3 rounded-full bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/20 text-xs font-medium transition-all cursor-pointer whitespace-nowrap active:scale-95"
+                className="h-8 px-2 sm:px-3 rounded-full bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/20 text-xs font-medium transition-all cursor-pointer whitespace-nowrap active:scale-95"
                 title="Purge current session data and start fresh"
               >
-                Reset Session
+                <span className="hidden sm:inline">Reset Session</span>
+                <span className="sm:hidden text-[10px] font-semibold">Reset</span>
               </button>
             )}
 
             <button
               onClick={() => setApiKeyModalOpen(true)}
-              className="h-8 px-3.5 rounded-full bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/15 text-neutral-700 dark:text-neutral-200 border border-black/5 dark:border-white/10 text-xs font-medium transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap active:scale-95"
+              className="h-8 px-2 sm:px-3.5 rounded-full bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/15 text-neutral-700 dark:text-neutral-200 border border-black/5 dark:border-white/10 text-xs font-medium transition-all flex items-center gap-1.5 sm:gap-2 cursor-pointer whitespace-nowrap active:scale-95"
               title="Configure AI API Providers"
             >
               <span className="hidden sm:inline">
                 {hasConfiguredKeys ? `AI Engines: (${primaryPriority.toUpperCase()})` : 'AI Providers'}
+              </span>
+              <span className="sm:hidden text-[10px] font-bold">
+                {hasConfiguredKeys ? primaryPriority.toUpperCase() : 'AI'}
               </span>
               <span className={`w-1.5 h-1.5 rounded-full ${hasConfiguredKeys ? 'bg-emerald-500' : 'bg-amber-500'}`}></span>
             </button>
@@ -470,7 +490,7 @@ export default function App() {
                 setActiveTab('admin_operations');
                 if (window.history.pushState) window.history.pushState(null, '', '/admin/operations');
               }}
-              className="h-8 px-3 rounded-full bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-600 dark:text-cyan-400 border border-cyan-500/20 text-xs font-medium transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap active:scale-95"
+              className="h-8 px-2 sm:px-3 rounded-full bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-600 dark:text-cyan-400 border border-cyan-500/20 text-xs font-medium transition-all flex items-center gap-1 cursor-pointer whitespace-nowrap active:scale-95"
               title="Open Deep System Operations & Admin Console"
             >
               <span>⚡</span>
@@ -492,10 +512,11 @@ export default function App() {
 
             <button
               onClick={() => setDarkMode(!darkMode)}
-              className="h-8 px-3 rounded-full bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/15 text-neutral-700 dark:text-neutral-200 border border-black/5 dark:border-white/10 transition-all cursor-pointer text-xs font-medium shrink-0 whitespace-nowrap active:scale-95"
+              className="h-8 px-2 sm:px-3 rounded-full bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/15 text-neutral-700 dark:text-neutral-200 border border-black/5 dark:border-white/10 transition-all cursor-pointer text-xs font-medium shrink-0 whitespace-nowrap active:scale-95"
               title="Toggle Light / Dark mode"
             >
-              {darkMode ? 'Light' : 'Dark'}
+              <span className="hidden sm:inline">{darkMode ? 'Light' : 'Dark'}</span>
+              <span className="sm:hidden">{darkMode ? '☀️' : '🌙'}</span>
             </button>
           </div>
         </header>
@@ -514,7 +535,7 @@ export default function App() {
           )}
         </AnimatePresence>
 
-        <main className="flex-1 overflow-y-auto p-4 md:p-8">
+        <main className="flex-1 overflow-y-auto p-3 sm:p-4 md:p-8 pb-20 md:pb-8">
           <motion.div
             key={`${activeTab}-${sessionKey}`}
             initial={{ opacity: 0, y: 10 }}
@@ -528,6 +549,21 @@ export default function App() {
 
         <QuickStats stats={appState.stats} />
       </div>
+
+      {/* Mobile Floating Bottom Bar & Sliding Drawer Navigation */}
+      <MobileBottomBar
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        onOpenMenu={() => setMobileMenuOpen(true)}
+      />
+
+      <MobileDrawer
+        isOpen={mobileMenuOpen}
+        onClose={() => setMobileMenuOpen(false)}
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        stats={appState.stats}
+      />
 
       {/* Aki Anime Study Companion & Antigravity Assistant (Transparent Screen Dashboard) */}
       <AkiDashboardCompanion
