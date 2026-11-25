@@ -425,7 +425,7 @@ export default function SettingsTab({
           await navigator.credentials.create({
             publicKey: {
               challenge,
-              rp: { name: "Parul Study Assistant - Admin Lock", id: window.location.hostname },
+              rp: { name: "Clutch - Admin Lock", id: window.location.hostname },
               user: {
                 id: userIdBytes,
                 name: username || 'rohan_mitra',
@@ -829,7 +829,7 @@ export default function SettingsTab({
             <div className="flex flex-wrap items-center gap-2 mb-1">
               <span className="text-2xl">⚙️</span>
               <h1 className="text-2xl font-bold bg-gradient-to-r from-slate-700 to-primary-700 dark:from-slate-200 dark:to-primary-300 bg-clip-text text-transparent">
-                Study Assistant Settings & Help Desk
+                Clutch Settings &amp; Preferences
               </h1>
               {savedBadge && (
                 <span className="px-2.5 py-0.5 text-xs font-bold rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 animate-bounce">
@@ -1473,7 +1473,7 @@ export default function SettingsTab({
                       Aki (秋) — Antigravity Study Companion
                     </h3>
                     <span className="text-[10px] text-gray-500 dark:text-gray-400 font-medium">
-                      Parul University Study Assistant Framework
+                      Clutch Academic Framework
                     </span>
                   </div>
                 </div>

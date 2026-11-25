@@ -1,5 +1,5 @@
 /**
- * Screen Capture & Auto-Cropping utilities for Parul Study Assistant
+ * Screen Capture & Auto-Cropping utilities for Clutch
  * Supports continuous frame capture, auto-crop of letterboxing/margins,
  * 1-second auto-capture, duplicate suppression, and full PDF page-by-page slide rendering.
  */

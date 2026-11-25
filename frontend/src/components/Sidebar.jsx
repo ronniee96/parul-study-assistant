@@ -178,15 +178,22 @@ export default function Sidebar({ activeTab, setActiveTab, collapsed, setCollaps
         </div>
       </div>
 
-      {/* Institutional Legal & Academic Footer */}
+      {/* Clutch Institutional Legal & Academic Footer */}
       {!collapsed ? (
         <div className="p-3 mx-2.5 mb-2 rounded-2xl bg-white/60 dark:bg-white/5 border border-black/5 dark:border-white/10 backdrop-blur-xl text-xs">
-          <div className="flex items-center gap-2 mb-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-            <span className="font-semibold text-[#1d1d1f] dark:text-[#f5f5f7] text-[11px]">Parul University</span>
+          <div className="flex items-center gap-2 mb-1.5">
+            <img
+              src="/clutch-mascot-transparent.png"
+              alt="Clutch"
+              className="w-5 h-5 object-contain shrink-0"
+            />
+            <div className="flex items-baseline gap-1.5">
+              <span className="font-bold text-[#1d1d1f] dark:text-[#f5f5f7] text-xs">Clutch</span>
+              <span className="text-[9px] font-extrabold text-[#e05338] tracking-wider uppercase">STUDY? SOLVED</span>
+            </div>
           </div>
           <p className="text-[10px] text-neutral-500 dark:text-neutral-400 leading-tight mb-2">
-            Academic Question & Blueprint Engine
+            Academic Question &amp; Blueprint Engine
           </p>
           <div className="flex items-center justify-between text-[10px] pt-1.5 border-t border-black/5 dark:border-white/10">
             <button
@@ -208,10 +215,10 @@ export default function Sidebar({ activeTab, setActiveTab, collapsed, setCollaps
         <div className="flex justify-center mb-2">
           <button
             onClick={() => setActiveTab('privacy')}
-            title="Privacy Policy & Terms"
-            className="w-7 h-7 rounded-[8px] bg-black/5 dark:bg-white/10 flex items-center justify-center text-[10px] font-semibold text-neutral-500 cursor-pointer"
+            title="Clutch — STUDY? SOLVED"
+            className="w-8 h-8 rounded-[8px] bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/15 transition flex items-center justify-center cursor-pointer p-1"
           >
-            PU
+            <img src="/clutch-mascot-transparent.png" alt="Clutch" className="w-full h-full object-contain" />
           </button>
         </div>
       )}

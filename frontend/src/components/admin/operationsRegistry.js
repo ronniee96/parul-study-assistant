@@ -1,5 +1,5 @@
 /**
- * Parul Study Assistant — System Architecture & Component Registry
+ * Clutch — System Architecture & Component Registry
  * Single Source of Truth for the 32 real modules across 7 functional groups.
  */
 

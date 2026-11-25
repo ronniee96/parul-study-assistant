@@ -233,13 +233,13 @@ export default function AdminAuthModal({ isOpen, onClose, onAuthenticated }) {
         publicKey: {
           challenge: challengeBytes,
           rp: {
-            name: 'Parul Study Assistant SecOps',
+            name: 'Clutch SecOps Console',
             id: window.location.hostname || undefined,
           },
           user: {
             id: userHandle,
-            name: 'admin@parul.internal',
-            displayName: 'SecOps Master Administrator',
+            name: 'admin@clutch.internal',
+            displayName: 'Clutch Master Administrator',
           },
           pubKeyCredParams: [
             { alg: -7, type: 'public-key' },  // ES256
@@ -357,14 +357,16 @@ export default function AdminAuthModal({ isOpen, onClose, onAuthenticated }) {
         {/* Modal Header */}
         <div className="flex items-center justify-between pb-4 border-b border-gray-800/80">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500/20 to-teal-500/10 border border-cyan-500/40 flex items-center justify-center text-cyan-400 font-bold shadow-lg shadow-cyan-500/10">
-              ⚡
-            </div>
+            <img
+              src="/clutch-mascot-transparent.png"
+              alt="Clutch"
+              className="w-10 h-10 object-contain shrink-0"
+            />
             <div>
               <h2 className="text-base font-bold text-white tracking-wide flex items-center gap-2">
                 SecOps Biometric Verification
               </h2>
-              <p className="text-xs text-gray-400">Parul Study Assistant Operations Console</p>
+              <p className="text-xs text-gray-400">Clutch Operations Console</p>
             </div>
           </div>
           <button

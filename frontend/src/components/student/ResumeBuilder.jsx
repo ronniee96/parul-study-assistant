@@ -19,7 +19,7 @@ const RESUME_PRESETS = [
 Parul Institute of Technology, Parul University (2022 - 2026)
 CGPA: 9.12 / 10.0 • Department Rank: Top 3%`,
     skills: 'Python, React.js, FastAPI, PostgreSQL, PyTorch, Docker, Kubernetes, Git, Tailwind CSS',
-    projects: `1. Parul Study Assistant (2024)
+    projects: `1. Clutch Academic Platform (2024)
 - Engineered distributed academic question generator with multi-provider AI fallback and real-time state synchronization.
 - Designed 3NF normalized schema design and deterministic n-gram plagiarism verification engine.
 - Implemented WebSocket telemetry monitoring achieving 99.8% uptime across edge infrastructure.

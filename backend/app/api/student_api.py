@@ -1,5 +1,5 @@
 """
-Student Academic Toolkit API Router for Parul Study Assistant.
+Student Academic Toolkit API Router for Clutch.
 
 Capabilities:
 1. Student Dashboard Metrics & Activity
@@ -743,7 +743,7 @@ def _fetch_languagetool_matches(text: str) -> List[Dict[str, Any]]:
         req = urllib.request.Request(
             'https://api.languagetool.org/v2/check',
             data=data,
-            headers={'User-Agent': 'ParulStudyAssistant/2.4 (NAAC A++ Academic Tool)'}
+            headers={'User-Agent': 'Clutch/2.4 (STUDY? SOLVED Academic Platform)'}
         )
         with urllib.request.urlopen(req, timeout=3.5) as response:
             payload = json.loads(response.read().decode('utf-8'))

@@ -546,7 +546,7 @@ export const ANIME_CHEER_QUOTES = [
     romaji: "KIMI WA HITORI DEWA NAI!",
     english: "You are never alone on this academic journey!",
     kanji: "君は一人ではない！",
-    author: "Aki & Rohan Mitra — Parul Study Assistant",
+    author: "Aki & Rohan Mitra — Clutch",
     badge: "🌸 Study Companion",
     color: "from-pink-500 via-purple-600 to-indigo-600",
     sfx: "💖 Ganbatte Kudasai! (We Believe in You!)",

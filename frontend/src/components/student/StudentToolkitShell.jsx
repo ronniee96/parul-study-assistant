@@ -90,18 +90,21 @@ export default function StudentToolkitShell({ initialSubTab = 'dashboard', onExi
       {/* Apple Liquid Frosted Glass Top Bar */}
       <div className="h-14 border-b border-black/[0.06] dark:border-white/[0.08] px-6 flex items-center justify-between shrink-0 bg-white/80 dark:bg-[#161617]/80 backdrop-blur-2xl">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-xl bg-[#0071e3]/10 border border-[#0071e3]/20 flex items-center justify-center text-[#0071e3] dark:text-[#388bfd]">
-            <IconAcademicCap className="w-4 h-4" />
-          </div>
+          <img
+            src="/clutch-mascot-transparent.png"
+            alt="Clutch"
+            className="w-8 h-8 object-contain shrink-0 select-none"
+          />
           <div>
             <div className="text-xs font-semibold tracking-tight text-[#1d1d1f] dark:text-[#f5f5f7] flex items-center gap-2">
-              <span>Student Academic Toolkit</span>
+              <span className="font-bold">Clutch</span>
+              <span className="text-[10px] font-extrabold text-[#e05338] tracking-wider uppercase">STUDY? SOLVED</span>
               <span className="px-2 py-0.5 rounded-full bg-[#0071e3]/10 text-[#0071e3] dark:text-[#388bfd] text-[10px] font-medium border border-[#0071e3]/20">
-                Active Suite
+                Academic Suite
               </span>
             </div>
             <div className="text-[11px] text-[#86868b] dark:text-[#98989d]">
-              Parul University Student Productivity & Research Platform
+              Student Productivity, Research &amp; Engineering Platform
             </div>
           </div>
         </div>
@@ -112,7 +115,7 @@ export default function StudentToolkitShell({ initialSubTab = 'dashboard', onExi
             onClick={onExit}
             className="px-3.5 py-1.5 rounded-xl border border-black/[0.08] dark:border-white/[0.12] bg-white/60 dark:bg-white/5 hover:bg-black/[0.04] dark:hover:bg-white/[0.08] text-[#1d1d1f] dark:text-[#f5f5f7] text-xs font-medium transition shadow-2xs"
           >
-            ← Return to Main Study Assistant
+            ← Return to Clutch Main Workspace
           </button>
         )}
       </div>

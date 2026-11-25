@@ -57,12 +57,17 @@ export default class ErrorBoundary extends React.Component {
           <div className="max-w-xl w-full bg-slate-800/90 border border-slate-700/80 rounded-2xl p-6 md:p-8 shadow-2xl backdrop-blur-md">
             {/* Header / Brand */}
             <div className="flex items-center gap-3 mb-6 border-b border-slate-700/60 pb-4">
-              <div className="w-10 h-10 rounded-xl bg-primary-600 flex items-center justify-center font-bold text-sm text-white shadow-md">
-                PU
-              </div>
+              <img
+                src="/clutch-mascot-transparent.png"
+                alt="Clutch"
+                className="w-12 h-12 object-contain"
+              />
               <div>
-                <h1 className="text-lg font-bold text-white tracking-tight">Parul Study Assistant</h1>
-                <p className="text-xs text-slate-400">Academic Exam Intelligence & Syllabus Analysis</p>
+                <div className="flex items-baseline gap-2">
+                  <h1 className="text-xl font-black text-white tracking-tight">Clutch</h1>
+                  <span className="text-xs font-extrabold text-[#e05338] tracking-wider uppercase">STUDY? SOLVED</span>
+                </div>
+                <p className="text-xs text-slate-400">Academic Exam Intelligence &amp; Syllabus Analysis</p>
               </div>
             </div>
 

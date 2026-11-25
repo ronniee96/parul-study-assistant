@@ -149,7 +149,7 @@ export default function TransparencyAuditTab({
               <span className="text-gray-400">|</span>
               <span className="text-emerald-700 dark:text-emerald-300 font-medium">Lead AI Agents Architect & Full-Stack Engineer</span>
               <span className="text-gray-400">•</span>
-              <span className="text-[11px] text-gray-600 dark:text-gray-400">Parul University Study Assistant Framework</span>
+              <span className="text-[11px] text-gray-600 dark:text-gray-400">Clutch Academic Framework</span>
             </div>
           </div>
 

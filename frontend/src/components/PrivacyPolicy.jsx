@@ -5,8 +5,11 @@ export default function PrivacyPolicy({ onBack }) {
     <div className="max-w-4xl mx-auto p-4 md:p-8 bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-sm text-gray-800 dark:text-gray-200">
       <div className="flex items-center justify-between pb-4 border-b border-gray-200 dark:border-gray-800 mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Privacy Policy</h1>
-          <p className="text-xs text-gray-500 mt-1">Effective Date: October 2026 | Parul Study Assistant</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+            <img src="/clutch-mascot-transparent.png" alt="Clutch" className="w-8 h-8 object-contain" />
+            <span>Clutch Privacy Policy</span>
+          </h1>
+          <p className="text-xs text-gray-500 mt-1">Effective Date: November 2026 | Clutch — STUDY? SOLVED</p>
         </div>
         {onBack && (
           <button
@@ -22,7 +25,7 @@ export default function PrivacyPolicy({ onBack }) {
         <section>
           <h2 className="text-base font-bold text-gray-900 dark:text-white mb-2">1. Educational Data Processing & Architecture</h2>
           <p>
-            Parul Study Assistant is an academic companion designed for exam preparation, active recall, and syllabus analysis.
+            Clutch is an academic intelligence platform designed for exam preparation, active recall, syllabus analysis, and student productivity.
             We prioritize student privacy and data sovereignty by designing all primary text extraction and question generation to execute locally within the student's browser session.
           </p>
         </section>

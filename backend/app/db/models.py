@@ -1,5 +1,5 @@
 """
-Relational Database Models for Parul Study Assistant.
+Relational Database Models for Clutch.
 
 Defines the canonical relational schema models (`SchemaMigration`, `StudySession`,
 `SessionDocument`, `ProcessingJob`, `SessionQuestion`) matching

@@ -123,12 +123,19 @@ export default function OperationsConsole({ onExit }) {
       <header className="h-14 bg-[#090d16] border-b border-gray-800/80 px-4 flex items-center justify-between shrink-0 z-30">
         {/* Left: Product Brand & Operations Console Pill */}
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white font-bold text-sm shadow-md">
-            🎓
+          <img
+            src="/clutch-mascot-transparent.png"
+            alt="Clutch"
+            className="w-8 h-8 object-contain shrink-0"
+          />
+          <div className="flex items-baseline gap-1.5">
+            <span className="text-sm font-black tracking-tight text-white">
+              Clutch
+            </span>
+            <span className="text-[9px] font-extrabold text-[#e05338] tracking-wider uppercase">
+              STUDY? SOLVED
+            </span>
           </div>
-          <span className="text-sm font-bold tracking-tight text-white">
-            Parul Study Assistant
-          </span>
           <span className="px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-purple-950/60 border border-purple-500/40 text-purple-300">
             Operations Console
           </span>

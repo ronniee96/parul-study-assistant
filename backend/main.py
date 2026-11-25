@@ -32,8 +32,8 @@ import uuid
 
 # Initialize FastAPI app
 app = FastAPI(
-    title="Parul University AI Study Assistant API",
-    description="Multi-Agent AI Study Assistant with Academic Research Engine & Transparency Audit",
+    title="Clutch Academic Intelligence Platform API",
+    description="Clutch — STUDY? SOLVED. Multi-Agent AI Academic Platform with Exam Blueprint Prediction & Research Engine",
     version="2.0.0",
     docs_url="/docs",
     redoc_url="/redoc"

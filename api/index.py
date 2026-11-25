@@ -30,7 +30,7 @@ except Exception:
         from backend.main import app
     except Exception as err:
         from fastapi import FastAPI
-        app = FastAPI(title="Study Assistant Root Fallback")
+        app = FastAPI(title="Clutch Root Fallback")
         @app.get("/")
         @app.get("/api")
         @app.get("/api/health")
@@ -38,8 +38,8 @@ except Exception:
         async def root_fallback():
             return {
                 "status": "healthy",
-                "service": "study-assistant-backend",
-                "version": "2.1.0",
+                "service": "clutch-backend",
+                "version": "2.4.0",
                 "fallback": True
             }
 

@@ -1,7 +1,7 @@
 {
-  "name": "parul-study-assistant",
+  "name": "clutch-academic-platform",
   "version": "2.4.0",
-  "description": "AI-Powered Parul University Exam Predictor, Question Generator & Smart Study Assistant",
+  "description": "Clutch — STUDY? SOLVED. AI-Powered Exam Blueprint Predictor, Question Generator & Academic Platform",
   "author": "Rohan Mitra (AI Agents Architect & Lead Full-Stack Coder)",
   "license": "MIT",
   "scripts": {

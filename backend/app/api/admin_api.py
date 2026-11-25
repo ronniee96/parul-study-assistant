@@ -1,5 +1,5 @@
 """
-Administrative Operations API Router for Parul Study Assistant.
+Administrative Operations API Router for Clutch.
 
 SECURITY BOUNDARY:
 - Strictly protected by constant-time master passcode or admin token validation.

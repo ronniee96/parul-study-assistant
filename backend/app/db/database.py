@@ -1,5 +1,5 @@
 """
-Relational Database Engine for Parul Study Assistant.
+Relational Database Engine for Clutch.
 
 Production Target:
 - Neon PostgreSQL with serverless-compatible connection pooling (`-pooler` endpoint + `sslmode=require`),

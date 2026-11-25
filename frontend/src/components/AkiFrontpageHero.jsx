@@ -26,7 +26,7 @@ const FUNNY_AWAKE_GREETINGS = [
   },
   {
     greeting: "Ikimasho~! (Let's goooo!) 🏃‍♀️💨",
-    voice: "Aki's Antigravity AI brain is synchronized with Parul University syllabi! Tell me what task you want me to do! 💖🔥",
+    voice: "Aki's Antigravity AI brain is synchronized with Clutch syllabi! Tell me what task you want me to do! 💖🔥",
     badge: "🔥 Ready to Ace"
   },
   {
